@@ -14,57 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
-      climate_inequality_data: {
+      climate_inequality_regions: {
         Row: {
+          air_quality_no2: number | null
           air_quality_pm25: number | null
+          centroid: unknown
           cii_score: number
           climate_risk_score: number | null
-          country: string | null
+          country: string
           created_at: string | null
+          data_sources: string[] | null
           data_year: number
+          drought_index: number | null
+          flood_risk_score: number | null
+          gdp_per_capita: number | null
           geometry: unknown
-          h3_index: string
           id: string
           infrastructure_score: number | null
-          internet_connectivity_mbps: number | null
+          internet_speed_download: number | null
+          internet_speed_upload: number | null
+          last_updated: string | null
           population: number | null
-          region_name: string | null
+          precipitation_avg: number | null
+          region_code: string
+          region_name: string
+          region_type: string
           socioeconomic_score: number | null
-          updated_at: string | null
+          temperature_avg: number | null
+          urban_population_percent: number | null
         }
         Insert: {
+          air_quality_no2?: number | null
           air_quality_pm25?: number | null
+          centroid?: unknown
           cii_score: number
           climate_risk_score?: number | null
-          country?: string | null
+          country: string
           created_at?: string | null
+          data_sources?: string[] | null
           data_year: number
-          geometry?: unknown
-          h3_index: string
+          drought_index?: number | null
+          flood_risk_score?: number | null
+          gdp_per_capita?: number | null
+          geometry: unknown
           id?: string
           infrastructure_score?: number | null
-          internet_connectivity_mbps?: number | null
+          internet_speed_download?: number | null
+          internet_speed_upload?: number | null
+          last_updated?: string | null
           population?: number | null
-          region_name?: string | null
+          precipitation_avg?: number | null
+          region_code: string
+          region_name: string
+          region_type: string
           socioeconomic_score?: number | null
-          updated_at?: string | null
+          temperature_avg?: number | null
+          urban_population_percent?: number | null
         }
         Update: {
+          air_quality_no2?: number | null
           air_quality_pm25?: number | null
+          centroid?: unknown
           cii_score?: number
           climate_risk_score?: number | null
-          country?: string | null
+          country?: string
           created_at?: string | null
+          data_sources?: string[] | null
           data_year?: number
+          drought_index?: number | null
+          flood_risk_score?: number | null
+          gdp_per_capita?: number | null
           geometry?: unknown
-          h3_index?: string
           id?: string
           infrastructure_score?: number | null
-          internet_connectivity_mbps?: number | null
+          internet_speed_download?: number | null
+          internet_speed_upload?: number | null
+          last_updated?: string | null
           population?: number | null
-          region_name?: string | null
+          precipitation_avg?: number | null
+          region_code?: string
+          region_name?: string
+          region_type?: string
           socioeconomic_score?: number | null
-          updated_at?: string | null
+          temperature_avg?: number | null
+          urban_population_percent?: number | null
         }
         Relationships: []
       }
