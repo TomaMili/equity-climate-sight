@@ -38,15 +38,7 @@ const ISO3_TO_ISO2: Record<string, string> = {
   NIU:'NU', TKL:'TK', WLF:'WF',
 };
 
-// Helper sluggify for region codes
-function slug(str: string) {
-  return (str || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}+/gu, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
+const BATCH_SIZE = 5; // Process 5 countries at a time
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -59,167 +51,104 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const years = [2020, 2021, 2022, 2023, 2024, 2025];
-    let inserted = 0;
     let countryCount = 0;
-    let regionCount = 0;
 
     // Initialize progress tracking
     const { data: progressData } = await supabase
       .from('initialization_progress')
-      .insert({ status: 'initializing', current_step: 'Starting initialization...' })
+      .insert({ 
+        status: 'countries', 
+        current_step: 'Fetching country boundaries...' 
+      })
       .select()
       .single();
     
     const progressId = progressData?.id;
 
-    // 1) Countries from Natural Earth (admin 0) - using 50m for better coverage
+    // Fetch Natural Earth admin-0 (countries) - using 50m for better coverage
     console.log('📥 Fetching Natural Earth admin-0 (countries) ...');
-    if (progressId) {
-      await supabase
-        .from('initialization_progress')
-        .update({ current_step: 'Fetching country boundaries...' })
-        .eq('id', progressId);
-    }
-    
     const admin0Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson');
     if (!admin0Resp.ok) throw new Error('Failed to fetch admin-0 dataset');
     const admin0 = await admin0Resp.json();
 
-    console.log(`Processing ${admin0.features.length} countries...`);
+    console.log(`Processing ${admin0.features.length} countries in batches of ${BATCH_SIZE}...`);
+    
     if (progressId) {
       await supabase
         .from('initialization_progress')
         .update({ 
           total_countries: admin0.features.length,
-          current_step: 'Processing countries...'
+          current_step: 'Processing countries in batches...'
         })
         .eq('id', progressId);
     }
-    for (const f of admin0.features) {
-      const iso3 = f.properties.ADM0_A3 || f.properties.ISO_A3;
-      const iso2 = ISO3_TO_ISO2[iso3];
-      const countryName = f.properties.ADMIN || f.properties.NAME;
+
+    // Process countries in batches
+    for (let i = 0; i < admin0.features.length; i += BATCH_SIZE) {
+      const batch = admin0.features.slice(i, i + BATCH_SIZE);
       
-      if (!iso2) {
-        console.warn(`⚠️ No ISO2 mapping for ${iso3} (${countryName})`);
-        continue;
-      }
-      if (!countryName) continue;
+      for (const f of batch) {
+        const iso3 = f.properties.ADM0_A3 || f.properties.ISO_A3;
+        const iso2 = ISO3_TO_ISO2[iso3];
+        const countryName = f.properties.ADMIN || f.properties.NAME;
+        
+        if (!iso2) {
+          console.warn(`⚠️ No ISO2 mapping for ${iso3} (${countryName})`);
+          continue;
+        }
+        if (!countryName) continue;
 
-      let geometry = f.geometry;
-      if (geometry?.type === 'Polygon') {
-        geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
-      }
-      const centroid = calculateCentroid(geometry);
+        let geometry = f.geometry;
+        if (geometry?.type === 'Polygon') {
+          geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
+        }
+        const centroid = calculateCentroid(geometry);
 
-      for (const y of years) {
-        const rec = {
-          region_code: iso2,
-          region_name: countryName,
-          region_type: 'country',
-          country: countryName,
-          data_year: y,
-          geometry,
-          centroid: { type: 'Point', coordinates: centroid },
-          ...generateSyntheticData(countryName, y, 'country')
-        };
-        const { error } = await supabase
-          .from('climate_inequality_regions')
-          .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
-        if (error) {
-          console.error(`Error upserting ${iso2} (${y}):`, error.message);
-        } else {
-          inserted++;
-          if (y === 2024) countryCount++;
+        for (const y of years) {
+          const rec = {
+            region_code: iso2,
+            region_name: countryName,
+            region_type: 'country',
+            country: countryName,
+            data_year: y,
+            geometry,
+            centroid: { type: 'Point', coordinates: centroid },
+            ...generateSyntheticData(countryName, y, 'country')
+          };
+          const { error } = await supabase
+            .from('climate_inequality_regions')
+            .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
+          
+          if (error) {
+            console.error(`Error upserting ${iso2} (${y}):`, error.message);
+          } else if (y === 2024) {
+            countryCount++;
+          }
         }
       }
       
-      // Update progress after each country
-      if (progressId && countryCount % 5 === 0) {
+      // Update progress after each batch
+      if (progressId) {
         await supabase
           .from('initialization_progress')
-          .update({ processed_countries: countryCount })
+          .update({ 
+            processed_countries: Math.min(i + BATCH_SIZE, admin0.features.length),
+            current_step: `Processed ${Math.min(i + BATCH_SIZE, admin0.features.length)}/${admin0.features.length} countries...`
+          })
           .eq('id', progressId);
-      }
-    }
-
-    // 2) Regions from Natural Earth (admin 1)
-    console.log('📥 Fetching Natural Earth admin-1 (states/provinces) ...');
-    if (progressId) {
-      await supabase
-        .from('initialization_progress')
-        .update({ 
-          current_step: 'Fetching regional boundaries...',
-          processed_countries: countryCount 
-        })
-        .eq('id', progressId);
-    }
-    
-    const admin1Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson');
-    if (!admin1Resp.ok) throw new Error('Failed to fetch admin-1 dataset');
-    const admin1 = await admin1Resp.json();
-    
-    if (progressId) {
-      await supabase
-        .from('initialization_progress')
-        .update({ 
-          total_regions: admin1.features.length,
-          current_step: 'Processing regions...'
-        })
-        .eq('id', progressId);
-    }
-
-    for (const f of admin1.features) {
-      const iso2 = f.properties.iso_a2 || ISO3_TO_ISO2[f.properties.iso_a3];
-      const regionName = f.properties.name || f.properties.name_en || f.properties.name_local;
-      const countryName = f.properties.adm0_name || f.properties.sovereignt || f.properties.admin;
-      if (!iso2 || !regionName || !countryName) continue;
-
-      let codePart = f.properties.postal || f.properties.abbrev || slug(regionName).slice(0, 8);
-      codePart = (codePart || slug(regionName)).toUpperCase();
-      const regionCode = `${iso2}-${codePart}`;
-
-      let geometry = f.geometry;
-      if (geometry?.type === 'Polygon') {
-        geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
-      }
-      const centroid = calculateCentroid(geometry);
-
-      for (const y of years) {
-        const rec = {
-          region_code: regionCode,
-          region_name: regionName,
-          region_type: 'region',
-          country: countryName,
-          data_year: y,
-          geometry,
-          centroid: { type: 'Point', coordinates: centroid },
-          ...generateSyntheticData(regionName, y, 'region')
-        };
-        const { error } = await supabase
-          .from('climate_inequality_regions')
-          .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
-        if (!error && y === 2024) regionCount++;
       }
       
-      // Update progress periodically
-      if (progressId && regionCount % 50 === 0) {
-        await supabase
-          .from('initialization_progress')
-          .update({ processed_regions: regionCount })
-          .eq('id', progressId);
-      }
+      console.log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: Processed ${Math.min(i + BATCH_SIZE, admin0.features.length)}/${admin0.features.length} countries`);
     }
 
-    // Mark as complete
+    // Mark countries as complete
     if (progressId) {
       await supabase
         .from('initialization_progress')
         .update({ 
-          status: 'completed',
-          current_step: 'Initialization complete',
-          processed_countries: countryCount,
-          processed_regions: regionCount
+          status: 'countries_complete',
+          current_step: 'Countries loaded. Starting regions...',
+          processed_countries: countryCount
         })
         .eq('id', progressId);
     }
@@ -227,13 +156,13 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Initialized countries and admin-1 regions for 2020-2025',
-        summary: { inserted, countryCount2024: countryCount, regionCount2024: regionCount }
+        message: 'Country initialization complete',
+        summary: { countryCount2024: countryCount }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('initialize-data error:', error);
+    console.error('initialize-countries error:', error);
     return new Response(JSON.stringify({ success: false, error: String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

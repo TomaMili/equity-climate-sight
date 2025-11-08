@@ -1,4 +1,7 @@
 project_id = "iwcyduqweqmdpehzdnax"
 
-[functions.initialize-data]
+[functions.initialize-countries]
+verify_jwt = false
+
+[functions.initialize-regions]
 verify_jwt = false

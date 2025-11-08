@@ -57,8 +57,12 @@ useEffect(() => {
           description: 'Loading global climate data for 100+ countries and regions (2020-2025)...',
         });
 
-        const { error: initError } = await supabase.functions.invoke('initialize-data');
-        if (initError) throw initError;
+        // Initialize countries first, then regions
+        const { error: countriesError } = await supabase.functions.invoke('initialize-countries');
+        if (countriesError) throw countriesError;
+
+        const { error: regionsError } = await supabase.functions.invoke('initialize-regions');
+        if (regionsError) throw regionsError;
 
         setIsInitializing(false);
         window.location.reload();
@@ -86,8 +90,14 @@ useEffect(() => {
       if ((count ?? 0) === 0) {
         setIsInitializing(true);
         toast({ title: 'Preparing Year Data', description: `Generating data for ${year}...` });
-        const { error: initError } = await supabase.functions.invoke('initialize-data');
-        if (initError) throw initError;
+        
+        // Initialize countries first, then regions
+        const { error: countriesError } = await supabase.functions.invoke('initialize-countries');
+        if (countriesError) throw countriesError;
+
+        const { error: regionsError } = await supabase.functions.invoke('initialize-regions');
+        if (regionsError) throw regionsError;
+        
         setIsInitializing(false);
         window.location.reload();
       }

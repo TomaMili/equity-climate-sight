@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 interface ProgressData {
-  status: string;
+  status: 'countries' | 'countries_complete' | 'regions' | 'completed' | 'initializing';
   current_step: string | null;
   total_countries: number | null;
   processed_countries: number | null;
@@ -30,7 +30,7 @@ export function InitializationProgress() {
         .single();
 
       if (!error && data) {
-        setProgress(data);
+        setProgress(data as ProgressData);
         
         // Hide after completion
         if (data.status === 'completed') {
@@ -50,7 +50,9 @@ export function InitializationProgress() {
   const handleRetry = async () => {
     try {
       setIsRunning(true);
-      await supabase.functions.invoke('initialize-data');
+      // First invoke countries, then regions
+      await supabase.functions.invoke('initialize-countries');
+      await supabase.functions.invoke('initialize-regions');
     } catch (e) {
       console.error('Retry initialization failed:', e);
     } finally {
@@ -61,9 +63,20 @@ export function InitializationProgress() {
   if (!isVisible || !progress || progress.status === 'completed') {
     return null;
   }
-  const totalItems = (progress.total_countries || 0) + (progress.total_regions || 0);
-  const processedItems = (progress.processed_countries || 0) + (progress.processed_regions || 0);
-  const percentage = totalItems > 0 ? Math.round((processedItems / totalItems) * 100) : 0;
+  // Calculate progress based on current status
+  let totalItems = 0;
+  let processedItems = 0;
+  let percentage = 0;
+
+  if (progress.status === 'countries' || progress.status === 'countries_complete') {
+    totalItems = progress.total_countries || 0;
+    processedItems = progress.processed_countries || 0;
+    percentage = totalItems > 0 ? Math.round((processedItems / totalItems) * 100) : 0;
+  } else if (progress.status === 'regions') {
+    totalItems = progress.total_regions || 0;
+    processedItems = progress.processed_regions || 0;
+    percentage = totalItems > 0 ? Math.round((processedItems / totalItems) * 100) : 0;
+  }
 
   return (
     <Card className="fixed top-4 right-4 z-50 p-4 w-80 bg-card border-border shadow-lg">
@@ -71,7 +84,13 @@ export function InitializationProgress() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <h3 className="font-semibold text-sm text-foreground">Initializing Database</h3>
+            <h3 className="font-semibold text-sm text-foreground">
+              {progress.status === 'countries' || progress.status === 'countries_complete' 
+                ? 'Loading Countries' 
+                : progress.status === 'regions'
+                ? 'Loading Regions'
+                : 'Initializing Database'}
+            </h3>
           </div>
           <Button size="sm" variant="secondary" onClick={handleRetry} disabled={isRunning} aria-label="Retry initialization">
             {isRunning ? 'Retrying...' : 'Retry'}
