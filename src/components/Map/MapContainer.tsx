@@ -109,7 +109,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken }: Map
 
   // Update selected region outline
   useEffect(() => {
-    if (map.current && isLoaded) {
+    if (map.current && isLoaded && map.current.isStyleLoaded()) {
       map.current.setPaintProperty('hexagon-outline', 'line-color', [
         'case',
         ['==', ['get', 'h3_index'], selectedRegion || ''],
