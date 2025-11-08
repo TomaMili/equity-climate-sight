@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.enrich-with-real-data]
 verify_jwt = false
+
+[functions.compute-cii]
+verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false
+
+[functions.fetch-openaq-data]
+verify_jwt = false
+
+[functions.update-real-boundaries]
+verify_jwt = false

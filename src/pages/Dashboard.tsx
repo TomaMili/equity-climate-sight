@@ -7,6 +7,7 @@ import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
 import { DataEnrichment } from '@/components/Admin/DataEnrichment';
+import { ComputeCII } from '@/components/Admin/ComputeCII';
 
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -282,6 +283,7 @@ useEffect(() => {
                 <CollapsibleContent className="space-y-4 mt-4">
                   <ScheduledJobs />
                   <DataEnrichment />
+                  <ComputeCII />
                 </CollapsibleContent>
               </Collapsible>
             )}
