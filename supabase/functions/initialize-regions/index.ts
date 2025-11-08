@@ -38,7 +38,8 @@ const ISO3_TO_ISO2: Record<string, string> = {
   NIU:'NU', TKL:'TK', WLF:'WF',
 };
 
-const BATCH_SIZE = 20; // Process 20 regions at a time
+const REGIONS_PER_CALL = 50; // Process only 50 regions per function call to avoid timeout
+const DB_BATCH_SIZE = 10; // Insert 10 records at a time to database
 
 // Helper sluggify for region codes
 function slug(str: string) {
@@ -61,9 +62,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const years = [2020, 2021, 2022, 2023, 2024, 2025];
-    let regionCount = 0;
 
-    // Get or create progress tracking
+    // Get progress tracking
     const { data: progressData } = await supabase
       .from('initialization_progress')
       .select()
@@ -89,79 +89,143 @@ serve(async (req) => {
     if (!admin1Resp.ok) throw new Error('Failed to fetch admin-1 dataset');
     const admin1 = await admin1Resp.json();
     
-    console.log(`Processing ${admin1.features.length} regions in batches of ${BATCH_SIZE}...`);
+    const totalRegions = admin1.features.length;
+    console.log(`Total regions available: ${totalRegions}`);
     
+    // Check which regions already exist in database (for any year)
+    const { data: existingRegions } = await supabase
+      .from('climate_inequality_regions')
+      .select('region_code')
+      .eq('region_type', 'region')
+      .eq('data_year', 2024);
+    
+    const existingCodes = new Set(existingRegions?.map(r => r.region_code) || []);
+    const processedCount = existingCodes.size;
+    
+    console.log(`Already processed: ${processedCount}/${totalRegions} regions`);
+    
+    // Update progress
     if (progressId) {
       await supabase
         .from('initialization_progress')
         .update({ 
-          total_regions: admin1.features.length,
-          current_step: 'Processing regions in batches...'
+          total_regions: totalRegions,
+          processed_regions: processedCount,
+          current_step: `Resuming from ${processedCount}/${totalRegions} regions...`
         })
         .eq('id', progressId);
     }
 
-    // Process regions in batches
-    for (let i = 0; i < admin1.features.length; i += BATCH_SIZE) {
-      const batch = admin1.features.slice(i, i + BATCH_SIZE);
+    // Filter to only unprocessed regions
+    const unprocessedFeatures = admin1.features.filter((f: any) => {
+      const iso2 = f.properties.iso_a2 || ISO3_TO_ISO2[f.properties.iso_a3];
+      const regionName = f.properties.name || f.properties.name_en || f.properties.name_local;
+      if (!iso2 || !regionName) return false;
       
-      for (const f of batch) {
-        const iso2 = f.properties.iso_a2 || ISO3_TO_ISO2[f.properties.iso_a3];
-        const regionName = f.properties.name || f.properties.name_en || f.properties.name_local;
-        const countryName = f.properties.adm0_name || f.properties.sovereignt || f.properties.admin;
-        if (!iso2 || !regionName || !countryName) continue;
-
-        let codePart = f.properties.postal || f.properties.abbrev || slug(regionName).slice(0, 8);
-        codePart = (codePart || slug(regionName)).toUpperCase();
-        const regionCode = `${iso2}-${codePart}`;
-
-        let geometry = f.geometry;
-        if (geometry?.type === 'Polygon') {
-          geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
-        }
-        const centroid = calculateCentroid(geometry);
-
-        for (const y of years) {
-          const rec = {
-            region_code: regionCode,
-            region_name: regionName,
-            region_type: 'region',
-            country: countryName,
-            data_year: y,
-            geometry,
-            centroid: { type: 'Point', coordinates: centroid },
-            ...generateSyntheticData(regionName, y, 'region')
-          };
-          const { error } = await supabase
-            .from('climate_inequality_regions')
-            .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
-          
-          if (!error && y === 2024) regionCount++;
-        }
-      }
+      let codePart = f.properties.postal || f.properties.abbrev || slug(regionName).slice(0, 8);
+      codePart = (codePart || slug(regionName)).toUpperCase();
+      const regionCode = `${iso2}-${codePart}`;
       
-      // Update progress after each batch
+      return !existingCodes.has(regionCode);
+    });
+
+    const remainingCount = unprocessedFeatures.length;
+    console.log(`Remaining to process: ${remainingCount} regions`);
+
+    if (remainingCount === 0) {
+      // All done!
       if (progressId) {
         await supabase
           .from('initialization_progress')
           .update({ 
-            processed_regions: Math.min(i + BATCH_SIZE, admin1.features.length),
-            current_step: `Processed ${Math.min(i + BATCH_SIZE, admin1.features.length)}/${admin1.features.length} regions...`
+            status: 'completed',
+            current_step: 'All regions processed',
+            processed_regions: totalRegions
           })
           .eq('id', progressId);
       }
       
-      console.log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: Processed ${Math.min(i + BATCH_SIZE, admin1.features.length)}/${admin1.features.length} regions`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          complete: true,
+          message: 'All regions already processed',
+          processed: processedCount,
+          total: totalRegions
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Mark as complete
+    // Process only REGIONS_PER_CALL regions this invocation
+    const toProcess = unprocessedFeatures.slice(0, REGIONS_PER_CALL);
+    console.log(`Processing ${toProcess.length} regions this call...`);
+    
+    let newlyProcessed = 0;
+    const recordsToInsert: any[] = [];
+
+    for (const f of toProcess) {
+      const iso2 = f.properties.iso_a2 || ISO3_TO_ISO2[f.properties.iso_a3];
+      const regionName = f.properties.name || f.properties.name_en || f.properties.name_local;
+      const countryName = f.properties.adm0_name || f.properties.sovereignt || f.properties.admin;
+      if (!iso2 || !regionName || !countryName) continue;
+
+      let codePart = f.properties.postal || f.properties.abbrev || slug(regionName).slice(0, 8);
+      codePart = (codePart || slug(regionName)).toUpperCase();
+      const regionCode = `${iso2}-${codePart}`;
+
+      let geometry = f.geometry;
+      if (geometry?.type === 'Polygon') {
+        geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
+      }
+      const centroid = calculateCentroid(geometry);
+
+      // Create records for all years
+      for (const y of years) {
+        recordsToInsert.push({
+          region_code: regionCode,
+          region_name: regionName,
+          region_type: 'region',
+          country: countryName,
+          data_year: y,
+          geometry,
+          centroid: { type: 'Point', coordinates: centroid },
+          ...generateSyntheticData(regionName, y, 'region')
+        });
+      }
+      
+      newlyProcessed++;
+    }
+
+    // Insert in smaller batches to avoid timeouts
+    console.log(`Inserting ${recordsToInsert.length} records in batches of ${DB_BATCH_SIZE}...`);
+    for (let i = 0; i < recordsToInsert.length; i += DB_BATCH_SIZE) {
+      const batch = recordsToInsert.slice(i, i + DB_BATCH_SIZE);
+      const { error } = await supabase
+        .from('climate_inequality_regions')
+        .upsert(batch, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
+      
+      if (error) {
+        console.error(`Error inserting batch at index ${i}:`, error);
+      }
+    }
+
+    const newProcessedTotal = processedCount + newlyProcessed;
+    const stillRemaining = totalRegions - newProcessedTotal;
+    
+    console.log(`✅ Processed ${newlyProcessed} regions. Total: ${newProcessedTotal}/${totalRegions}. Remaining: ${stillRemaining}`);
+
+    // Update progress
     if (progressId) {
+      const isComplete = stillRemaining === 0;
       await supabase
         .from('initialization_progress')
         .update({ 
-          status: 'completed',
-          current_step: 'Initialization complete',
-          processed_regions: regionCount
+          status: isComplete ? 'completed' : 'regions',
+          current_step: isComplete 
+            ? 'All regions processed!' 
+            : `Processed ${newProcessedTotal}/${totalRegions} regions. ${stillRemaining} remaining...`,
+          processed_regions: newProcessedTotal
         })
         .eq('id', progressId);
     }
@@ -169,8 +233,14 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Region initialization complete',
-        summary: { regionCount2024: regionCount }
+        complete: stillRemaining === 0,
+        message: stillRemaining === 0 
+          ? 'Region initialization complete' 
+          : `Processed ${newlyProcessed} regions. ${stillRemaining} remaining.`,
+        processed: newProcessedTotal,
+        total: totalRegions,
+        remaining: stillRemaining,
+        shouldContinue: stillRemaining > 0
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

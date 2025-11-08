@@ -50,14 +50,33 @@ export function CompactInitProgress() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Auto-start regions after countries complete
+  // Auto-start regions after countries complete with continuous calling
   useEffect(() => {
     if (progress?.status === 'countries_complete' && !regionsKickoff && !isRunning) {
       setRegionsKickoff(true);
       (async () => {
         try {
           setIsRunning(true);
-          await supabase.functions.invoke('initialize-regions');
+          
+          // Keep calling until all regions are processed
+          let shouldContinue = true;
+          while (shouldContinue) {
+            const { data, error } = await supabase.functions.invoke('initialize-regions');
+            
+            if (error) {
+              console.error('Region initialization call failed:', error);
+              break;
+            }
+            
+            if (data?.shouldContinue === false || data?.complete === true) {
+              shouldContinue = false;
+              console.log('✅ All regions processed!');
+            } else {
+              console.log(`Processed batch. ${data?.remaining || 0} regions remaining...`);
+              // Small delay between calls to avoid overwhelming the system
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
         } catch (e) {
           console.error('Auto-start regions failed:', e);
         } finally {
@@ -70,9 +89,26 @@ export function CompactInitProgress() {
   const handleRetry = async () => {
     try {
       setIsRunning(true);
-      // First invoke countries, then regions
+      // First invoke countries
       await supabase.functions.invoke('initialize-countries');
-      await supabase.functions.invoke('initialize-regions');
+      
+      // Then invoke regions repeatedly until done
+      let shouldContinue = true;
+      while (shouldContinue) {
+        const { data, error } = await supabase.functions.invoke('initialize-regions');
+        
+        if (error) {
+          console.error('Region initialization call failed:', error);
+          break;
+        }
+        
+        if (data?.shouldContinue === false || data?.complete === true) {
+          shouldContinue = false;
+        } else {
+          // Small delay between calls
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
     } catch (e) {
       console.error('Retry initialization failed:', e);
     } finally {
