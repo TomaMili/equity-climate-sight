@@ -6,20 +6,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Country mapping
+// Country mapping with ISO codes
 const COUNTRIES: Record<string, string> = {
-  'DEU': 'Germany',
-  'POL': 'Poland',
-  'FRA': 'France',
-  'ESP': 'Spain',
-  'ITA': 'Italy',
-  'GRC': 'Greece',
-  'ROU': 'Romania',
-  'BGR': 'Bulgaria',
-  'GBR': 'United Kingdom',
-  'NLD': 'Netherlands',
-  'SWE': 'Sweden',
-  'PRT': 'Portugal',
+  'DE': 'Germany',
+  'PL': 'Poland',
+  'FR': 'France',
+  'ES': 'Spain',
+  'IT': 'Italy',
+  'GR': 'Greece',
+  'RO': 'Romania',
+  'BG': 'Bulgaria',
+  'GB': 'United Kingdom',
+  'NL': 'Netherlands',
+  'SE': 'Sweden',
+  'PT': 'Portugal',
+  'US': 'United States',
+  'CA': 'Canada',
+  'IN': 'India',
+  'CN': 'China',
+  'BR': 'Brazil',
+  'MX': 'Mexico',
+  'AU': 'Australia',
+  'JP': 'Japan',
 };
 
 interface AirQualityData {
@@ -34,24 +42,24 @@ serve(async (req) => {
   }
 
   try {
-    const { country_codes, days_back = 7 } = await req.json().catch(() => ({ country_codes: null, days_back: 7 }));
+    const { country_codes, region_codes } = await req.json().catch(() => ({ country_codes: null, region_codes: null }));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const countries = country_codes || Object.keys(COUNTRIES);
+    const codes = region_codes || country_codes || Object.keys(COUNTRIES);
     const results: Record<string, any> = {};
     const errors: string[] = [];
 
-    console.log(`Starting OpenAQ data fetch for ${countries.length} countries...`);
+    console.log(`Starting OpenAQ v3 data fetch for ${codes.length} regions...`);
 
-    for (const countryCode of countries) {
+    for (const code of codes) {
       try {
-        console.log(`Processing ${countryCode}...`);
+        console.log(`Processing ${code}...`);
         
-        // Fetch air quality data from OpenAQ
-        const airQuality = await fetchCountryAirQuality(countryCode, days_back);
+        // Fetch air quality data from OpenAQ v3 API
+        const airQuality = await fetchRegionAirQuality(code);
         
         // Update database if we have data
         if (airQuality.avg_pm25 !== null || airQuality.avg_no2 !== null) {
@@ -69,32 +77,32 @@ serve(async (req) => {
           const { error } = await supabase
             .from('climate_inequality_regions')
             .update(updateData)
-            .eq('region_code', countryCode);
+            .eq('region_code', code);
 
           if (error) {
-            console.error(`Error updating ${countryCode}:`, error);
-            errors.push(`${countryCode}: ${error.message}`);
+            console.error(`Error updating ${code}:`, error);
+            errors.push(`${code}: ${error.message}`);
           } else {
-            results[countryCode] = {
+            results[code] = {
               success: true,
               pm25: airQuality.avg_pm25,
               no2: airQuality.avg_no2,
               measurements: airQuality.measurement_count
             };
-            console.log(`✓ Updated ${countryCode}: PM2.5=${airQuality.avg_pm25?.toFixed(2)}, NO2=${airQuality.avg_no2?.toFixed(2)}`);
+            console.log(`✓ Updated ${code}: PM2.5=${airQuality.avg_pm25?.toFixed(2)}, NO2=${airQuality.avg_no2?.toFixed(2)}`);
           }
         } else {
-          results[countryCode] = {
+          results[code] = {
             success: false,
             message: 'No data available'
           };
-          console.log(`⚠ No data for ${countryCode}`);
+          console.log(`⚠ No data for ${code}`);
         }
       } catch (error) {
-        console.error(`Error processing ${countryCode}:`, error);
+        console.error(`Error processing ${code}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        errors.push(`${countryCode}: ${errorMessage}`);
-        results[countryCode] = {
+        errors.push(`${code}: ${errorMessage}`);
+        results[code] = {
           success: false,
           error: errorMessage
         };
@@ -102,7 +110,7 @@ serve(async (req) => {
     }
 
     const summary = {
-      total: countries.length,
+      total: codes.length,
       successful: Object.values(results).filter((r: any) => r.success).length,
       failed: Object.values(results).filter((r: any) => !r.success).length,
       timestamp: new Date().toISOString()
@@ -125,55 +133,52 @@ serve(async (req) => {
   }
 });
 
-async function fetchCountryAirQuality(countryCode: string, daysBack: number): Promise<AirQualityData> {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - daysBack);
-
+async function fetchRegionAirQuality(code: string): Promise<AirQualityData> {
   const result: AirQualityData = {
     avg_pm25: null,
     avg_no2: null,
     measurement_count: 0
   };
 
-  // Fetch PM2.5 data
   try {
-    const pm25Data = await fetchParameterData(countryCode, 'pm25', startDate, endDate);
+    // Fetch PM2.5 data using v3 API
+    const pm25Data = await fetchParameterDataV3(code, 'pm25');
     if (pm25Data.length > 0) {
       result.avg_pm25 = calculateAverage(pm25Data);
       result.measurement_count += pm25Data.length;
     }
   } catch (error) {
-    console.warn(`PM2.5 fetch failed for ${countryCode}:`, error);
+    console.warn(`PM2.5 fetch failed for ${code}:`, error);
   }
 
-  // Fetch NO2 data
   try {
-    const no2Data = await fetchParameterData(countryCode, 'no2', startDate, endDate);
+    // Fetch NO2 data using v3 API
+    const no2Data = await fetchParameterDataV3(code, 'no2');
     if (no2Data.length > 0) {
       result.avg_no2 = calculateAverage(no2Data);
       result.measurement_count += no2Data.length;
     }
   } catch (error) {
-    console.warn(`NO2 fetch failed for ${countryCode}:`, error);
+    console.warn(`NO2 fetch failed for ${code}:`, error);
   }
 
   return result;
 }
 
-async function fetchParameterData(
-  countryCode: string,
-  parameter: string,
-  startDate: Date,
-  endDate: Date
+async function fetchParameterDataV3(
+  code: string,
+  parameterId: string
 ): Promise<number[]> {
-  const url = new URL('https://api.openaq.org/v2/measurements');
-  url.searchParams.set('country', countryCode);
-  url.searchParams.set('parameter', parameter);
-  url.searchParams.set('date_from', startDate.toISOString().split('T')[0]);
-  url.searchParams.set('date_to', endDate.toISOString().split('T')[0]);
-  url.searchParams.set('limit', '10000');
-  url.searchParams.set('order_by', 'datetime');
+  // OpenAQ v3 API uses different parameter IDs
+  const parameterMap: Record<string, number> = {
+    'pm25': 2,  // PM2.5
+    'no2': 10   // NO2
+  };
+
+  const url = new URL('https://api.openaq.org/v3/latest');
+  url.searchParams.set('countries_id', code);
+  url.searchParams.set('parameters_id', parameterMap[parameterId].toString());
+  url.searchParams.set('limit', '1000');
 
   const response = await fetch(url.toString(), {
     headers: {
