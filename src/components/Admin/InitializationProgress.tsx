@@ -18,6 +18,7 @@ export function InitializationProgress() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [isVisible, setIsVisible] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
+  const [regionsKickoff, setRegionsKickoff] = useState(false);
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>;
 
@@ -40,12 +41,29 @@ export function InitializationProgress() {
       }
     };
 
-    // Poll every 2 seconds
+    // Poll every 1 second for snappier progress
     fetchProgress();
-    intervalId = setInterval(fetchProgress, 2000);
+    intervalId = setInterval(fetchProgress, 1000);
 
     return () => clearInterval(intervalId);
   }, []);
+
+  // Auto-start regions after countries complete
+  useEffect(() => {
+    if (progress?.status === 'countries_complete' && !regionsKickoff && !isRunning) {
+      setRegionsKickoff(true);
+      (async () => {
+        try {
+          setIsRunning(true);
+          await supabase.functions.invoke('initialize-regions');
+        } catch (e) {
+          console.error('Auto-start regions failed:', e);
+        } finally {
+          setIsRunning(false);
+        }
+      })();
+    }
+  }, [progress?.status, regionsKickoff, isRunning]);
 
   const handleRetry = async () => {
     try {
