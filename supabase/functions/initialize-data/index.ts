@@ -63,13 +63,38 @@ serve(async (req) => {
     let countryCount = 0;
     let regionCount = 0;
 
+    // Initialize progress tracking
+    const { data: progressData } = await supabase
+      .from('initialization_progress')
+      .insert({ status: 'initializing', current_step: 'Starting initialization...' })
+      .select()
+      .single();
+    
+    const progressId = progressData?.id;
+
     // 1) Countries from Natural Earth (admin 0) - using 50m for better coverage
     console.log('📥 Fetching Natural Earth admin-0 (countries) ...');
+    if (progressId) {
+      await supabase
+        .from('initialization_progress')
+        .update({ current_step: 'Fetching country boundaries...' })
+        .eq('id', progressId);
+    }
+    
     const admin0Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson');
     if (!admin0Resp.ok) throw new Error('Failed to fetch admin-0 dataset');
     const admin0 = await admin0Resp.json();
 
     console.log(`Processing ${admin0.features.length} countries...`);
+    if (progressId) {
+      await supabase
+        .from('initialization_progress')
+        .update({ 
+          total_countries: admin0.features.length,
+          current_step: 'Processing countries...'
+        })
+        .eq('id', progressId);
+    }
     for (const f of admin0.features) {
       const iso3 = f.properties.ADM0_A3 || f.properties.ISO_A3;
       const iso2 = ISO3_TO_ISO2[iso3];
@@ -108,13 +133,41 @@ serve(async (req) => {
           if (y === 2024) countryCount++;
         }
       }
+      
+      // Update progress after each country
+      if (progressId && countryCount % 5 === 0) {
+        await supabase
+          .from('initialization_progress')
+          .update({ processed_countries: countryCount })
+          .eq('id', progressId);
+      }
     }
 
     // 2) Regions from Natural Earth (admin 1)
     console.log('📥 Fetching Natural Earth admin-1 (states/provinces) ...');
+    if (progressId) {
+      await supabase
+        .from('initialization_progress')
+        .update({ 
+          current_step: 'Fetching regional boundaries...',
+          processed_countries: countryCount 
+        })
+        .eq('id', progressId);
+    }
+    
     const admin1Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson');
     if (!admin1Resp.ok) throw new Error('Failed to fetch admin-1 dataset');
     const admin1 = await admin1Resp.json();
+    
+    if (progressId) {
+      await supabase
+        .from('initialization_progress')
+        .update({ 
+          total_regions: admin1.features.length,
+          current_step: 'Processing regions...'
+        })
+        .eq('id', progressId);
+    }
 
     for (const f of admin1.features) {
       const iso2 = f.properties.iso_a2 || ISO3_TO_ISO2[f.properties.iso_a3];
@@ -148,6 +201,27 @@ serve(async (req) => {
           .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
         if (!error && y === 2024) regionCount++;
       }
+      
+      // Update progress periodically
+      if (progressId && regionCount % 50 === 0) {
+        await supabase
+          .from('initialization_progress')
+          .update({ processed_regions: regionCount })
+          .eq('id', progressId);
+      }
+    }
+
+    // Mark as complete
+    if (progressId) {
+      await supabase
+        .from('initialization_progress')
+        .update({ 
+          status: 'completed',
+          current_step: 'Initialization complete',
+          processed_countries: countryCount,
+          processed_regions: regionCount
+        })
+        .eq('id', progressId);
     }
 
     return new Response(

@@ -101,6 +101,42 @@ export type Database = {
         }
         Relationships: []
       }
+      initialization_progress: {
+        Row: {
+          current_step: string | null
+          id: string
+          processed_countries: number | null
+          processed_regions: number | null
+          started_at: string | null
+          status: string
+          total_countries: number | null
+          total_regions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          current_step?: string | null
+          id?: string
+          processed_countries?: number | null
+          processed_regions?: number | null
+          started_at?: string | null
+          status?: string
+          total_countries?: number | null
+          total_regions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          current_step?: string | null
+          id?: string
+          processed_countries?: number | null
+          processed_regions?: number | null
+          started_at?: string | null
+          status?: string
+          total_countries?: number | null
+          total_regions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null

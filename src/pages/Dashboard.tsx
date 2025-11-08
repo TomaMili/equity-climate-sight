@@ -4,6 +4,7 @@ import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
+import { InitializationProgress } from '@/components/Admin/InitializationProgress';
 
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -207,6 +208,7 @@ useEffect(() => {
 
   return (
     <ErrorBoundary title="Application Error">
+      <InitializationProgress />
       <div className="flex h-screen bg-background">
         {/* Sidebar */}
         <div className="w-96 bg-card border-r border-border overflow-y-auto">
