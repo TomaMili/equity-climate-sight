@@ -20,7 +20,7 @@ export function DataEnrichment() {
       let shouldContinue = true;
       let iteration = 0;
 
-      while (shouldContinue && iteration < 100) { // Safety limit
+      while (shouldContinue && iteration < 1000) { // Safety limit increased for large datasets
         iteration++;
         
         const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
@@ -28,8 +28,14 @@ export function DataEnrichment() {
         });
 
         if (error) {
-          console.error('Enrichment call failed:', error);
-          toast.error('Enrichment failed. Please try again.');
+          console.error(`Enrichment call failed (iteration ${iteration}):`, error);
+          toast.error(`Enrichment error at batch ${iteration}. Stopping.`);
+          break;
+        }
+
+        if (!data) {
+          console.error(`No data returned (iteration ${iteration})`);
+          toast.error('No response from enrichment function.');
           break;
         }
 
@@ -53,8 +59,8 @@ export function DataEnrichment() {
         }
       }
 
-      if (iteration >= 100) {
-        toast.warning('Enrichment paused after 100 iterations. Click again to continue.');
+      if (iteration >= 1000) {
+        toast.warning('Enrichment paused after 1000 iterations. Click again to continue.');
       }
     } catch (error) {
       console.error('Enrichment error:', error);
@@ -74,7 +80,7 @@ export function DataEnrichment() {
       let shouldContinue = true;
       let iteration = 0;
 
-      while (shouldContinue && iteration < 100) {
+      while (shouldContinue && iteration < 1000) { // Safety limit increased for large datasets
         iteration++;
         
         const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
@@ -82,8 +88,14 @@ export function DataEnrichment() {
         });
 
         if (error) {
-          console.error('Enrichment call failed:', error);
-          toast.error('Enrichment failed. Please try again.');
+          console.error(`Enrichment call failed (iteration ${iteration}):`, error);
+          toast.error(`Enrichment error at batch ${iteration}. Stopping.`);
+          break;
+        }
+
+        if (!data) {
+          console.error(`No data returned (iteration ${iteration})`);
+          toast.error('No response from enrichment function.');
           break;
         }
 
@@ -106,8 +118,8 @@ export function DataEnrichment() {
         }
       }
 
-      if (iteration >= 100) {
-        toast.warning('Enrichment paused after 100 iterations. Click again to continue.');
+      if (iteration >= 1000) {
+        toast.warning('Enrichment paused after 1000 iterations. Click again to continue.');
       }
     } catch (error) {
       console.error('Enrichment error:', error);
