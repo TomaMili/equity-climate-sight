@@ -79,11 +79,18 @@ serve(async (req) => {
             continue;
           }
 
-          // Update CII in database
+          // Get component breakdown
+          const breakdown = getComponentBreakdown(region);
+          
+          // Update CII and component scores in database
           const { error: updateError } = await supabase
             .from('climate_inequality_regions')
             .update({ 
               cii_score: cii,
+              cii_climate_risk_component: breakdown.climateRisk,
+              cii_infrastructure_gap_component: breakdown.infrastructureGap,
+              cii_socioeconomic_vuln_component: breakdown.socioeconomicVuln,
+              cii_air_quality_component: breakdown.airQuality,
               last_updated: new Date().toISOString()
             })
             .eq('region_code', region.region_code)
@@ -312,4 +319,22 @@ function computeAirQualityScore(region: any): number | null {
   return factors.length > 0 
     ? factors.reduce((sum, f) => sum + f, 0) / factors.length 
     : null;
+}
+
+/**
+ * Get component breakdown for a region
+ * Returns individual component scores (null if not available)
+ */
+function getComponentBreakdown(region: any): {
+  climateRisk: number | null;
+  infrastructureGap: number | null;
+  socioeconomicVuln: number | null;
+  airQuality: number | null;
+} {
+  return {
+    climateRisk: computeClimateRisk(region),
+    infrastructureGap: computeInfrastructureGap(region),
+    socioeconomicVuln: computeSocioeconomicVulnerability(region),
+    airQuality: computeAirQualityScore(region),
+  };
 }

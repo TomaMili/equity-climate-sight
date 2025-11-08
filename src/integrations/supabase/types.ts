@@ -19,7 +19,11 @@ export type Database = {
           air_quality_no2: number | null
           air_quality_pm25: number | null
           centroid: unknown
+          cii_air_quality_component: number | null
+          cii_climate_risk_component: number | null
+          cii_infrastructure_gap_component: number | null
           cii_score: number
+          cii_socioeconomic_vuln_component: number | null
           climate_risk_score: number | null
           country: string
           created_at: string | null
@@ -47,7 +51,11 @@ export type Database = {
           air_quality_no2?: number | null
           air_quality_pm25?: number | null
           centroid?: unknown
+          cii_air_quality_component?: number | null
+          cii_climate_risk_component?: number | null
+          cii_infrastructure_gap_component?: number | null
           cii_score: number
+          cii_socioeconomic_vuln_component?: number | null
           climate_risk_score?: number | null
           country: string
           created_at?: string | null
@@ -75,7 +83,11 @@ export type Database = {
           air_quality_no2?: number | null
           air_quality_pm25?: number | null
           centroid?: unknown
+          cii_air_quality_component?: number | null
+          cii_climate_risk_component?: number | null
+          cii_infrastructure_gap_component?: number | null
           cii_score?: number
+          cii_socioeconomic_vuln_component?: number | null
           climate_risk_score?: number | null
           country?: string
           created_at?: string | null

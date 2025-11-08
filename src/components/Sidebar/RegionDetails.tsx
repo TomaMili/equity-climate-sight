@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
+import CIIBreakdown from './CIIBreakdown';
 
 interface RegionDetailsProps {
   data: any | null;
@@ -111,6 +112,13 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight }: RegionDetai
           </>
         )}
       </Card>
+
+      <CIIBreakdown 
+        climateRisk={data.cii_climate_risk_component}
+        infrastructureGap={data.cii_infrastructure_gap_component}
+        socioeconomicVuln={data.cii_socioeconomic_vuln_component}
+        airQuality={data.cii_air_quality_component}
+      />
 
       <Card className="p-6 bg-accent/50">
         <div className="flex items-start gap-2 mb-3">
