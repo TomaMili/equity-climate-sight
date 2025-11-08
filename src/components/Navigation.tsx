@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Globe, Home, Map, Info, BookOpen } from 'lucide-react';
+import { Globe, Home, Map, Info, BookOpen, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 export const Navigation = () => {
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
   
   const isActive = (path: string) => location.pathname === path;
   
@@ -76,6 +78,15 @@ export const Navigation = () => {
                 <BookOpen className="w-4 h-4" />
                 <span className="hidden sm:inline">Methodology</span>
               </Link>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
           </div>
         </div>

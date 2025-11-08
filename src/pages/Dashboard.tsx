@@ -24,23 +24,19 @@ const Index = () => {
   const [isTokenSet, setIsTokenSet] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<'countries' | 'regions'>('regions');
+  const [year, setYear] = useState<number>(2024);
   const { toast } = useToast();
 
-  // Load token from localStorage on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem(MAPBOX_TOKEN_KEY);
-    if (savedToken) {
-      setMapboxToken(savedToken);
-      setIsTokenSet(true);
-      console.log('Loaded Mapbox token from localStorage');
-    } else {
-      // Use default token if none saved
-      const defaultToken = 'pk.eyJ1IjoidG9tYW1pbGkiLCJhIjoiY21ocDg3bHltMDNsYjJqcXUwYXk1NXRoZCJ9.pIJqrpchhmLFjhL1Fp4VTQ';
-      setMapboxToken(defaultToken);
-      setIsTokenSet(true);
-      localStorage.setItem(MAPBOX_TOKEN_KEY, defaultToken);
-    }
-  }, []);
+// Load token from localStorage on mount
+useEffect(() => {
+  const savedToken = localStorage.getItem(MAPBOX_TOKEN_KEY);
+  if (savedToken) {
+    setMapboxToken(savedToken);
+    setIsTokenSet(true);
+    console.log('Loaded Mapbox token from localStorage');
+  }
+}, []);
 
   const handleTokenError = () => {
     setIsTokenSet(false);
@@ -161,10 +157,23 @@ const Index = () => {
               </p>
             </div>
 
-            {!isMapLoaded ? (
-              <SidebarSkeleton />
-            ) : (
+            {isMapLoaded ? (
               <>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant={viewMode === 'regions' ? 'default' : 'outline'} onClick={() => setViewMode('regions')}>Regions</Button>
+                    <Button size="sm" variant={viewMode === 'countries' ? 'default' : 'outline'} onClick={() => setViewMode('countries')}>Countries</Button>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Year</label>
+                    <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-full mt-1 bg-background border border-border rounded px-2 py-1 text-sm">
+                      {[2020,2021,2022,2023,2024,2025].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <ErrorBoundary title="Statistics Loading Error">
                   <StatisticsPanel />
                 </ErrorBoundary>
@@ -219,6 +228,8 @@ const Index = () => {
               mapboxToken={mapboxToken}
               onTokenError={handleTokenError}
               onDataLoaded={handleMapDataLoaded}
+              viewMode={viewMode}
+              year={year}
             />
             <MapLegend />
           </ErrorBoundary>
