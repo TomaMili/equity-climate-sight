@@ -180,9 +180,12 @@ async function fetchParameterDataV3(
   url.searchParams.set('parameters_id', parameterMap[parameterId].toString());
   url.searchParams.set('limit', '1000');
 
+  const apiKey = Deno.env.get('OPENAQ_API_KEY');
+  
   const response = await fetch(url.toString(), {
     headers: {
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'X-API-Key': apiKey || ''
     }
   });
 

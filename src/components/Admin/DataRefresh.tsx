@@ -171,10 +171,7 @@ export const DataRefresh = () => {
 
           <div className="mt-4 pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              <strong>Data Source:</strong> OpenAQ API (Amazon Sustainability Data Initiative)
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Fetches 7-day average PM2.5 and NO₂ measurements for all mapped countries
+              <strong>Note:</strong> OpenAQ API now requires authentication. Add your API key in Cloud → Secrets to enable data refresh.
             </p>
           </div>
         </div>
@@ -223,10 +220,7 @@ export const DataRefresh = () => {
 
           <div className="mt-4 pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              <strong>Data Source:</strong> Natural Earth 1:110m Cultural Vectors
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Updates country-level geometries with accurate boundary polygons. Page will reload automatically after update.
+              Updates all countries and regions (states/provinces) with real boundary data. Page will reload after update.
             </p>
           </div>
         </div>

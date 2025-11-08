@@ -40,86 +40,129 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('📥 Fetching Natural Earth GeoJSON data...');
-    
-    // Fetch Natural Earth data
-    const response = await fetch(
-      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
-    );
+    // Get all regions from database first
+    const { data: dbRegions, error: fetchError } = await supabase
+      .from('climate_inequality_regions')
+      .select('region_code, region_type, region_name, country');
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch Natural Earth data: ${response.statusText}`);
+    if (fetchError) {
+      throw new Error(`Failed to fetch regions: ${fetchError.message}`);
     }
 
-    const geojsonData = await response.json();
-    console.log(`✅ Loaded ${geojsonData.features.length} country features`);
+    console.log('📥 Fetching Natural Earth country data...');
+    const countryResponse = await fetch(
+      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
+    );
+    if (!countryResponse.ok) {
+      throw new Error(`Failed to fetch country data: ${countryResponse.statusText}`);
+    }
+    const countryData = await countryResponse.json();
+    console.log(`✅ Loaded ${countryData.features.length} countries`);
+
+    console.log('📥 Fetching Natural Earth admin-1 (states/provinces) data...');
+    const admin1Response = await fetch(
+      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson'
+    );
+    if (!admin1Response.ok) {
+      throw new Error(`Failed to fetch admin-1 data: ${admin1Response.statusText}`);
+    }
+    const admin1Data = await admin1Response.json();
+    console.log(`✅ Loaded ${admin1Data.features.length} regions`);
 
     const results: Record<string, any> = {};
     let updated = 0;
     let skipped = 0;
 
-    for (const feature of geojsonData.features) {
+    // Process countries
+    for (const feature of countryData.features) {
       const iso3 = feature.properties.ADM0_A3 || feature.properties.ISO_A3;
       const countryName = feature.properties.ADMIN || feature.properties.NAME;
-      
-      // Map ISO3 to our 2-letter code
       const regionCode = isoMapping[iso3];
       
       if (!regionCode) {
-        console.log(`⏭️  Skipping ${countryName} (${iso3}) - not in our database`);
         skipped++;
         continue;
       }
 
-      // Convert geometry to MultiPolygon if it's a Polygon
       let geometry = feature.geometry;
       if (geometry.type === 'Polygon') {
-        geometry = {
-          type: 'MultiPolygon',
-          coordinates: [geometry.coordinates]
-        };
+        geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
       }
-
-      // Calculate centroid from geometry
       const centroid = calculateCentroid(geometry);
 
       try {
-        console.log(`📍 Updating ${countryName} (${regionCode})...`);
-        
-        // Update the geometry in the database
+        console.log(`📍 Updating country ${countryName} (${regionCode})...`);
         const { error } = await supabase
           .from('climate_inequality_regions')
           .update({
             geometry: geometry,
-            centroid: {
-              type: 'Point',
-              coordinates: centroid
-            }
+            centroid: { type: 'Point', coordinates: centroid }
           })
           .eq('region_code', regionCode)
           .eq('region_type', 'country');
 
         if (error) {
-          console.error(`❌ Error updating ${regionCode}:`, error.message);
-          results[regionCode] = {
-            success: false,
-            error: error.message,
-            country: countryName
-          };
+          results[regionCode] = { success: false, error: error.message, name: countryName };
         } else {
-          console.log(`✅ Updated ${countryName} (${regionCode})`);
-          results[regionCode] = {
-            success: true,
-            country: countryName
-          };
+          results[regionCode] = { success: true, name: countryName, type: 'country' };
           updated++;
         }
       } catch (err) {
-        console.error(`❌ Exception updating ${regionCode}:`, err);
-        results[regionCode] = {
-          success: false,
-          error: err instanceof Error ? err.message : 'Unknown error',
-          country: countryName
+        results[regionCode] = { 
+          success: false, 
+          error: err instanceof Error ? err.message : 'Unknown', 
+          name: countryName 
+        };
+      }
+    }
+
+    // Process admin-1 regions (states/provinces)
+    for (const feature of admin1Data.features) {
+      const iso2 = feature.properties.iso_a2;
+      const regionName = feature.properties.name;
+      const postal = feature.properties.postal;
+      
+      if (!iso2) continue;
+
+      // Find matching region in database
+      const dbRegion = dbRegions?.find(r => 
+        r.region_type !== 'country' && 
+        r.country === getCountryNameFromISO(iso2) &&
+        (r.region_code === postal || 
+         r.region_name.toLowerCase().replace(/\s+/g, '') === regionName.toLowerCase().replace(/\s+/g, '') ||
+         regionName.toLowerCase().includes(r.region_name.toLowerCase()))
+      );
+      
+      if (!dbRegion) continue;
+
+      let geometry = feature.geometry;
+      if (geometry.type === 'Polygon') {
+        geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
+      }
+      const centroid = calculateCentroid(geometry);
+
+      try {
+        console.log(`📍 Updating region ${dbRegion.region_name} (${dbRegion.region_code})...`);
+        const { error } = await supabase
+          .from('climate_inequality_regions')
+          .update({
+            geometry: geometry,
+            centroid: { type: 'Point', coordinates: centroid }
+          })
+          .eq('region_code', dbRegion.region_code)
+          .eq('region_type', dbRegion.region_type);
+
+        if (error) {
+          results[dbRegion.region_code] = { success: false, error: error.message, name: regionName };
+        } else {
+          results[dbRegion.region_code] = { success: true, name: regionName, type: 'region' };
+          updated++;
+        }
+      } catch (err) {
+        results[dbRegion.region_code] = { 
+          success: false, 
+          error: err instanceof Error ? err.message : 'Unknown',
+          name: regionName 
         };
       }
     }
@@ -155,6 +198,21 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Get country name from ISO 2-letter code
+ */
+function getCountryNameFromISO(iso: string): string {
+  const countryNames: Record<string, string> = {
+    'DE': 'Germany', 'PL': 'Poland', 'FR': 'France', 'ES': 'Spain',
+    'IT': 'Italy', 'GR': 'Greece', 'RO': 'Romania', 'BG': 'Bulgaria',
+    'GB': 'United Kingdom', 'NL': 'Netherlands', 'SE': 'Sweden',
+    'PT': 'Portugal', 'US': 'United States', 'CA': 'Canada',
+    'IN': 'India', 'CN': 'China', 'BR': 'Brazil', 'MX': 'Mexico',
+    'AU': 'Australia', 'JP': 'Japan'
+  };
+  return countryNames[iso] || iso;
+}
 
 /**
  * Calculate approximate centroid from geometry
