@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.initialize-regions]
 verify_jwt = false
+
+[functions.fetch-real-data]
+verify_jwt = false
+
+[functions.enrich-with-real-data]
+verify_jwt = false
