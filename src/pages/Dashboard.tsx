@@ -38,7 +38,7 @@ useEffect(() => {
   }
 }, []);
 
-// Auto-initialize data if needed
+// Auto-initialize data if the table is empty
 useEffect(() => {
   const checkAndInitializeData = async () => {
     try {
@@ -49,25 +49,18 @@ useEffect(() => {
 
       if (error) throw error;
 
-      // If no data exists, initialize
       if (!data || data.length === 0) {
         setIsInitializing(true);
         toast({
           title: 'Initializing Database',
-          description: 'Loading global climate data for 100+ countries...',
+          description: 'Loading global climate data for 100+ countries and regions (2020-2025)...',
         });
 
-        const { data: initData, error: initError } = await supabase.functions.invoke('initialize-data');
-
+        const { error: initError } = await supabase.functions.invoke('initialize-data');
         if (initError) throw initError;
 
-        toast({
-          title: 'Database Ready',
-          description: `Loaded data for ${initData.summary?.countries || 100} countries across 6 years`,
-        });
-        
         setIsInitializing(false);
-        window.location.reload(); // Reload to show the data
+        window.location.reload();
       }
     } catch (error: any) {
       console.error('Error initializing data:', error);
@@ -77,6 +70,34 @@ useEffect(() => {
 
   checkAndInitializeData();
 }, [toast]);
+
+// Ensure coverage for the selected year (if user switches years)
+useEffect(() => {
+  const ensureYearData = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('climate_inequality_regions')
+        .select('id', { count: 'exact', head: true })
+        .eq('data_year', year);
+
+      if (error) throw error;
+
+      if ((count ?? 0) === 0) {
+        setIsInitializing(true);
+        toast({ title: 'Preparing Year Data', description: `Generating data for ${year}...` });
+        const { error: initError } = await supabase.functions.invoke('initialize-data');
+        if (initError) throw initError;
+        setIsInitializing(false);
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Year data check failed:', err);
+      setIsInitializing(false);
+    }
+  };
+
+  ensureYearData();
+}, [year, toast]);
 
   const handleTokenError = () => {
     setIsTokenSet(false);
@@ -176,7 +197,7 @@ useEffect(() => {
               type="submit"
               className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 transition-colors"
             >
-              Launch Map
+              {isInitializing ? 'Preparing data...' : 'Launch Map'}
             </button>
           </form>
         </div>

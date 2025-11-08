@@ -6,48 +6,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Comprehensive country mapping - 100+ countries worldwide
-const COUNTRIES: Record<string, string> = {
+// Map ISO3 -> ISO2 for broad coverage
+const ISO3_TO_ISO2: Record<string, string> = {
   // Europe
-  'DEU': 'Germany', 'FRA': 'France', 'GBR': 'United Kingdom', 'ITA': 'Italy', 'ESP': 'Spain',
-  'POL': 'Poland', 'ROU': 'Romania', 'NLD': 'Netherlands', 'BEL': 'Belgium', 'GRC': 'Greece',
-  'CZE': 'Czech Republic', 'PRT': 'Portugal', 'SWE': 'Sweden', 'HUN': 'Hungary', 'AUT': 'Austria',
-  'BGR': 'Bulgaria', 'DNK': 'Denmark', 'FIN': 'Finland', 'SVK': 'Slovakia', 'NOR': 'Norway',
-  'IRL': 'Ireland', 'HRV': 'Croatia', 'BIH': 'Bosnia and Herzegovina', 'SRB': 'Serbia', 'CHE': 'Switzerland',
-  'LTU': 'Lithuania', 'SVN': 'Slovenia', 'LVA': 'Latvia', 'EST': 'Estonia', 'MKD': 'North Macedonia',
-  'ALB': 'Albania', 'MDA': 'Moldova', 'ISL': 'Iceland', 'LUX': 'Luxembourg', 'MNE': 'Montenegro',
-  
+  DEU:'DE', FRA:'FR', GBR:'GB', ITA:'IT', ESP:'ES', POL:'PL', ROU:'RO', NLD:'NL', BEL:'BE', GRC:'GR',
+  CZE:'CZ', PRT:'PT', SWE:'SE', HUN:'HU', AUT:'AT', BGR:'BG', DNK:'DK', FIN:'FI', SVK:'SK', NOR:'NO',
+  IRL:'IE', HRV:'HR', BIH:'BA', SRB:'RS', CHE:'CH', LTU:'LT', SVN:'SI', LVA:'LV', EST:'EE', MKD:'MK',
+  ALB:'AL', MDA:'MD', ISL:'IS', LUX:'LU', MNE:'ME', UKR:'UA', RUS:'RU',
   // Americas
-  'USA': 'United States', 'CAN': 'Canada', 'MEX': 'Mexico', 'BRA': 'Brazil', 'ARG': 'Argentina',
-  'COL': 'Colombia', 'PER': 'Peru', 'VEN': 'Venezuela', 'CHL': 'Chile', 'ECU': 'Ecuador',
-  'GTM': 'Guatemala', 'CUB': 'Cuba', 'HTI': 'Haiti', 'BOL': 'Bolivia', 'DOM': 'Dominican Republic',
-  'HND': 'Honduras', 'PRY': 'Paraguay', 'NIC': 'Nicaragua', 'SLV': 'El Salvador', 'CRI': 'Costa Rica',
-  'PAN': 'Panama', 'URY': 'Uruguay', 'JAM': 'Jamaica', 'TTO': 'Trinidad and Tobago',
-  
+  USA:'US', CAN:'CA', MEX:'MX', BRA:'BR', ARG:'AR', COL:'CO', PER:'PE', VEN:'VE', CHL:'CL', ECU:'EC',
+  GTM:'GT', CUB:'CU', HTI:'HT', BOL:'BO', DOM:'DO', HND:'HN', PRY:'PY', NIC:'NI', SLV:'SV', CRI:'CR',
+  PAN:'PA', URY:'UY', JAM:'JM', TTO:'TT',
   // Asia
-  'CHN': 'China', 'IND': 'India', 'IDN': 'Indonesia', 'PAK': 'Pakistan', 'BGD': 'Bangladesh',
-  'JPN': 'Japan', 'PHL': 'Philippines', 'VNM': 'Vietnam', 'TUR': 'Turkey', 'IRN': 'Iran',
-  'THA': 'Thailand', 'MMR': 'Myanmar', 'KOR': 'South Korea', 'IRQ': 'Iraq', 'AFG': 'Afghanistan',
-  'SAU': 'Saudi Arabia', 'UZB': 'Uzbekistan', 'MYS': 'Malaysia', 'NPL': 'Nepal', 'YEM': 'Yemen',
-  'KHM': 'Cambodia', 'LKA': 'Sri Lanka', 'SYR': 'Syria', 'KAZ': 'Kazakhstan', 'JOR': 'Jordan',
-  'ARE': 'United Arab Emirates', 'ISR': 'Israel', 'LAO': 'Laos', 'SGP': 'Singapore', 'LBN': 'Lebanon',
-  'KWT': 'Kuwait', 'OMN': 'Oman', 'GEO': 'Georgia', 'ARM': 'Armenia', 'MNG': 'Mongolia',
-  
+  CHN:'CN', IND:'IN', IDN:'ID', PAK:'PK', BGD:'BD', JPN:'JP', PHL:'PH', VNM:'VN', TUR:'TR', IRN:'IR',
+  THA:'TH', MMR:'MM', KOR:'KR', IRQ:'IQ', AFG:'AF', SAU:'SA', UZB:'UZ', MYS:'MY', NPL:'NP', YEM:'YE',
+  KHM:'KH', LKA:'LK', SYR:'SY', KAZ:'KZ', JOR:'JO', ARE:'AE', ISR:'IL', LAO:'LA', SGP:'SG', LBN:'LB',
+  KWT:'KW', OMN:'OM', GEO:'GE', ARM:'AM', MNG:'MN',
   // Africa
-  'NGA': 'Nigeria', 'ETH': 'Ethiopia', 'EGY': 'Egypt', 'COD': 'Democratic Republic of Congo', 'ZAF': 'South Africa',
-  'TZA': 'Tanzania', 'KEN': 'Kenya', 'UGA': 'Uganda', 'DZA': 'Algeria', 'SDN': 'Sudan',
-  'MAR': 'Morocco', 'AGO': 'Angola', 'GHA': 'Ghana', 'MOZ': 'Mozambique', 'MDG': 'Madagascar',
-  'CMR': 'Cameroon', 'CIV': "Côte d'Ivoire", 'NER': 'Niger', 'BFA': 'Burkina Faso', 'MLI': 'Mali',
-  'MWI': 'Malawi', 'ZMB': 'Zambia', 'SOM': 'Somalia', 'SEN': 'Senegal', 'TCD': 'Chad',
-  'ZWE': 'Zimbabwe', 'GIN': 'Guinea', 'RWA': 'Rwanda', 'BEN': 'Benin', 'TUN': 'Tunisia',
-  'BDI': 'Burundi', 'SSD': 'South Sudan', 'TGO': 'Togo', 'SLE': 'Sierra Leone', 'LBY': 'Libya',
-  
+  NGA:'NG', ETH:'ET', EGY:'EG', COD:'CD', ZAF:'ZA', TZA:'TZ', KEN:'KE', UGA:'UG', DZA:'DZ', SDN:'SD',
+  MAR:'MA', AGO:'AO', GHA:'GH', MOZ:'MZ', MDG:'MG', CMR:'CM', CIV:'CI', NER:'NE', BFA:'BF', MLI:'ML',
+  MWI:'MW', ZMB:'ZM', SOM:'SO', SEN:'SN', TCD:'TD', ZWE:'ZW', GIN:'GN', RWA:'RW', BEN:'BJ', TUN:'TN',
+  BDI:'BI', SSD:'SS', TGO:'TG', SLE:'SL', LBY:'LY',
   // Oceania
-  'AUS': 'Australia', 'PNG': 'Papua New Guinea', 'NZL': 'New Zealand', 'FJI': 'Fiji',
-  
-  // Russia & Central Asia
-  'RUS': 'Russia', 'TJK': 'Tajikistan', 'KGZ': 'Kyrgyzstan', 'TKM': 'Turkmenistan',
+  AUS:'AU', PNG:'PG', NZL:'NZ', FJI:'FJ',
 };
+
+// Helper sluggify for region codes
+function slug(str: string) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}+/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -59,161 +51,128 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🌍 Starting comprehensive data initialization...');
-    
-    // Fetch Natural Earth country boundaries
-    console.log('📥 Fetching Natural Earth country data...');
-    const countryResponse = await fetch(
-      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
-    );
-    const countryData = await countryResponse.json();
-    console.log(`✅ Loaded ${countryData.features.length} countries from Natural Earth`);
-
     const years = [2020, 2021, 2022, 2023, 2024, 2025];
-    const insertedRegions = [];
-    let totalInserted = 0;
+    let inserted = 0;
+    let countryCount = 0;
+    let regionCount = 0;
 
-    // Process each country
-    for (const feature of countryData.features) {
-      const iso3 = feature.properties.ADM0_A3 || feature.properties.ISO_A3;
-      const countryName = COUNTRIES[iso3];
-      
-      if (!countryName) continue;
+    // 1) Countries from Natural Earth (admin 0)
+    console.log('📥 Fetching Natural Earth admin-0 (countries) ...');
+    const admin0Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson');
+    if (!admin0Resp.ok) throw new Error('Failed to fetch admin-0 dataset');
+    const admin0 = await admin0Resp.json();
 
-      // Get 2-letter code from ISO3
-      const iso2 = getISO2FromISO3(iso3);
-      
-      let geometry = feature.geometry;
-      if (geometry.type === 'Polygon') {
+    for (const f of admin0.features) {
+      const iso3 = f.properties.ADM0_A3 || f.properties.ISO_A3;
+      const iso2 = ISO3_TO_ISO2[iso3];
+      const countryName = f.properties.ADMIN || f.properties.NAME;
+      if (!iso2 || !countryName) continue;
+
+      let geometry = f.geometry;
+      if (geometry?.type === 'Polygon') {
         geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
       }
       const centroid = calculateCentroid(geometry);
 
-      // Create entries for each year
-      for (const year of years) {
-        const regionData = {
+      for (const y of years) {
+        const rec = {
           region_code: iso2,
           region_name: countryName,
           region_type: 'country',
           country: countryName,
-          data_year: year,
-          geometry: geometry,
+          data_year: y,
+          geometry,
           centroid: { type: 'Point', coordinates: centroid },
-          ...generateSyntheticData(countryName, year, 'country')
+          ...generateSyntheticData(countryName, y, 'country')
         };
-
         const { error } = await supabase
           .from('climate_inequality_regions')
-          .upsert(regionData, {
-            onConflict: 'region_code,data_year',
-            ignoreDuplicates: false
-          });
-
-        if (error) {
-          console.error(`Error inserting ${countryName} (${year}):`, error);
-        } else {
-          totalInserted++;
-          if (year === 2024) {
-            insertedRegions.push(countryName);
-          }
-        }
+          .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
+        if (!error) { inserted++; if (y === 2024) countryCount++; }
       }
     }
 
-    console.log(`\n✅ Initialization complete!`);
-    console.log(`📊 Total records inserted: ${totalInserted}`);
-    console.log(`🌍 Countries: ${insertedRegions.length}`);
-    console.log(`📅 Years: 2020-2025`);
+    // 2) Regions from Natural Earth (admin 1)
+    console.log('📥 Fetching Natural Earth admin-1 (states/provinces) ...');
+    const admin1Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson');
+    if (!admin1Resp.ok) throw new Error('Failed to fetch admin-1 dataset');
+    const admin1 = await admin1Resp.json();
+
+    for (const f of admin1.features) {
+      const iso2 = f.properties.iso_a2 || ISO3_TO_ISO2[f.properties.iso_a3];
+      const regionName = f.properties.name || f.properties.name_en || f.properties.name_local;
+      const countryName = f.properties.adm0_name || f.properties.sovereignt || f.properties.admin;
+      if (!iso2 || !regionName || !countryName) continue;
+
+      let codePart = f.properties.postal || f.properties.abbrev || slug(regionName).slice(0, 8);
+      codePart = (codePart || slug(regionName)).toUpperCase();
+      const regionCode = `${iso2}-${codePart}`;
+
+      let geometry = f.geometry;
+      if (geometry?.type === 'Polygon') {
+        geometry = { type: 'MultiPolygon', coordinates: [geometry.coordinates] };
+      }
+      const centroid = calculateCentroid(geometry);
+
+      for (const y of years) {
+        const rec = {
+          region_code: regionCode,
+          region_name: regionName,
+          region_type: 'region',
+          country: countryName,
+          data_year: y,
+          geometry,
+          centroid: { type: 'Point', coordinates: centroid },
+          ...generateSyntheticData(regionName, y, 'region')
+        };
+        const { error } = await supabase
+          .from('climate_inequality_regions')
+          .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
+        if (!error && y === 2024) regionCount++;
+      }
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        summary: {
-          totalRecords: totalInserted,
-          countries: insertedRegions.length,
-          years: years.length,
-          countriesList: insertedRegions.slice(0, 20)
-        },
-        message: '🎉 Database initialized with comprehensive global data!'
+        message: 'Initialized countries and admin-1 regions for 2020-2025',
+        summary: { inserted, countryCount2024: countryCount, regionCount2024: regionCount }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Fatal error:', error);
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('initialize-data error:', error);
+    return new Response(JSON.stringify({ success: false, error: String(error) }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });
 
-function getISO2FromISO3(iso3: string): string {
-  const mapping: Record<string, string> = {
-    'DEU': 'DE', 'FRA': 'FR', 'GBR': 'GB', 'ITA': 'IT', 'ESP': 'ES',
-    'POL': 'PL', 'ROU': 'RO', 'NLD': 'NL', 'BEL': 'BE', 'GRC': 'GR',
-    'CZE': 'CZ', 'PRT': 'PT', 'SWE': 'SE', 'HUN': 'HU', 'AUT': 'AT',
-    'BGR': 'BG', 'DNK': 'DK', 'FIN': 'FI', 'SVK': 'SK', 'NOR': 'NO',
-    'IRL': 'IE', 'HRV': 'HR', 'BIH': 'BA', 'SRB': 'RS', 'CHE': 'CH',
-    'LTU': 'LT', 'SVN': 'SI', 'LVA': 'LV', 'EST': 'EE', 'MKD': 'MK',
-    'ALB': 'AL', 'MDA': 'MD', 'ISL': 'IS', 'LUX': 'LU', 'MNE': 'ME',
-    'USA': 'US', 'CAN': 'CA', 'MEX': 'MX', 'BRA': 'BR', 'ARG': 'AR',
-    'COL': 'CO', 'PER': 'PE', 'VEN': 'VE', 'CHL': 'CL', 'ECU': 'EC',
-    'GTM': 'GT', 'CUB': 'CU', 'HTI': 'HT', 'BOL': 'BO', 'DOM': 'DO',
-    'HND': 'HN', 'PRY': 'PY', 'NIC': 'NI', 'SLV': 'SV', 'CRI': 'CR',
-    'PAN': 'PA', 'URY': 'UY', 'JAM': 'JM', 'TTO': 'TT',
-    'CHN': 'CN', 'IND': 'IN', 'IDN': 'ID', 'PAK': 'PK', 'BGD': 'BD',
-    'JPN': 'JP', 'PHL': 'PH', 'VNM': 'VN', 'TUR': 'TR', 'IRN': 'IR',
-    'THA': 'TH', 'MMR': 'MM', 'KOR': 'KR', 'IRQ': 'IQ', 'AFG': 'AF',
-    'SAU': 'SA', 'UZB': 'UZ', 'MYS': 'MY', 'NPL': 'NP', 'YEM': 'YE',
-    'KHM': 'KH', 'LKA': 'LK', 'SYR': 'SY', 'KAZ': 'KZ', 'JOR': 'JO',
-    'ARE': 'AE', 'ISR': 'IL', 'LAO': 'LA', 'SGP': 'SG', 'LBN': 'LB',
-    'KWT': 'KW', 'OMN': 'OM', 'GEO': 'GE', 'ARM': 'AM', 'MNG': 'MN',
-    'NGA': 'NG', 'ETH': 'ET', 'EGY': 'EG', 'COD': 'CD', 'ZAF': 'ZA',
-    'TZA': 'TZ', 'KEN': 'KE', 'UGA': 'UG', 'DZA': 'DZ', 'SDN': 'SD',
-    'MAR': 'MA', 'AGO': 'AO', 'GHA': 'GH', 'MOZ': 'MZ', 'MDG': 'MG',
-    'CMR': 'CM', 'CIV': 'CI', 'NER': 'NE', 'BFA': 'BF', 'MLI': 'ML',
-    'MWI': 'MW', 'ZMB': 'ZM', 'SOM': 'SO', 'SEN': 'SN', 'TCD': 'TD',
-    'ZWE': 'ZW', 'GIN': 'GN', 'RWA': 'RW', 'BEN': 'BJ', 'TUN': 'TN',
-    'BDI': 'BI', 'SSD': 'SS', 'TGO': 'TG', 'SLE': 'SL', 'LBY': 'LY',
-    'AUS': 'AU', 'PNG': 'PG', 'NZL': 'NZ', 'FJI': 'FJ',
-    'RUS': 'RU', 'TJK': 'TJ', 'KGZ': 'KG', 'TKM': 'TM',
-  };
-  return mapping[iso3] || iso3.substring(0, 2);
-}
+function generateSyntheticData(regionName: string, year: number, type: 'country' | 'region') {
+  const isHighIncome = /United States|Germany|Japan|United Kingdom|France|Canada|Australia|Netherlands|Sweden|Denmark|Norway/.test(regionName);
+  const isHotClimate = /India|Saudi Arabia|Nigeria|Egypt|Brazil|Mexico|Pakistan|Bangladesh|Indonesia/.test(regionName);
+  const isHighPollution = /China|India|Bangladesh|Pakistan|Indonesia|Egypt/.test(regionName);
 
-function generateSyntheticData(regionName: string, year: number, type: string) {
-  // Base values vary by region characteristics
-  const isHighIncome = ['United States', 'Germany', 'Japan', 'United Kingdom', 'France', 'Canada', 'Australia'].includes(regionName);
-  const isHotClimate = ['India', 'Saudi Arabia', 'Nigeria', 'Egypt', 'Brazil', 'Mexico'].includes(regionName);
-  const isHighPollution = ['China', 'India', 'Bangladesh', 'Pakistan', 'Indonesia'].includes(regionName);
-  
-  // Year-based trend (worsening climate over time)
-  const yearFactor = 1 + (year - 2020) * 0.02; // 2% worse per year
-  
-  // Generate realistic values
+  const yearFactor = 1 + (year - 2020) * 0.02;
+
   const baseTemp = isHotClimate ? 28 : 12;
   const basePollution = isHighPollution ? 45 : 15;
   const baseGDP = isHighIncome ? 45000 : 8000;
   const baseInfra = isHighIncome ? 0.85 : 0.45;
-  
-  // Add some randomness
-  const rand = (base: number, variance: number) => 
-    base + (Math.random() - 0.5) * variance * 2;
+
+  const rand = (base: number, variance: number) => base + (Math.random() - 0.5) * variance * 2;
 
   const temperature = rand(baseTemp * yearFactor, 2);
   const pm25 = rand(basePollution * yearFactor, 10);
   const no2 = rand(basePollution * 0.6 * yearFactor, 5);
   const gdp = rand(baseGDP, baseGDP * 0.2);
-  const infraScore = Math.min(0.95, rand(baseInfra, 0.1));
-  
-  // Calculate composite CII score (0-1 scale, higher = worse inequality)
-  const climateRisk = Math.min(1, (temperature - 10) / 25 + Math.random() * 0.2);
-  const socioeconomicScore = Math.min(1, (50000 - gdp) / 50000);
-  const ciiScore = (climateRisk * 0.4 + socioeconomicScore * 0.3 + (1 - infraScore) * 0.3);
-  
+  const infraScore = Math.min(0.98, Math.max(0.05, rand(baseInfra, 0.1)));
+
+  const climateRisk = Math.min(1, Math.max(0, (temperature - 10) / 25 + Math.random() * 0.2));
+  const socioeconomicScore = Math.min(1, Math.max(0, (50000 - gdp) / 50000));
+  const ciiScore = Math.min(1, Math.max(0, climateRisk * 0.4 + socioeconomicScore * 0.3 + (1 - infraScore) * 0.3));
+
   return {
     cii_score: Number(ciiScore.toFixed(3)),
     climate_risk_score: Number(climateRisk.toFixed(3)),
@@ -230,25 +189,21 @@ function generateSyntheticData(regionName: string, year: number, type: string) {
     flood_risk_score: Number(rand(0.4, 0.2).toFixed(3)),
     gdp_per_capita: Number(gdp.toFixed(2)),
     urban_population_percent: Number(rand(isHighIncome ? 80 : 50, 15).toFixed(2)),
-    last_updated: new Date().toISOString()
+    data_sources: ['Natural Earth', 'Synthetic'],
+    last_updated: new Date().toISOString(),
   };
 }
 
 function calculateCentroid(geometry: any): [number, number] {
   const coords: [number, number][] = [];
-  
+  if (!geometry) return [0, 0];
   if (geometry.type === 'Polygon') {
     coords.push(...geometry.coordinates[0]);
   } else if (geometry.type === 'MultiPolygon') {
-    for (const polygon of geometry.coordinates) {
-      coords.push(...polygon[0]);
-    }
+    for (const polygon of geometry.coordinates) coords.push(...polygon[0]);
   }
-
   if (coords.length === 0) return [0, 0];
-
-  const sumLon = coords.reduce((sum, coord) => sum + coord[0], 0);
-  const sumLat = coords.reduce((sum, coord) => sum + coord[1], 0);
-
+  const sumLon = coords.reduce((s, c) => s + c[0], 0);
+  const sumLat = coords.reduce((s, c) => s + c[1], 0);
   return [sumLon / coords.length, sumLat / coords.length];
 }
