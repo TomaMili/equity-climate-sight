@@ -251,6 +251,10 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         };
         setVisibility(viewMode);
 
+        // Notify parent and mark map ready
+        onDataLoaded && onDataLoaded();
+        setIsMapReady(true);
+
       }
     });
 
