@@ -16,17 +16,17 @@ const Index = () => {
   const [selectedH3Index, setSelectedH3Index] = useState<string | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isLoadingInsight, setIsLoadingInsight] = useState(false);
-  const [mapboxToken, setMapboxToken] = useState('');
-  const [isTokenSet, setIsTokenSet] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState('pk.eyJ1IjoidG9tYW1pbGkiLCJhIjoiY21ocDg3bHltMDNsYjJqcXUwYXk1NXRoZCJ9.pIJqrpchhmLFjhL1Fp4VTQ');
+  const [isTokenSet, setIsTokenSet] = useState(true); // Auto-set to true with provided token
   const [showAdmin, setShowAdmin] = useState(false);
   const { toast } = useToast();
 
   const handleTokenError = () => {
     setIsTokenSet(false);
-    setMapboxToken('');
+    setMapboxToken('pk.eyJ1IjoidG9tYW1pbGkiLCJhIjoiY21ocDg3bHltMDNsYjJqcXUwYXk1NXRoZCJ9.pIJqrpchhmLFjhL1Fp4VTQ');
     toast({
       title: 'Token Error',
-      description: 'Please enter a valid Mapbox token to continue',
+      description: 'Please check your Mapbox token and try again',
       variant: 'destructive',
     });
   };

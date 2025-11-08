@@ -16,9 +16,69 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapError, setMapError] = useState<Error | null>(null);
   const [regionsData, setRegionsData] = useState<any>(null);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // Load region data from backend FIRST, before map initialization
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    const loadRegionData = async () => {
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data, error } = await supabase
+          .from('climate_inequality_regions')
+          .select('*')
+          .eq('data_year', 2024);
+
+        if (error) throw error;
+
+        // Convert to GeoJSON
+        const features = (data || []).map((item: any) => ({
+          type: 'Feature',
+          properties: {
+            region_code: item.region_code,
+            region_name: item.region_name,
+            country: item.country,
+            cii_score: item.cii_score,
+            climate_risk_score: item.climate_risk_score,
+            infrastructure_score: item.infrastructure_score,
+            socioeconomic_score: item.socioeconomic_score,
+            population: item.population,
+            air_quality_pm25: item.air_quality_pm25,
+            air_quality_no2: item.air_quality_no2,
+            internet_speed_download: item.internet_speed_download,
+            internet_speed_upload: item.internet_speed_upload,
+            temperature_avg: item.temperature_avg,
+            precipitation_avg: item.precipitation_avg,
+            drought_index: item.drought_index,
+            flood_risk_score: item.flood_risk_score,
+            gdp_per_capita: item.gdp_per_capita,
+            urban_population_percent: item.urban_population_percent,
+          },
+          geometry: JSON.parse(item.geometry)
+        }));
+
+        const geojsonData = {
+          type: 'FeatureCollection',
+          features: features
+        };
+
+        setRegionsData(geojsonData);
+        setIsDataLoaded(true);
+      } catch (error) {
+        console.error('Error loading region data:', error);
+        setMapError(error instanceof Error ? error : new Error('Failed to load region data'));
+        setIsDataLoaded(true); // Still set to true to allow map to initialize
+      }
+    };
+
+    loadRegionData();
+  }, []);
+
+  // Initialize map only after data is loaded and when token is available
+  useEffect(() => {
+    if (!mapContainer.current || !mapboxToken || !isDataLoaded) return;
+
+    // Prevent re-initialization if map already exists
+    if (map.current) return;
 
     try {
       mapboxgl.accessToken = mapboxToken;
@@ -121,19 +181,23 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
 
     return () => {
       try {
-        map.current?.remove();
+        if (map.current) {
+          map.current.remove();
+          map.current = null;
+        }
       } catch (error) {
         console.error('Error cleaning up map:', error);
       }
     };
-  }, [mapboxToken, onRegionClick, regionsData, selectedRegion]);
+  }, [mapboxToken, onRegionClick, isDataLoaded]); // Removed regionsData and selectedRegion from dependencies
 
-  // Update data when regionsData changes
+  // Update data source when regionsData changes (without reinitializing map)
   useEffect(() => {
     if (map.current && isLoaded && regionsData && map.current.getSource('regions')) {
       const source = map.current.getSource('regions') as mapboxgl.GeoJSONSource;
       if (source) {
         source.setData(regionsData);
+        console.log('Updated region data on map');
       }
     }
   }, [regionsData, isLoaded]);
@@ -155,59 +219,6 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       ]);
     }
   }, [selectedRegion, isLoaded]);
-
-  // Load region data from backend
-  useEffect(() => {
-    const loadRegionData = async () => {
-      try {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { data, error } = await supabase
-          .from('climate_inequality_regions')
-          .select('*')
-          .eq('data_year', 2024);
-
-        if (error) throw error;
-
-        // Convert to GeoJSON
-        const features = (data || []).map((item: any) => ({
-          type: 'Feature',
-          properties: {
-            region_code: item.region_code,
-            region_name: item.region_name,
-            country: item.country,
-            cii_score: item.cii_score,
-            climate_risk_score: item.climate_risk_score,
-            infrastructure_score: item.infrastructure_score,
-            socioeconomic_score: item.socioeconomic_score,
-            population: item.population,
-            air_quality_pm25: item.air_quality_pm25,
-            air_quality_no2: item.air_quality_no2,
-            internet_speed_download: item.internet_speed_download,
-            internet_speed_upload: item.internet_speed_upload,
-            temperature_avg: item.temperature_avg,
-            precipitation_avg: item.precipitation_avg,
-            drought_index: item.drought_index,
-            flood_risk_score: item.flood_risk_score,
-            gdp_per_capita: item.gdp_per_capita,
-            urban_population_percent: item.urban_population_percent,
-          },
-          geometry: JSON.parse(item.geometry)
-        }));
-
-        const geojsonData = {
-          type: 'FeatureCollection',
-          features: features
-        };
-
-        setRegionsData(geojsonData);
-      } catch (error) {
-        console.error('Error loading region data:', error);
-        setMapError(error instanceof Error ? error : new Error('Failed to load region data'));
-      }
-    };
-
-    loadRegionData();
-  }, []);
 
   const handleRetry = () => {
     setMapError(null);
