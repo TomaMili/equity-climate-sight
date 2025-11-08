@@ -248,18 +248,37 @@ serve(async (req) => {
       console.warn(`⚠️ Skipped ${validationErrors} invalid records out of ${recordsToInsert.length}`);
     }
 
+    // Deduplicate records by region_code + data_year to avoid database conflicts
+    const recordMap = new Map<string, any>();
+    for (const record of validRecords) {
+      const key = `${record.region_code}_${record.data_year}`;
+      // Keep the last occurrence (most recent data)
+      recordMap.set(key, record);
+    }
+    const uniqueRecords = Array.from(recordMap.values());
+    
+    if (uniqueRecords.length < validRecords.length) {
+      console.warn(`⚠️ Removed ${validRecords.length - uniqueRecords.length} duplicate records`);
+    }
+
     // Insert in smaller batches to avoid timeouts
-    console.log(`Inserting ${validRecords.length} validated records in batches of ${DB_BATCH_SIZE}...`);
-    for (let i = 0; i < validRecords.length; i += DB_BATCH_SIZE) {
-      const batch = validRecords.slice(i, i + DB_BATCH_SIZE);
-      const { error } = await supabase
+    console.log(`Inserting ${uniqueRecords.length} unique records in batches of ${DB_BATCH_SIZE}...`);
+    let insertedCount = 0;
+    
+    for (let i = 0; i < uniqueRecords.length; i += DB_BATCH_SIZE) {
+      const batch = uniqueRecords.slice(i, i + DB_BATCH_SIZE);
+      const { error, count } = await supabase
         .from('climate_inequality_regions')
-        .upsert(batch, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
+        .upsert(batch, { onConflict: 'region_code,data_year', ignoreDuplicates: false, count: 'exact' });
       
       if (error) {
         console.error(`Error inserting batch at index ${i}:`, error);
+      } else {
+        insertedCount += (count || 0);
       }
     }
+    
+    console.log(`✅ Successfully inserted/updated ${insertedCount} records`);
 
     const newProcessedTotal = processedCount + newlyProcessed;
     const stillRemaining = totalRegions - newProcessedTotal;
