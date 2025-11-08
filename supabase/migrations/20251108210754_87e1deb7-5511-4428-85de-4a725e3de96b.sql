@@ -1,0 +1,20 @@
+-- Add India, China, Brazil regions
+INSERT INTO climate_inequality_regions (region_code, region_name, country, region_type, cii_score, climate_risk_score, infrastructure_score, socioeconomic_score, population, data_year, air_quality_pm25, air_quality_no2, geometry, centroid) VALUES
+('IN-MH', 'Maharashtra', 'India', 'state', 0.65, 0.78, 0.58, 0.64, 125000000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 72.6,15.6],[80.9,15.6],[80.9,22.0],[72.6,22.0],[72.6,15.6]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[76.0,19.0]}')),
+('IN-DL', 'Delhi', 'India', 'union_territory', 0.72, 0.85, 0.66, 0.70, 32900000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 76.8,28.4],[77.3,28.4],[77.3,28.9],[76.8,28.9],[76.8,28.4]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[77.1,28.7]}')),
+('CN-BJ', 'Beijing', 'China', 'municipality', 0.68, 0.80, 0.62, 0.66, 22000000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 115.4,39.4],[117.5,39.4],[117.5,41.1],[115.4,41.1],[115.4,39.4]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[116.4,39.9]}')),
+('CN-SH', 'Shanghai', 'China', 'municipality', 0.62, 0.74, 0.56, 0.60, 28500000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 120.9,30.7],[122.0,30.7],[122.0,31.9],[120.9,31.9],[120.9,30.7]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[121.5,31.2]}')),
+('BR-SP', 'São Paulo', 'Brazil', 'state', 0.55, 0.68, 0.48, 0.54, 46600000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[-53.1,-25.3],[-44.2,-25.3],[-44.2,-19.8],[-53.1,-19.8],[-53.1,-25.3]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-48.5,-22.9]}')),
+('BR-RJ', 'Rio de Janeiro', 'Brazil', 'state', 0.58, 0.70, 0.52, 0.56, 17500000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[-44.9,-23.4],[-40.9,-23.4],[-40.9,-20.8],[-44.9,-20.8],[-44.9,-23.4]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-42.5,-22.3]}'));

@@ -22,7 +22,7 @@ export const MapLoadingSkeleton = () => {
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Loading ASDI datasets</span>
-            <span>12 countries</span>
+            <span>40+ regions worldwide</span>
           </div>
         </div>
       </Card>

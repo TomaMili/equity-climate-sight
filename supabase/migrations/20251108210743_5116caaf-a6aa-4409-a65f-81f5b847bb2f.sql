@@ -1,0 +1,20 @@
+-- Add Spain, Italy, UK regions  
+INSERT INTO climate_inequality_regions (region_code, region_name, country, region_type, cii_score, climate_risk_score, infrastructure_score, socioeconomic_score, population, data_year, air_quality_pm25, air_quality_no2, geometry, centroid) VALUES
+('ES-MD', 'Madrid', 'Spain', 'autonomous_community', 0.46, 0.58, 0.38, 0.44, 6800000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[-4.6,39.9],[-3.0,39.9],[-3.0,41.2],[-4.6,41.2],[-4.6,39.9]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-3.7,40.4]}')),
+('ES-CT', 'Catalonia', 'Spain', 'autonomous_community', 0.44, 0.56, 0.36, 0.42, 7700000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 0.1,40.5],[3.3,40.5],[3.3,42.9],[0.1,42.9],[0.1,40.5]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[1.5,41.6]}')),
+('IT-LZ', 'Lazio', 'Italy', 'region', 0.48, 0.60, 0.40, 0.46, 5900000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 11.4,41.2],[13.7,41.2],[13.7,42.8],[11.4,42.8],[11.4,41.2]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[12.5,42.0]}')),
+('IT-LM', 'Lombardy', 'Italy', 'region', 0.42, 0.54, 0.34, 0.40, 10100000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[ 8.5,44.7],[11.5,44.7],[11.5,46.6],[8.5,46.6],[8.5,44.7]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[9.8,45.5]}')),
+('GB-ENG', 'England', 'United Kingdom', 'nation', 0.40, 0.52, 0.32, 0.38, 56500000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[-6.4,49.9],[2.0,49.9],[2.0,55.8],[-6.4,55.8],[-6.4,49.9]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-1.5,52.5]}')),
+('GB-SCT', 'Scotland', 'United Kingdom', 'nation', 0.36, 0.48, 0.28, 0.34, 5500000, 2024, 12.0, 18.0,
+ ST_GeomFromGeoJSON('{"type":"MultiPolygon","coordinates":[[[[-8.6,54.6],[-0.7,54.6],[-0.7,60.9],[-8.6,60.9],[-8.6,54.6]]]]}'),
+ ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-4.2,57.0]}'));

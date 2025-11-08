@@ -17,7 +17,7 @@ AI Equity Mapper is an interactive web application that visualizes climate inequ
 - ✅ **Sidebar with region details** showing climate risk, infrastructure, and socioeconomic scores
 - ✅ **Global statistics panel** displaying average CII, high-risk areas, and critical regions
 - ✅ **Interactive legend** explaining the CII color scale
-- ✅ **Sample ASDI dataset integration** with 23 European regions
+- ✅ **Sample ASDI dataset integration** with 43 regions across 20 countries including regional breakdowns (states, provinces)
 
 ### Data Integrated
 Real structure aligned with ASDI datasets:
@@ -76,8 +76,8 @@ npm run dev
 
 ## 🗺️ How to Use
 
-1. **View the map**: Interactive visualization of 12 European countries with real boundaries
-2. **Click regions**: Click on any country to see detailed CII metrics and ASDI data
+1. **View the map**: Interactive visualization of 43 regions across 20 countries worldwide with real boundaries including state/provincial breakdowns
+2. **Click regions**: Click on any country or state/province to see detailed CII metrics and ASDI data
 3. **Read AI insights**: AI generates analysis using Gemini 2.5 Flash for each selected region
 4. **Check statistics**: Sidebar shows aggregate metrics across all mapped regions
 5. **Understand colors**: Green = low inequality, Yellow = medium, Red = critical
@@ -111,7 +111,7 @@ The application includes a built-in data refresh system accessible from the side
 
 1. **Click "Data Management"** in the sidebar to expand the admin panel
 2. **Click "Refresh Data"** to fetch the latest air quality data
-3. The system fetches 7-day averages from OpenAQ for all 12 countries
+3. The system fetches latest data from OpenAQ v3 API for all 43 regions
 4. Updates happen automatically in the database
 5. View detailed refresh status and error logs
 
@@ -137,7 +137,7 @@ python openaq_etl.py
 The script:
 - Fetches PM2.5 and NO₂ data from OpenAQ API
 - Calculates 7-day averages with outlier filtering
-- Updates all 12 European countries automatically
+- Updates all 43 regions (20 countries + states/provinces) automatically
 - Provides detailed logging and error reporting
 
 ### API Endpoint
