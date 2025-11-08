@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 interface ProgressData {
@@ -16,7 +17,7 @@ interface ProgressData {
 export function InitializationProgress() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [isVisible, setIsVisible] = useState(true);
-
+  const [isRunning, setIsRunning] = useState(false);
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>;
 
@@ -46,10 +47,20 @@ export function InitializationProgress() {
     return () => clearInterval(intervalId);
   }, []);
 
+  const handleRetry = async () => {
+    try {
+      setIsRunning(true);
+      await supabase.functions.invoke('initialize-data');
+    } catch (e) {
+      console.error('Retry initialization failed:', e);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   if (!isVisible || !progress || progress.status === 'completed') {
     return null;
   }
-
   const totalItems = (progress.total_countries || 0) + (progress.total_regions || 0);
   const processedItems = (progress.processed_countries || 0) + (progress.processed_regions || 0);
   const percentage = totalItems > 0 ? Math.round((processedItems / totalItems) * 100) : 0;
@@ -57,9 +68,14 @@ export function InitializationProgress() {
   return (
     <Card className="fixed top-4 right-4 z-50 p-4 w-80 bg-card border-border shadow-lg">
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <h3 className="font-semibold text-sm text-foreground">Initializing Database</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <h3 className="font-semibold text-sm text-foreground">Initializing Database</h3>
+          </div>
+          <Button size="sm" variant="secondary" onClick={handleRetry} disabled={isRunning} aria-label="Retry initialization">
+            {isRunning ? 'Retrying...' : 'Retry'}
+          </Button>
         </div>
         
         <div className="space-y-1">
