@@ -6,29 +6,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Map ISO3 -> ISO2 for broad coverage
+// Comprehensive ISO3 -> ISO2 mapping for all countries
 const ISO3_TO_ISO2: Record<string, string> = {
   // Europe
   DEU:'DE', FRA:'FR', GBR:'GB', ITA:'IT', ESP:'ES', POL:'PL', ROU:'RO', NLD:'NL', BEL:'BE', GRC:'GR',
   CZE:'CZ', PRT:'PT', SWE:'SE', HUN:'HU', AUT:'AT', BGR:'BG', DNK:'DK', FIN:'FI', SVK:'SK', NOR:'NO',
   IRL:'IE', HRV:'HR', BIH:'BA', SRB:'RS', CHE:'CH', LTU:'LT', SVN:'SI', LVA:'LV', EST:'EE', MKD:'MK',
-  ALB:'AL', MDA:'MD', ISL:'IS', LUX:'LU', MNE:'ME', UKR:'UA', RUS:'RU',
+  ALB:'AL', MDA:'MD', ISL:'IS', LUX:'LU', MNE:'ME', UKR:'UA', RUS:'RU', VAT:'VA', SMR:'SM', MCO:'MC',
+  AND:'AD', LIE:'LI', MLT:'MT', CYP:'CY', BLR:'BY', XKX:'XK', GIB:'GI',
   // Americas
   USA:'US', CAN:'CA', MEX:'MX', BRA:'BR', ARG:'AR', COL:'CO', PER:'PE', VEN:'VE', CHL:'CL', ECU:'EC',
   GTM:'GT', CUB:'CU', HTI:'HT', BOL:'BO', DOM:'DO', HND:'HN', PRY:'PY', NIC:'NI', SLV:'SV', CRI:'CR',
-  PAN:'PA', URY:'UY', JAM:'JM', TTO:'TT',
+  PAN:'PA', URY:'UY', JAM:'JM', TTO:'TT', GUY:'GY', SUR:'SR', BLZ:'BZ', BHS:'BS', BRB:'BB', GRD:'GD',
+  VCT:'VC', LCA:'LC', DMA:'DM', ATG:'AG', KNA:'KN', ABW:'AW', CUW:'CW', PRI:'PR',
   // Asia
   CHN:'CN', IND:'IN', IDN:'ID', PAK:'PK', BGD:'BD', JPN:'JP', PHL:'PH', VNM:'VN', TUR:'TR', IRN:'IR',
   THA:'TH', MMR:'MM', KOR:'KR', IRQ:'IQ', AFG:'AF', SAU:'SA', UZB:'UZ', MYS:'MY', NPL:'NP', YEM:'YE',
   KHM:'KH', LKA:'LK', SYR:'SY', KAZ:'KZ', JOR:'JO', ARE:'AE', ISR:'IL', LAO:'LA', SGP:'SG', LBN:'LB',
-  KWT:'KW', OMN:'OM', GEO:'GE', ARM:'AM', MNG:'MN',
+  KWT:'KW', OMN:'OM', GEO:'GE', ARM:'AM', MNG:'MN', AZE:'AZ', TJK:'TJ', KGZ:'KG', TKM:'TM', BTN:'BT',
+  MDV:'MV', PRK:'KP', TWN:'TW', PSE:'PS', HKG:'HK', MAC:'MO', BRN:'BN', TLS:'TL', QAT:'QA', BHR:'BH',
   // Africa
   NGA:'NG', ETH:'ET', EGY:'EG', COD:'CD', ZAF:'ZA', TZA:'TZ', KEN:'KE', UGA:'UG', DZA:'DZ', SDN:'SD',
   MAR:'MA', AGO:'AO', GHA:'GH', MOZ:'MZ', MDG:'MG', CMR:'CM', CIV:'CI', NER:'NE', BFA:'BF', MLI:'ML',
   MWI:'MW', ZMB:'ZM', SOM:'SO', SEN:'SN', TCD:'TD', ZWE:'ZW', GIN:'GN', RWA:'RW', BEN:'BJ', TUN:'TN',
-  BDI:'BI', SSD:'SS', TGO:'TG', SLE:'SL', LBY:'LY',
+  BDI:'BI', SSD:'SS', TGO:'TG', SLE:'SL', LBY:'LY', LBR:'LR', MRT:'MR', ERI:'ER', GMB:'GM', BWA:'BW',
+  NAM:'NA', GAB:'GA', LSO:'LS', GNB:'GW', GNQ:'GQ', MUS:'MU', SWZ:'SZ', DJI:'DJ', COM:'KM', CPV:'CV',
+  STP:'ST', SYC:'SC', REU:'RE', MYT:'YT', ESH:'EH',
   // Oceania
-  AUS:'AU', PNG:'PG', NZL:'NZ', FJI:'FJ',
+  AUS:'AU', PNG:'PG', NZL:'NZ', FJI:'FJ', SLB:'SB', VUT:'VU', NCL:'NC', PYF:'PF', WSM:'WS', GUM:'GU',
+  KIR:'KI', FSM:'FM', TON:'TO', PLW:'PW', MHL:'MH', TUV:'TV', NRU:'NR', ASM:'AS', MNP:'MP', COK:'CK',
+  NIU:'NU', TKL:'TK', WLF:'WF',
 };
 
 // Helper sluggify for region codes
@@ -56,17 +63,23 @@ serve(async (req) => {
     let countryCount = 0;
     let regionCount = 0;
 
-    // 1) Countries from Natural Earth (admin 0)
+    // 1) Countries from Natural Earth (admin 0) - using 50m for better coverage
     console.log('📥 Fetching Natural Earth admin-0 (countries) ...');
-    const admin0Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson');
+    const admin0Resp = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson');
     if (!admin0Resp.ok) throw new Error('Failed to fetch admin-0 dataset');
     const admin0 = await admin0Resp.json();
 
+    console.log(`Processing ${admin0.features.length} countries...`);
     for (const f of admin0.features) {
       const iso3 = f.properties.ADM0_A3 || f.properties.ISO_A3;
       const iso2 = ISO3_TO_ISO2[iso3];
       const countryName = f.properties.ADMIN || f.properties.NAME;
-      if (!iso2 || !countryName) continue;
+      
+      if (!iso2) {
+        console.warn(`⚠️ No ISO2 mapping for ${iso3} (${countryName})`);
+        continue;
+      }
+      if (!countryName) continue;
 
       let geometry = f.geometry;
       if (geometry?.type === 'Polygon') {
@@ -88,7 +101,12 @@ serve(async (req) => {
         const { error } = await supabase
           .from('climate_inequality_regions')
           .upsert(rec, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
-        if (!error) { inserted++; if (y === 2024) countryCount++; }
+        if (error) {
+          console.error(`Error upserting ${iso2} (${y}):`, error.message);
+        } else {
+          inserted++;
+          if (y === 2024) countryCount++;
+        }
       }
     }
 
