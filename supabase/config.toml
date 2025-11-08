@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.fetch-openaq-data]
 verify_jwt = false
+
+[functions.update-real-boundaries]
+verify_jwt = false

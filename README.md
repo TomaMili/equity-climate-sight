@@ -115,12 +115,33 @@ The application includes a built-in data refresh system accessible from the side
 4. Updates happen automatically in the database
 5. View detailed refresh status and error logs
 
-### Manual ETL Script (Python)
+### Manual ETL Scripts
 
-For advanced users or scheduled updates, use the Python ETL script:
+#### Update Real Country Boundaries (Node.js)
+
+Replace simplified geometries with accurate Natural Earth boundaries:
 
 ```bash
-# Navigate to scripts directory
+cd scripts/etl
+
+# Install dependencies
+npm install
+
+# Run boundary update (uses existing Supabase env vars)
+npm run update-boundaries
+```
+
+This script:
+- Loads Natural Earth GeoJSON data (1:110m resolution)
+- Updates all 20 countries with real border geometries
+- Calculates accurate centroids for each country
+- Preserves all existing climate data
+
+#### Fetch Air Quality Data (Python)
+
+For scheduled air quality updates, use the Python ETL script:
+
+```bash
 cd scripts/etl
 
 # Install dependencies

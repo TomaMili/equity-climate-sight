@@ -1,0 +1,12 @@
+{
+  "name": "etl-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ETL scripts for Climate Inequality data",
+  "scripts": {
+    "update-boundaries": "node update_real_boundaries.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.80.0"
+  }
+}
