@@ -277,6 +277,17 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     }
   }, [regionsData, isLoaded]);
 
+  // Update layer visibility when viewMode changes
+  useEffect(() => {
+    if (!map.current || !isLoaded || !map.current.isStyleLoaded()) return;
+    const regionVis = viewMode === 'regions' ? 'visible' : 'none';
+    const countryVis = viewMode === 'countries' ? 'visible' : 'none';
+    if (map.current.getLayer('region-fill')) map.current.setLayoutProperty('region-fill', 'visibility', regionVis);
+    if (map.current.getLayer('region-outline')) map.current.setLayoutProperty('region-outline', 'visibility', regionVis);
+    if (map.current.getLayer('country-fill')) map.current.setLayoutProperty('country-fill', 'visibility', countryVis);
+    if (map.current.getLayer('country-outline')) map.current.setLayoutProperty('country-outline', 'visibility', countryVis);
+  }, [viewMode, isLoaded]);
+
   // Update selected region outline
   useEffect(() => {
     if (map.current && isLoaded && map.current.isStyleLoaded() && map.current.getLayer('region-outline')) {
