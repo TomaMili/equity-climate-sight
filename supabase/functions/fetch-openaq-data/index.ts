@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const requestSchema = z.object({
+  country_codes: z.array(z.string().regex(/^[A-Z]{2}$/)).max(50).optional(),
+  region_codes: z.array(z.string().max(20)).max(100).optional()
+});
 
 // Country mapping with ISO codes
 const COUNTRIES: Record<string, string> = {
@@ -42,7 +48,9 @@ serve(async (req) => {
   }
 
   try {
-    const { country_codes, region_codes } = await req.json().catch(() => ({ country_codes: null, region_codes: null }));
+    const body = await req.json().catch(() => ({}));
+    const validatedData = requestSchema.parse(body);
+    const { country_codes, region_codes } = validatedData;
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -126,8 +134,14 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Fatal error:', error);
+    if (error instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'An error occurred processing your request' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

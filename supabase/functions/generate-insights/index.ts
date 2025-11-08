@@ -1,9 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const regionDataSchema = z.object({
+  regionData: z.object({
+    region_name: z.string().max(200).optional(),
+    country: z.string().max(200).optional(),
+    cii_score: z.number().min(0).max(1),
+    climate_risk_score: z.number().min(0).max(1).optional().nullable(),
+    infrastructure_score: z.number().min(0).max(1).optional().nullable(),
+    socioeconomic_score: z.number().min(0).max(1).optional().nullable(),
+    population: z.number().int().min(0).optional().nullable(),
+    air_quality_pm25: z.number().min(0).optional().nullable(),
+    internet_connectivity_mbps: z.number().min(0).optional().nullable()
+  })
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,7 +26,8 @@ serve(async (req) => {
   }
 
   try {
-    const { regionData } = await req.json();
+    const body = await req.json();
+    const { regionData } = regionDataSchema.parse(body);
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -78,8 +94,14 @@ Provide a brief, actionable analysis focusing on the key inequality factors and 
     );
   } catch (error) {
     console.error('Error generating insight:', error);
+    if (error instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid region data provided' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'An error occurred generating insights' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
