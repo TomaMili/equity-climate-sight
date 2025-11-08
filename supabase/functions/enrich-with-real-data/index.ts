@@ -65,6 +65,12 @@ serve(async (req) => {
         if (worldBank.gdp_per_capita) realData.gdp_per_capita = worldBank.gdp_per_capita;
         if (worldBank.urban_percent) realData.urban_population_percent = worldBank.urban_percent;
 
+        // Fetch UN data as backup
+        if (!realData.population) {
+          const unData = await fetchUNPopulationData(iso2, year);
+          if (unData.population) realData.population = unData.population;
+        }
+
         // Fetch OpenAQ air quality
         const airQuality = await fetchOpenAQData(iso2);
         if (airQuality.pm25) realData.air_quality_pm25 = airQuality.pm25;
@@ -73,6 +79,15 @@ serve(async (req) => {
         // Fetch climate data
         const climate = await fetchWorldBankClimate(iso2, year);
         if (climate.precipitation) realData.precipitation_avg = climate.precipitation;
+
+        // Fetch NASA climate data as supplement
+        const nasaClimate = await fetchNASAClimateData(iso2, year);
+        if (nasaClimate.temperature && !realData.temperature_avg) {
+          realData.temperature_avg = nasaClimate.temperature;
+        }
+        if (nasaClimate.precipitation && !realData.precipitation_avg) {
+          realData.precipitation_avg = nasaClimate.precipitation;
+        }
 
         // Update the region with real data
         if (Object.keys(realData).length > 2) { // More than just sources and timestamp
@@ -234,6 +249,89 @@ async function fetchWorldBankClimate(iso2: string, year: number) {
   } catch (e) { /* ignore */ }
 
   return result;
+}
+
+async function fetchUNPopulationData(iso2: string, year: number) {
+  const result: { population?: number } = {};
+  
+  try {
+    const unUrl = `https://population.un.org/dataportalapi/api/v1/data/indicators/49/locations/${getUNCountryCode(iso2)}/start/${year}/end/${year}`;
+    
+    const unResp = await fetch(unUrl, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (unResp.ok) {
+      const unData = await unResp.json();
+      if (unData.data && unData.data[0] && unData.data[0].value) {
+        result.population = Math.round(unData.data[0].value * 1000);
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  return result;
+}
+
+async function fetchNASAClimateData(iso2: string, year: number) {
+  const result: { temperature?: number; precipitation?: number } = {};
+  
+  try {
+    const coords = getCountryCoordinates(iso2);
+    if (!coords) return result;
+
+    const nasaUrl = `https://power.larc.nasa.gov/api/temporal/annual/point?parameters=T2M,PRECTOTCORR&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${year}&end=${year}&format=JSON`;
+    
+    const nasaResp = await fetch(nasaUrl);
+    
+    if (nasaResp.ok) {
+      const nasaData = await nasaResp.json();
+      if (nasaData.properties && nasaData.properties.parameter) {
+        if (nasaData.properties.parameter.T2M && nasaData.properties.parameter.T2M[year]) {
+          result.temperature = Math.round(nasaData.properties.parameter.T2M[year] * 100) / 100;
+        }
+        
+        if (nasaData.properties.parameter.PRECTOTCORR && nasaData.properties.parameter.PRECTOTCORR[year]) {
+          result.precipitation = Math.round(nasaData.properties.parameter.PRECTOTCORR[year] * 365 * 100) / 100;
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  return result;
+}
+
+function getUNCountryCode(iso2: string): number {
+  const mapping: Record<string, number> = {
+    'US': 840, 'CN': 156, 'IN': 356, 'BR': 76, 'RU': 643,
+    'JP': 392, 'DE': 276, 'GB': 826, 'FR': 250, 'IT': 380,
+    'CA': 124, 'AU': 36, 'ES': 724, 'MX': 484, 'KR': 410,
+    'BA': 70  // Bosnia and Herzegovina
+  };
+  
+  return mapping[iso2] || 0;
+}
+
+function getCountryCoordinates(iso2: string): { lat: number; lon: number } | null {
+  const coords: Record<string, { lat: number; lon: number }> = {
+    'US': { lat: 37.09, lon: -95.71 },
+    'CN': { lat: 35.86, lon: 104.19 },
+    'IN': { lat: 20.59, lon: 78.96 },
+    'BR': { lat: -14.23, lon: -51.92 },
+    'RU': { lat: 61.52, lon: 105.31 },
+    'JP': { lat: 36.20, lon: 138.25 },
+    'DE': { lat: 51.16, lon: 10.45 },
+    'GB': { lat: 55.37, lon: -3.43 },
+    'FR': { lat: 46.22, lon: 2.21 },
+    'IT': { lat: 41.87, lon: 12.56 },
+    'CA': { lat: 56.13, lon: -106.34 },
+    'AU': { lat: -25.27, lon: 133.77 },
+    'ES': { lat: 40.46, lon: -3.74 },
+    'MX': { lat: 23.63, lon: -102.55 },
+    'KR': { lat: 35.90, lon: 127.76 },
+    'BA': { lat: 43.91, lon: 17.68 }
+  };
+  
+  return coords[iso2] || null;
 }
 
 function calculateAverage(values: number[]): number {
