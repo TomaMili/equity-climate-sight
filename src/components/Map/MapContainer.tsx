@@ -134,11 +134,16 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
               'interpolate',
               ['linear'],
               ['get', 'cii_score'],
-              0, '#1a9850',
-              0.3, '#91cf60',
-              0.5, '#ffffbf',
-              0.7, '#fc8d59',
-              1, '#d73027'
+              0, '#08519c',    // CII-1: Very Low Risk
+              0.2, '#3182bd',  // CII-2: Low Risk
+              0.3, '#6baed6',  // CII-3: Low-Medium
+              0.4, '#bdd7e7',  // CII-4: Medium
+              0.5, '#eff3ff',  // CII-5: Neutral
+              0.6, '#fee5d9',  // CII-6: Medium-High
+              0.7, '#fcae91',  // CII-7: High
+              0.8, '#fb6a4a',  // CII-8: Very High
+              0.9, '#de2d26',  // CII-9: Severe
+              1, '#a50f15'     // CII-10: Critical
             ],
             'fill-opacity': 0.75
           }

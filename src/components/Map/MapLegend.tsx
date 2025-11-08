@@ -1,10 +1,10 @@
 export const MapLegend = () => {
   const legendItems = [
-    { color: '#1a9850', label: '0.0 - 0.3 (Low Risk)', range: '0.0-0.3' },
-    { color: '#91cf60', label: '0.3 - 0.5 (Low-Medium)', range: '0.3-0.5' },
-    { color: '#ffffbf', label: '0.5 - 0.7 (Medium)', range: '0.5-0.7' },
-    { color: '#fc8d59', label: '0.7 - 0.9 (High)', range: '0.7-0.9' },
-    { color: '#d73027', label: '0.9 - 1.0 (Critical)', range: '0.9-1.0' },
+    { color: '#08519c', label: '0.0 - 0.3 (Low Risk)', range: '0.0-0.3' },
+    { color: '#6baed6', label: '0.3 - 0.5 (Low-Medium)', range: '0.3-0.5' },
+    { color: '#eff3ff', label: '0.5 - 0.6 (Neutral)', range: '0.5-0.6' },
+    { color: '#fcae91', label: '0.6 - 0.8 (High)', range: '0.6-0.8' },
+    { color: '#de2d26', label: '0.8 - 1.0 (Critical)', range: '0.8-1.0' },
   ];
 
   return (
