@@ -4,7 +4,7 @@ import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
-import { InitializationProgress } from '@/components/Admin/InitializationProgress';
+import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { DataRefresh } from '@/components/Admin/DataRefresh';
 import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
 
@@ -223,7 +223,6 @@ useEffect(() => {
 
   return (
     <ErrorBoundary title="Application Error">
-      <InitializationProgress />
       <div className="flex h-screen bg-background">
         {/* Sidebar */}
         <div className="w-96 bg-card border-r border-border overflow-y-auto">
@@ -300,8 +299,9 @@ useEffect(() => {
 
         {/* Map Area */}
         <div className="flex-1 relative">
+          <CompactInitProgress />
           <ErrorBoundary title="Map Visualization Error">
-            <MapContainer 
+            <MapContainer
               onRegionClick={handleRegionClick} 
               selectedRegion={selectedH3Index}
               mapboxToken={mapboxToken}
