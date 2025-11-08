@@ -29,7 +29,7 @@ const Index = () => {
 
   const handleRegionClick = async (data: any) => {
     setSelectedRegion(data);
-    setSelectedH3Index(data.h3_index);
+    setSelectedH3Index(data.region_code);
     setAiInsight(null);
     setIsLoadingInsight(true);
 

@@ -76,20 +76,38 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight }: RegionDetai
         {(data.air_quality_pm25 || data.internet_connectivity_mbps) && (
           <>
             <Separator className="my-4" />
-            <div className="space-y-2">
-              {data.air_quality_pm25 && (
-                <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Air Quality (PM2.5)</span>
-                  <span className="text-sm font-medium text-foreground">{data.air_quality_pm25} µg/m³</span>
-                </div>
-              )}
-              {data.internet_connectivity_mbps && (
-                <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Internet Speed</span>
-                  <span className="text-sm font-medium text-foreground">{data.internet_connectivity_mbps} Mbps</span>
-                </div>
-              )}
-            </div>
+          <div className="space-y-2">
+            {data.air_quality_pm25 && (
+              <div className="flex justify-between">
+                <span className="text-xs text-muted-foreground">Air Quality (PM2.5)</span>
+                <span className="text-sm font-medium text-foreground">{data.air_quality_pm25} µg/m³</span>
+              </div>
+            )}
+            {data.air_quality_no2 && (
+              <div className="flex justify-between">
+                <span className="text-xs text-muted-foreground">NO₂ Levels</span>
+                <span className="text-sm font-medium text-foreground">{data.air_quality_no2} µg/m³</span>
+              </div>
+            )}
+            {data.internet_speed_download && (
+              <div className="flex justify-between">
+                <span className="text-xs text-muted-foreground">Internet (Down)</span>
+                <span className="text-sm font-medium text-foreground">{data.internet_speed_download} Mbps</span>
+              </div>
+            )}
+            {data.temperature_avg && (
+              <div className="flex justify-between">
+                <span className="text-xs text-muted-foreground">Avg Temperature</span>
+                <span className="text-sm font-medium text-foreground">{data.temperature_avg}°C</span>
+              </div>
+            )}
+            {data.drought_index && (
+              <div className="flex justify-between">
+                <span className="text-xs text-muted-foreground">Drought Index</span>
+                <span className="text-sm font-medium text-foreground">{data.drought_index}</span>
+              </div>
+            )}
+          </div>
           </>
         )}
       </Card>

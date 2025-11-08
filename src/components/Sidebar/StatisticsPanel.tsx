@@ -14,7 +14,7 @@ export const StatisticsPanel = () => {
     const loadStats = async () => {
       try {
         const { data, error } = await supabase
-          .from('climate_inequality_data')
+          .from('climate_inequality_regions')
           .select('cii_score')
           .eq('data_year', 2024);
 

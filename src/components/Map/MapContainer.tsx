@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { cellToBoundary } from 'h3-js';
 import { MapErrorFallback } from './MapErrorFallback';
 
 interface MapContainerProps {
@@ -16,6 +15,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
   const map = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapError, setMapError] = useState<Error | null>(null);
+  const [regionsData, setRegionsData] = useState<any>(null);
 
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
@@ -53,69 +53,70 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       setIsLoaded(true);
       setMapError(null); // Clear any previous errors
       
-      // Add source for hexagons
-      map.current?.addSource('hexagons', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      });
+      // Add source for regions
+      if (map.current && regionsData) {
+        map.current.addSource('regions', {
+          type: 'geojson',
+          data: regionsData
+        });
 
-      // Add fill layer
-      map.current?.addLayer({
-        id: 'hexagon-fill',
-        type: 'fill',
-        source: 'hexagons',
-        paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['get', 'cii_score'],
-            0, '#1a9850',
-            0.3, '#91cf60',
-            0.5, '#ffffbf',
-            0.7, '#fc8d59',
-            1, '#d73027'
-          ],
-          'fill-opacity': 0.7
-        }
-      });
+        // Add fill layer for colored regions
+        map.current.addLayer({
+          id: 'region-fill',
+          type: 'fill',
+          source: 'regions',
+          paint: {
+            'fill-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'cii_score'],
+              0, '#1a9850',
+              0.3, '#91cf60',
+              0.5, '#ffffbf',
+              0.7, '#fc8d59',
+              1, '#d73027'
+            ],
+            'fill-opacity': 0.75
+          }
+        });
 
-      // Add outline layer
-      map.current?.addLayer({
-        id: 'hexagon-outline',
-        type: 'line',
-        source: 'hexagons',
-        paint: {
-          'line-color': ['case',
-            ['==', ['get', 'h3_index'], selectedRegion || ''],
-            '#ffffff',
-            '#000000'
-          ],
-          'line-width': ['case',
-            ['==', ['get', 'h3_index'], selectedRegion || ''],
-            3,
-            0.5
-          ]
-        }
-      });
+        // Add outline layer
+        map.current.addLayer({
+          id: 'region-outline',
+          type: 'line',
+          source: 'regions',
+          paint: {
+            'line-color': [
+              'case',
+              ['==', ['get', 'region_code'], selectedRegion || ''],
+              '#ffffff',
+              '#333333'
+            ],
+            'line-width': [
+              'case',
+              ['==', ['get', 'region_code'], selectedRegion || ''],
+              3,
+              1
+            ]
+          }
+        });
 
-      // Click handler
-      map.current?.on('click', 'hexagon-fill', (e) => {
-        if (e.features && e.features[0]) {
-          onRegionClick(e.features[0].properties);
-        }
-      });
+        // Click handler
+        map.current.on('click', 'region-fill', (e) => {
+          if (e.features && e.features[0]) {
+            onRegionClick(e.features[0].properties);
+          }
+        });
 
-      // Hover cursor
-      map.current?.on('mouseenter', 'hexagon-fill', () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-      });
+        // Hover cursor
+        map.current.on('mouseenter', 'region-fill', () => {
+          if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+        });
 
-      map.current?.on('mouseleave', 'hexagon-fill', () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
-      });
+        map.current.on('mouseleave', 'region-fill', () => {
+          if (map.current) map.current.getCanvas().style.cursor = '';
+        });
+      }
     });
 
     return () => {
@@ -125,78 +126,88 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         console.error('Error cleaning up map:', error);
       }
     };
-  }, [mapboxToken, onRegionClick]);
+  }, [mapboxToken, onRegionClick, regionsData, selectedRegion]);
+
+  // Update data when regionsData changes
+  useEffect(() => {
+    if (map.current && isLoaded && regionsData && map.current.getSource('regions')) {
+      const source = map.current.getSource('regions') as mapboxgl.GeoJSONSource;
+      if (source) {
+        source.setData(regionsData);
+      }
+    }
+  }, [regionsData, isLoaded]);
 
   // Update selected region outline
   useEffect(() => {
-    if (map.current && isLoaded && map.current.isStyleLoaded()) {
-      map.current.setPaintProperty('hexagon-outline', 'line-color', [
+    if (map.current && isLoaded && map.current.isStyleLoaded() && map.current.getLayer('region-outline')) {
+      map.current.setPaintProperty('region-outline', 'line-color', [
         'case',
-        ['==', ['get', 'h3_index'], selectedRegion || ''],
+        ['==', ['get', 'region_code'], selectedRegion || ''],
         '#ffffff',
-        '#000000'
+        '#333333'
       ]);
-      map.current.setPaintProperty('hexagon-outline', 'line-width', [
+      map.current.setPaintProperty('region-outline', 'line-width', [
         'case',
-        ['==', ['get', 'h3_index'], selectedRegion || ''],
+        ['==', ['get', 'region_code'], selectedRegion || ''],
         3,
-        0.5
+        1
       ]);
     }
   }, [selectedRegion, isLoaded]);
 
-  // Load data from backend
+  // Load region data from backend
   useEffect(() => {
-    const loadHexagonData = async () => {
-      if (!map.current || !isLoaded) return;
-
+    const loadRegionData = async () => {
       try {
         const { supabase } = await import('@/integrations/supabase/client');
         const { data, error } = await supabase
-          .from('climate_inequality_data')
+          .from('climate_inequality_regions')
           .select('*')
           .eq('data_year', 2024);
 
         if (error) throw error;
 
-        const features = (data || []).map((item: any) => {
-          const boundary = cellToBoundary(item.h3_index, true);
-          return {
-            type: 'Feature',
-            properties: {
-              h3_index: item.h3_index,
-              region_name: item.region_name,
-              country: item.country,
-              cii_score: item.cii_score,
-              climate_risk_score: item.climate_risk_score,
-              infrastructure_score: item.infrastructure_score,
-              socioeconomic_score: item.socioeconomic_score,
-              population: item.population,
-              air_quality_pm25: item.air_quality_pm25,
-              internet_connectivity_mbps: item.internet_connectivity_mbps,
-            },
-            geometry: {
-              type: 'Polygon',
-              coordinates: [boundary]
-            }
-          };
-        });
+        // Convert to GeoJSON
+        const features = (data || []).map((item: any) => ({
+          type: 'Feature',
+          properties: {
+            region_code: item.region_code,
+            region_name: item.region_name,
+            country: item.country,
+            cii_score: item.cii_score,
+            climate_risk_score: item.climate_risk_score,
+            infrastructure_score: item.infrastructure_score,
+            socioeconomic_score: item.socioeconomic_score,
+            population: item.population,
+            air_quality_pm25: item.air_quality_pm25,
+            air_quality_no2: item.air_quality_no2,
+            internet_speed_download: item.internet_speed_download,
+            internet_speed_upload: item.internet_speed_upload,
+            temperature_avg: item.temperature_avg,
+            precipitation_avg: item.precipitation_avg,
+            drought_index: item.drought_index,
+            flood_risk_score: item.flood_risk_score,
+            gdp_per_capita: item.gdp_per_capita,
+            urban_population_percent: item.urban_population_percent,
+          },
+          geometry: JSON.parse(item.geometry)
+        }));
 
-        const source = map.current.getSource('hexagons') as mapboxgl.GeoJSONSource;
-        if (source) {
-          source.setData({
-            type: 'FeatureCollection',
-            features: features as any
-          });
-        }
+        const geojsonData = {
+          type: 'FeatureCollection',
+          features: features
+        };
+
+        setRegionsData(geojsonData);
       } catch (error) {
-        console.error('Error loading hexagon data:', error);
+        console.error('Error loading region data:', error);
         setMapError(error instanceof Error ? error : new Error('Failed to load region data'));
       }
     };
 
-    loadHexagonData();
-  }, [isLoaded]);
+    loadRegionData();
+  }, []);
 
   const handleRetry = () => {
     setMapError(null);

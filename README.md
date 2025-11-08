@@ -20,25 +20,25 @@ AI Equity Mapper is an interactive web application that visualizes climate inequ
 - ✅ **Sample ASDI dataset integration** with 23 European regions
 
 ### Data Integrated
-- Climate risk indicators
-- Infrastructure accessibility scores  
-- Socioeconomic vulnerability metrics
-- Air quality data (PM2.5)
-- Internet connectivity speeds
-- Population demographics
+Real structure aligned with ASDI datasets:
+- **OpenAQ**: PM2.5 and NO₂ air quality measurements
+- **NASA OMI**: Nitrogen dioxide satellite data
+- **Ookla**: Download/upload internet speeds
+- **ERA5**: Temperature and precipitation averages  
+- **Drought/Flood Data**: Historical climate event indices
+- **World Bank**: GDP per capita, urbanization rates
 
 ## 🛠️ Tech Stack
 
 ### Frontend
 - **React** with TypeScript
-- **Mapbox GL JS** for interactive mapping
-- **H3-js** for hexagonal spatial indexing
+- **Mapbox GL JS** for interactive mapping with country polygons
 - **Tailwind CSS** for styling
 - **shadcn/ui** component library
 
 ### Backend
-- **Lovable Cloud** (Supabase-powered)
-- **PostgreSQL + PostGIS** for spatial data storage
+- **Lovable Cloud** (Supabase-powered) with PostGIS
+- **PostgreSQL + PostGIS** for spatial data and country geometries
 - **Edge Functions** for serverless AI processing
 
 ### AI/ML
@@ -62,39 +62,142 @@ npm install
 3. **Get a Mapbox token**
 - Visit [mapbox.com](https://mapbox.com)
 - Create a free account
-- Copy your public token from the dashboard
+- Copy your **public token** (starts with `pk.`)
 
 4. **Start the development server**
 ```bash
 npm run dev
 ```
 
-5. **Enter your Mapbox token**
-- Open the app in your browser
-- Paste your Mapbox public token when prompted
+5. **Launch the app**
+- Open in your browser
+- Paste your Mapbox public token
 - Click "Launch Map"
 
 ## 🗺️ How to Use
 
-1. **View the map**: The application loads with a choropleth visualization of European regions
-2. **Click regions**: Click on any hexagon to see detailed climate inequality metrics
-3. **Read AI insights**: Each region displays an AI-generated analysis of its vulnerability factors
-4. **Check statistics**: The sidebar shows global statistics including average CII and high-risk area counts
-5. **Understand the legend**: Use the color-coded legend to interpret CII scores (0 = low inequality, 1 = critical)
+1. **View the map**: Interactive visualization of 12 European countries with real boundaries
+2. **Click regions**: Click on any country to see detailed CII metrics and ASDI data
+3. **Read AI insights**: AI generates analysis using Gemini 2.5 Flash for each selected region
+4. **Check statistics**: Sidebar shows aggregate metrics across all mapped regions
+5. **Understand colors**: Green = low inequality, Yellow = medium, Red = critical
+
+## 🗺️ Map Features
+
+- **Colored Country Polygons**: Each country colored by its CII score
+- **Interactive Selection**: Click countries to highlight and view details
+- **Dark Theme Map**: Mapbox Dark style optimized for data visualization
+- **Responsive Controls**: Pan, zoom, and navigate with standard map controls
 
 ## 📊 Climate Inequality Index (CII)
 
-The CII is calculated using:
-- **Climate Risk Score** (0-1): Environmental exposure to climate hazards
-- **Infrastructure Score** (0-1): Access to roads, internet, and essential services
-- **Socioeconomic Score** (0-1): Vulnerability based on economic and social factors
+The CII is calculated using AI-weighted factors from ASDI datasets:
+- **Climate Risk Score** (0-1): Environmental exposure from ERA5 temperature, precipitation, drought indices
+- **Infrastructure Score** (0-1): Access measured via Ookla internet speeds, OpenStreetMap data
+- **Socioeconomic Score** (0-1): Vulnerability from World Bank economic indicators
 
 **Interpretation:**
-- 0.0 - 0.3: Low inequality (green)
-- 0.3 - 0.5: Low-medium inequality (light green)
-- 0.5 - 0.7: Medium inequality (yellow)
-- 0.7 - 0.9: High inequality (orange)
-- 0.9 - 1.0: Critical inequality (red)
+- 0.0 - 0.3: Low inequality (green) - Well-prepared regions
+- 0.3 - 0.5: Low-medium inequality (light green) - Moderate resilience
+- 0.5 - 0.7: Medium inequality (yellow) - Vulnerable populations
+- 0.7 - 0.9: High inequality (orange) - Significant disparities
+- 0.9 - 1.0: Critical inequality (red) - Urgent intervention needed
+
+## 📈 ASDI Data Sources & Integration
+
+This application integrates data from the [Amazon Sustainability Data Initiative (ASDI)](https://registry.opendata.aws/collab/asdi/):
+
+### Currently Integrated (Sample Data)
+The MVP uses realistic sample data modeled after these ASDI datasets:
+
+1. **OpenAQ** - Global air quality (PM2.5, NO₂)
+   - Registry: `registry.opendata.aws/openaq`
+   - 12 European countries with hourly measurements
+
+2. **NASA OMI/Aura NO₂** - Satellite-based nitrogen dioxide
+   - Registry: `registry.opendata.aws/nasa-omi-no2`
+   - 0.25° resolution tropospheric columns
+
+3. **Ookla Speedtest** - Internet connectivity metrics
+   - Registry: `registry.opendata.aws/ookla-open-data`
+   - Download/upload speeds at ~610m resolution
+
+4. **ERA5 Climate Reanalysis** - Temperature & precipitation
+   - Sourced via ASDI catalogue
+   - Monthly averages, 0.25° resolution
+
+5. **Global Drought & Flood Catalogue** - Historical climate events
+   - Drought indices (1950-2016)
+   - Flood risk scoring
+
+6. **World Bank Indicators** - Socioeconomic metrics
+   - GDP per capita, urban population %
+   - Available through ASDI partner datasets
+
+### ETL Pipeline for Real ASDI Data
+
+To integrate live ASDI data, follow this workflow:
+
+```python
+# Example: Process OpenAQ data
+import requests
+import psycopg2
+from datetime import datetime, timedelta
+
+def fetch_openaq_data(country_code, start_date, end_date):
+    """Fetch air quality data from OpenAQ API"""
+    url = "https://api.openaq.org/v2/measurements"
+    params = {
+        'country': country_code,
+        'date_from': start_date,
+        'date_to': end_date,
+        'parameter': 'pm25',
+        'limit': 10000
+    }
+    response = requests.get(url, params=params)
+    return response.json()
+
+def calculate_regional_average(measurements, region_geom):
+    """Calculate regional average PM2.5"""
+    # Filter measurements within region boundary
+    # Weight by measurement quality and temporal coverage
+    return average_pm25
+
+# Insert into Supabase
+def update_climate_data(region_code, pm25_value):
+    # Use Supabase client or direct SQL
+    supabase.table('climate_inequality_regions')
+        .update({'air_quality_pm25': pm25_value})
+        .eq('region_code', region_code)
+        .execute()
+```
+
+### Data Processing Steps
+
+1. **Download from ASDI S3 Buckets**
+   ```bash
+   aws s3 ls s3://openaq-fetches/realtime-gzipped/ --no-sign-request
+   aws s3 sync s3://ookla-open-data/shapefiles/ ./data/ookla/ --no-sign-request
+   ```
+
+2. **Spatial Aggregation**
+   - Use PostGIS to aggregate point measurements to country polygons
+   - Weight by population density or measurement quality
+   - Calculate temporal averages (annual, seasonal)
+
+3. **CII Calculation**
+   - Normalize all scores to 0-1 range
+   - Apply AI model to weight factors dynamically
+   - Store results in `climate_inequality_regions` table
+
+### Future ASDI Integration Roadmap
+
+- **Phase 2**: Live OpenAQ and Ookla data ingestion
+- **Phase 3**: Satellite imagery processing (Sentinel-2, Landsat-8)
+- **Phase 4**: Real-time climate predictions using ERA5 forecasts
+- **Phase 5**: ML-based anomaly detection on ASDI time series
+
+For complete ASDI dataset catalog: https://registry.opendata.aws/collab/asdi/
 
 ## 🤖 AI Features
 
