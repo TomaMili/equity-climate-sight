@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,6 +41,34 @@ const ISO3_TO_ISO2: Record<string, string> = {
 
 const REGIONS_PER_CALL = 50; // Process only 50 regions per function call to avoid timeout
 const DB_BATCH_SIZE = 10; // Insert 10 records at a time to database
+
+// Validation schema for climate inequality records
+const climateRecordSchema = z.object({
+  region_code: z.string().min(1).max(50),
+  region_name: z.string().min(1).max(200),
+  region_type: z.enum(['country', 'region']),
+  country: z.string().min(1).max(200),
+  data_year: z.number().int().min(2000).max(2100),
+  cii_score: z.number().min(0).max(1),
+  climate_risk_score: z.number().min(0).max(1),
+  infrastructure_score: z.number().min(0).max(1),
+  socioeconomic_score: z.number().min(0).max(1),
+  population: z.number().int().min(1),
+  air_quality_pm25: z.number().min(0).max(1000),
+  air_quality_no2: z.number().min(0).max(500),
+  internet_speed_download: z.number().min(0).max(10000),
+  internet_speed_upload: z.number().min(0).max(10000),
+  temperature_avg: z.number().min(-50).max(60),
+  precipitation_avg: z.number().min(0).max(15000),
+  drought_index: z.number().min(0).max(1),
+  flood_risk_score: z.number().min(0).max(1),
+  gdp_per_capita: z.number().min(0),
+  urban_population_percent: z.number().min(0).max(100),
+  data_sources: z.array(z.string()),
+  last_updated: z.string().datetime(),
+  geometry: z.any(), // Complex PostGIS type
+  centroid: z.any(), // Complex PostGIS type
+});
 
 // Helper sluggify for region codes
 function slug(str: string) {
@@ -197,10 +226,32 @@ serve(async (req) => {
       newlyProcessed++;
     }
 
+    // Validate records before insertion
+    console.log(`Validating ${recordsToInsert.length} records...`);
+    const validRecords: any[] = [];
+    let validationErrors = 0;
+
+    for (const record of recordsToInsert) {
+      try {
+        climateRecordSchema.parse(record);
+        validRecords.push(record);
+      } catch (err) {
+        validationErrors++;
+        if (err instanceof z.ZodError) {
+          console.error(`Validation failed for ${record.region_code} (${record.data_year}):`, 
+            err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', '));
+        }
+      }
+    }
+
+    if (validationErrors > 0) {
+      console.warn(`⚠️ Skipped ${validationErrors} invalid records out of ${recordsToInsert.length}`);
+    }
+
     // Insert in smaller batches to avoid timeouts
-    console.log(`Inserting ${recordsToInsert.length} records in batches of ${DB_BATCH_SIZE}...`);
-    for (let i = 0; i < recordsToInsert.length; i += DB_BATCH_SIZE) {
-      const batch = recordsToInsert.slice(i, i + DB_BATCH_SIZE);
+    console.log(`Inserting ${validRecords.length} validated records in batches of ${DB_BATCH_SIZE}...`);
+    for (let i = 0; i < validRecords.length; i += DB_BATCH_SIZE) {
+      const batch = validRecords.slice(i, i + DB_BATCH_SIZE);
       const { error } = await supabase
         .from('climate_inequality_regions')
         .upsert(batch, { onConflict: 'region_code,data_year', ignoreDuplicates: false });
