@@ -28,15 +28,29 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     const loadRegionData = async () => {
       try {
         const { supabase } = await import('@/integrations/supabase/client');
-        const { data, error } = await supabase
-          .from('climate_inequality_regions')
-          .select('*')
-          .eq('data_year', year);
 
-        if (error) throw error;
+        const pageSize = 1000;
+        let from = 0;
+        let allRows: any[] = [];
+
+        while (true) {
+          const { data, error } = await supabase
+            .from('climate_inequality_regions')
+            .select('*')
+            .eq('data_year', year)
+            .range(from, from + pageSize - 1);
+
+          if (error) throw error;
+
+          const rows = data || [];
+          allRows = allRows.concat(rows);
+
+          if (rows.length < pageSize) break;
+          from += pageSize;
+        }
 
         // Convert to GeoJSON
-        const features = (data || []).map((item: any) => ({
+        const features = allRows.map((item: any) => ({
           type: 'Feature',
           properties: {
             region_code: item.region_code,
