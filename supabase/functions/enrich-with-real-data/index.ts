@@ -153,10 +153,28 @@ async function fetchWorldBankData(iso2: string, year: number) {
   const result: { population?: number; gdp_per_capita?: number; urban_percent?: number } = {};
   const baseUrl = 'https://api.worldbank.org/v2/country';
 
+  const fetchWithRetry = async (url: string, maxRetries = 3): Promise<Response | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) return response;
+        
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        if (attempt === maxRetries) return null;
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return null;
+  };
+
   try {
-    // Population
-    const popResp = await fetch(`${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`);
-    if (popResp.ok) {
+    const popResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`);
+    if (popResp) {
       const popData = await popResp.json();
       if (popData[1]?.[0]?.value) {
         result.population = Math.round(popData[1][0].value);
@@ -165,9 +183,8 @@ async function fetchWorldBankData(iso2: string, year: number) {
   } catch (e) { /* ignore */ }
 
   try {
-    // GDP per capita
-    const gdpResp = await fetch(`${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`);
-    if (gdpResp.ok) {
+    const gdpResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`);
+    if (gdpResp) {
       const gdpData = await gdpResp.json();
       if (gdpData[1]?.[0]?.value) {
         result.gdp_per_capita = Math.round(gdpData[1][0].value * 100) / 100;
@@ -176,9 +193,8 @@ async function fetchWorldBankData(iso2: string, year: number) {
   } catch (e) { /* ignore */ }
 
   try {
-    // Urban population percentage
-    const urbanResp = await fetch(`${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`);
-    if (urbanResp.ok) {
+    const urbanResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`);
+    if (urbanResp) {
       const urbanData = await urbanResp.json();
       if (urbanData[1]?.[0]?.value) {
         result.urban_percent = Math.round(urbanData[1][0].value * 100) / 100;
@@ -193,20 +209,36 @@ async function fetchOpenAQData(iso2: string) {
   const result: { pm25?: number; no2?: number } = {};
   const apiKey = Deno.env.get('OPENAQ_API_KEY');
 
+  const fetchWithRetry = async (url: string, headers: any, maxRetries = 3): Promise<Response | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, { headers });
+        if (response.ok) return response;
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        if (attempt === maxRetries) return null;
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return null;
+  };
+
   const fetchParameter = async (parameterId: number) => {
     const url = new URL('https://api.openaq.org/v3/latest');
     url.searchParams.set('countries_id', iso2);
     url.searchParams.set('parameters_id', parameterId.toString());
     url.searchParams.set('limit', '1000');
 
-    const resp = await fetch(url.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'X-API-Key': apiKey || ''
-      }
+    const resp = await fetchWithRetry(url.toString(), {
+      'Accept': 'application/json',
+      'X-API-Key': apiKey || ''
     });
 
-    if (!resp.ok) return null;
+    if (!resp) return null;
 
     const data = await resp.json();
     if (!data.results || !Array.isArray(data.results)) return null;
@@ -220,12 +252,12 @@ async function fetchOpenAQData(iso2: string) {
   };
 
   try {
-    const pm25 = await fetchParameter(2); // PM2.5
+    const pm25 = await fetchParameter(2);
     if (pm25) result.pm25 = Math.round(pm25 * 100) / 100;
   } catch (e) { /* ignore */ }
 
   try {
-    const no2 = await fetchParameter(10); // NO2
+    const no2 = await fetchParameter(10);
     if (no2) result.no2 = Math.round(no2 * 100) / 100;
   } catch (e) { /* ignore */ }
 
@@ -275,15 +307,33 @@ async function fetchUNPopulationData(iso2: string, year: number) {
 async function fetchNASAClimateData(iso2: string, year: number) {
   const result: { temperature?: number; precipitation?: number } = {};
   
+  const fetchWithRetry = async (url: string, maxRetries = 3): Promise<Response | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) return response;
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        if (attempt === maxRetries) return null;
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return null;
+  };
+
   try {
     const coords = getCountryCoordinates(iso2);
     if (!coords) return result;
 
     const nasaUrl = `https://power.larc.nasa.gov/api/temporal/annual/point?parameters=T2M,PRECTOTCORR&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${year}&end=${year}&format=JSON`;
     
-    const nasaResp = await fetch(nasaUrl);
+    const nasaResp = await fetchWithRetry(nasaUrl);
     
-    if (nasaResp.ok) {
+    if (nasaResp) {
       const nasaData = await nasaResp.json();
       if (nasaData.properties && nasaData.properties.parameter) {
         if (nasaData.properties.parameter.T2M && nasaData.properties.parameter.T2M[year]) {

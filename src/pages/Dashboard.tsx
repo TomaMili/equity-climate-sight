@@ -5,7 +5,6 @@ import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
-import { DataRefresh } from '@/components/Admin/DataRefresh';
 import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
 import { DataEnrichment } from '@/components/Admin/DataEnrichment';
 
@@ -282,7 +281,6 @@ useEffect(() => {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-4 mt-4">
                   <ScheduledJobs />
-                  <DataRefresh />
                   <DataEnrichment />
                 </CollapsibleContent>
               </Collapsible>

@@ -170,52 +170,68 @@ async function fetchWorldBankData(iso2: string, year: number) {
   const result: { population?: number; gdp_per_capita?: number; urban_percent?: number } = {};
   const baseUrl = 'https://api.worldbank.org/v2/country';
   
+  const fetchWithRetry = async (url: string, maxRetries = 3): Promise<Response | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) return response;
+        
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+          console.log(`World Bank retry ${attempt}/${maxRetries} after ${delay}ms for ${iso2}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        console.error(`World Bank attempt ${attempt} failed for ${iso2}:`, error);
+        if (attempt === maxRetries) return null;
+        
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return null;
+  };
+
   try {
     // Fetch population data
-    const popUrl = `${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`;
-    const popResp = await fetch(popUrl);
-    
-    if (popResp.ok) {
+    const popResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`);
+    if (popResp) {
       const popData = await popResp.json();
-      if (popData[1] && popData[1][0] && popData[1][0].value) {
+      if (popData[1]?.[0]?.value) {
         result.population = Math.round(popData[1][0].value);
         console.log(`  Population (${year}): ${result.population.toLocaleString()}`);
       }
     }
   } catch (error) {
-    console.warn(`Population fetch failed for ${iso2}:`, error);
+    console.error(`[World Bank] Population fetch failed for ${iso2}:`, error);
   }
 
   try {
     // Fetch GDP per capita data
-    const gdpUrl = `${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`;
-    const gdpResp = await fetch(gdpUrl);
-    
-    if (gdpResp.ok) {
+    const gdpResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`);
+    if (gdpResp) {
       const gdpData = await gdpResp.json();
-      if (gdpData[1] && gdpData[1][0] && gdpData[1][0].value) {
+      if (gdpData[1]?.[0]?.value) {
         result.gdp_per_capita = Math.round(gdpData[1][0].value * 100) / 100;
         console.log(`  GDP per capita (${year}): $${result.gdp_per_capita.toLocaleString()}`);
       }
     }
   } catch (error) {
-    console.warn(`GDP fetch failed for ${iso2}:`, error);
+    console.error(`[World Bank] GDP fetch failed for ${iso2}:`, error);
   }
 
   try {
     // Fetch urban population percentage
-    const urbanUrl = `${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`;
-    const urbanResp = await fetch(urbanUrl);
-    
-    if (urbanResp.ok) {
+    const urbanResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`);
+    if (urbanResp) {
       const urbanData = await urbanResp.json();
-      if (urbanData[1] && urbanData[1][0] && urbanData[1][0].value) {
+      if (urbanData[1]?.[0]?.value) {
         result.urban_percent = Math.round(urbanData[1][0].value * 100) / 100;
         console.log(`  Urban population (${year}): ${result.urban_percent}%`);
       }
     }
   } catch (error) {
-    console.warn(`Urban population fetch failed for ${iso2}:`, error);
+    console.error(`[World Bank] Urban population fetch failed for ${iso2}:`, error);
   }
 
   return result;
@@ -225,68 +241,73 @@ async function fetchOpenAQData(iso2: string) {
   const result: { pm25?: number; no2?: number } = {};
   const apiKey = Deno.env.get('OPENAQ_API_KEY');
 
-  try {
-    // Fetch PM2.5 data
-    const pm25Url = new URL('https://api.openaq.org/v3/latest');
-    pm25Url.searchParams.set('countries_id', iso2);
-    pm25Url.searchParams.set('parameters_id', '2'); // PM2.5
-    pm25Url.searchParams.set('limit', '1000');
-
-    const pm25Resp = await fetch(pm25Url.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'X-API-Key': apiKey || ''
-      }
-    });
-
-    if (pm25Resp.ok) {
-      const pm25Data = await pm25Resp.json();
-      if (pm25Data.results && Array.isArray(pm25Data.results)) {
-        const values = pm25Data.results
-          .map((r: any) => r.value)
-          .filter((v: any) => v !== null && v !== undefined)
-          .map((v: any) => Number(v));
+  const fetchWithRetry = async (url: string, headers: any, maxRetries = 3): Promise<Response | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, { headers });
+        if (response.ok) return response;
         
-        if (values.length > 0) {
-          result.pm25 = Math.round(calculateAverage(values) * 100) / 100;
-          console.log(`  PM2.5: ${result.pm25} µg/m³ (${values.length} measurements)`);
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`OpenAQ retry ${attempt}/${maxRetries} after ${delay}ms for ${iso2}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
+      } catch (error) {
+        console.error(`[OpenAQ] Attempt ${attempt} failed for ${iso2}:`, error);
+        if (attempt === maxRetries) return null;
+        
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
+    return null;
+  };
+
+  const fetchParameter = async (parameterId: number, paramName: string) => {
+    const url = new URL('https://api.openaq.org/v3/latest');
+    url.searchParams.set('countries_id', iso2);
+    url.searchParams.set('parameters_id', parameterId.toString());
+    url.searchParams.set('limit', '1000');
+
+    const resp = await fetchWithRetry(url.toString(), {
+      'Accept': 'application/json',
+      'X-API-Key': apiKey || ''
+    });
+
+    if (!resp) {
+      console.error(`[OpenAQ] ${paramName} fetch failed for ${iso2} after retries`);
+      return null;
+    }
+
+    const data = await resp.json();
+    if (!data.results || !Array.isArray(data.results)) return null;
+
+    const values = data.results
+      .map((r: any) => r.value)
+      .filter((v: any) => v !== null && v !== undefined)
+      .map((v: any) => Number(v));
+
+    return values.length > 0 ? calculateAverage(values) : null;
+  };
+
+  try {
+    const pm25 = await fetchParameter(2, 'PM2.5');
+    if (pm25) {
+      result.pm25 = Math.round(pm25 * 100) / 100;
+      console.log(`  PM2.5: ${result.pm25} µg/m³`);
+    }
   } catch (error) {
-    console.warn(`PM2.5 fetch failed for ${iso2}:`, error);
+    console.error(`[OpenAQ] PM2.5 processing failed for ${iso2}:`, error);
   }
 
   try {
-    // Fetch NO2 data
-    const no2Url = new URL('https://api.openaq.org/v3/latest');
-    no2Url.searchParams.set('countries_id', iso2);
-    no2Url.searchParams.set('parameters_id', '10'); // NO2
-    no2Url.searchParams.set('limit', '1000');
-
-    const no2Resp = await fetch(no2Url.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'X-API-Key': apiKey || ''
-      }
-    });
-
-    if (no2Resp.ok) {
-      const no2Data = await no2Resp.json();
-      if (no2Data.results && Array.isArray(no2Data.results)) {
-        const values = no2Data.results
-          .map((r: any) => r.value)
-          .filter((v: any) => v !== null && v !== undefined)
-          .map((v: any) => Number(v));
-        
-        if (values.length > 0) {
-          result.no2 = Math.round(calculateAverage(values) * 100) / 100;
-          console.log(`  NO2: ${result.no2} µg/m³ (${values.length} measurements)`);
-        }
-      }
+    const no2 = await fetchParameter(10, 'NO2');
+    if (no2) {
+      result.no2 = Math.round(no2 * 100) / 100;
+      console.log(`  NO2: ${result.no2} µg/m³`);
     }
   } catch (error) {
-    console.warn(`NO2 fetch failed for ${iso2}:`, error);
+    console.error(`[OpenAQ] NO2 processing failed for ${iso2}:`, error);
   }
 
   return result;
@@ -342,34 +363,52 @@ async function fetchUNPopulationData(iso2: string, year: number) {
 async function fetchNASAClimateData(iso2: string, year: number) {
   const result: { temperature?: number; precipitation?: number } = {};
   
+  const fetchWithRetry = async (url: string, maxRetries = 3): Promise<Response | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) return response;
+        
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`NASA retry ${attempt}/${maxRetries} after ${delay}ms for ${iso2}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        console.error(`[NASA] Attempt ${attempt} failed for ${iso2}:`, error);
+        if (attempt === maxRetries) return null;
+        
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return null;
+  };
+  
   try {
-    // Get country centroid coordinates (simplified mapping)
     const coords = getCountryCoordinates(iso2);
     if (!coords) return result;
 
-    // NASA POWER API for climate data
     const nasaUrl = `https://power.larc.nasa.gov/api/temporal/annual/point?parameters=T2M,PRECTOTCORR&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${year}&end=${year}&format=JSON`;
     
-    const nasaResp = await fetch(nasaUrl);
+    const nasaResp = await fetchWithRetry(nasaUrl);
     
-    if (nasaResp.ok) {
+    if (nasaResp) {
       const nasaData = await nasaResp.json();
       if (nasaData.properties && nasaData.properties.parameter) {
-        // Temperature (T2M) - average temperature at 2 meters
         if (nasaData.properties.parameter.T2M && nasaData.properties.parameter.T2M[year]) {
           result.temperature = Math.round(nasaData.properties.parameter.T2M[year] * 100) / 100;
           console.log(`  NASA Temperature (${year}): ${result.temperature}°C`);
         }
         
-        // Precipitation (PRECTOTCORR) - corrected precipitation
         if (nasaData.properties.parameter.PRECTOTCORR && nasaData.properties.parameter.PRECTOTCORR[year]) {
-          result.precipitation = Math.round(nasaData.properties.parameter.PRECTOTCORR[year] * 365 * 100) / 100; // Convert daily to annual
+          result.precipitation = Math.round(nasaData.properties.parameter.PRECTOTCORR[year] * 365 * 100) / 100;
           console.log(`  NASA Precipitation (${year}): ${result.precipitation} mm`);
         }
       }
     }
   } catch (error) {
-    console.warn(`NASA climate fetch failed for ${iso2}:`, error);
+    console.error(`[NASA] Climate fetch failed for ${iso2}:`, error);
   }
 
   return result;
