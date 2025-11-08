@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, ChevronDown, RefreshCw } from 'lucide-react';
+import { Loader2, ChevronDown, RefreshCw, Play } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ProgressData {
   status: 'countries' | 'countries_complete' | 'regions' | 'completed' | 'initializing';
@@ -89,6 +90,8 @@ export function CompactInitProgress() {
   const handleRetry = async () => {
     try {
       setIsRunning(true);
+      toast.info('Restarting initialization...');
+      
       // First invoke countries
       await supabase.functions.invoke('initialize-countries');
       
@@ -99,11 +102,13 @@ export function CompactInitProgress() {
         
         if (error) {
           console.error('Region initialization call failed:', error);
+          toast.error('Region processing failed. Click Continue to retry.');
           break;
         }
         
         if (data?.shouldContinue === false || data?.complete === true) {
           shouldContinue = false;
+          toast.success('Initialization complete!');
         } else {
           // Small delay between calls
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -111,6 +116,44 @@ export function CompactInitProgress() {
       }
     } catch (e) {
       console.error('Retry initialization failed:', e);
+      toast.error('Initialization failed. Please try again.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    try {
+      setIsRunning(true);
+      toast.info('Continuing region processing...');
+      
+      // Keep calling until all regions are processed
+      let shouldContinue = true;
+      let batchCount = 0;
+      
+      while (shouldContinue) {
+        const { data, error } = await supabase.functions.invoke('initialize-regions');
+        
+        if (error) {
+          console.error('Region initialization call failed:', error);
+          toast.error('Processing failed. Click Continue to retry.');
+          break;
+        }
+        
+        batchCount++;
+        
+        if (data?.shouldContinue === false || data?.complete === true) {
+          shouldContinue = false;
+          toast.success(`All regions processed! Completed ${batchCount} batches.`);
+        } else {
+          console.log(`Batch ${batchCount}: ${data?.remaining || 0} regions remaining...`);
+          // Small delay between calls
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (e) {
+      console.error('Continue processing failed:', e);
+      toast.error('Processing failed. Please try again.');
     } finally {
       setIsRunning(false);
     }
@@ -163,13 +206,27 @@ export function CompactInitProgress() {
             </div>
 
             <div className="flex items-center gap-1 flex-shrink-0">
+              {progress.status === 'regions' && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={handleContinue}
+                  disabled={isRunning}
+                  className="h-7 px-3 text-xs"
+                  title="Continue processing regions"
+                >
+                  <Play className={`h-3 w-3 mr-1 ${isRunning ? 'animate-pulse' : ''}`} />
+                  Continue
+                </Button>
+              )}
+              
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={handleRetry}
                 disabled={isRunning}
                 className="h-7 px-2"
-                title="Retry"
+                title="Restart initialization"
               >
                 <RefreshCw className={`h-3 w-3 ${isRunning ? 'animate-spin' : ''}`} />
               </Button>
