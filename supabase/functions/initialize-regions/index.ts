@@ -80,6 +80,36 @@ function slug(str: string) {
     .replace(/(^-|-$)/g, '');
 }
 
+// Fetch all existing region codes for a given year using pagination (avoids 1000 row default limit)
+async function fetchAllExistingRegionCodes(supabase: any): Promise<Set<string>> {
+  const pageSize = 1000;
+  let from = 0;
+  const codes = new Set<string>();
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('climate_inequality_regions')
+      .select('region_code')
+      .eq('region_type', 'region')
+      .eq('data_year', 2024)
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      console.error('Error fetching existing region codes:', error);
+      break;
+    }
+
+    for (const row of (data || [])) {
+      if (row?.region_code) codes.add(row.region_code);
+    }
+
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return codes;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -121,14 +151,8 @@ serve(async (req) => {
     const totalRegions = admin1.features.length;
     console.log(`Total regions available: ${totalRegions}`);
     
-    // Check which regions already exist in database (for any year)
-    const { data: existingRegions } = await supabase
-      .from('climate_inequality_regions')
-      .select('region_code')
-      .eq('region_type', 'region')
-      .eq('data_year', 2024);
-    
-    const existingCodes = new Set(existingRegions?.map(r => r.region_code) || []);
+    // Fetch existing region codes for 2024 in pages (Supabase default limit is 1000)
+    const existingCodes = await fetchAllExistingRegionCodes(supabase);
     const processedCount = existingCodes.size;
     
     console.log(`Already processed: ${processedCount}/${totalRegions} regions`);
