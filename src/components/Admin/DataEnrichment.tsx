@@ -9,10 +9,14 @@ import { Database, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 export function DataEnrichment() {
   const [isEnriching, setIsEnriching] = useState(false);
   const [progress, setProgress] = useState({ enriched: 0, total: 0, failed: 0 });
+  const [autoResume, setAutoResume] = useState(true);
+  const [pauseInterval, setPauseInterval] = useState(2);
+  const [shouldStop, setShouldStop] = useState(false);
 
   const handleEnrichCountries = async (year: number) => {
     try {
       setIsEnriching(true);
+      setShouldStop(false);
       toast.info(`Starting data enrichment for countries (${year})...`);
       
       let totalEnriched = 0;
@@ -20,7 +24,7 @@ export function DataEnrichment() {
       let shouldContinue = true;
       let iteration = 0;
 
-      while (shouldContinue && iteration < 1000) { // Safety limit increased for large datasets
+      while (shouldContinue && iteration < 1000 && !shouldStop) { // Safety limit increased for large datasets
         iteration++;
         
         const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
@@ -52,14 +56,22 @@ export function DataEnrichment() {
 
         if (shouldContinue) {
           console.log(`Batch ${iteration}: ${data?.enriched} enriched, ${data?.remaining} remaining...`);
-          // Small delay between batches
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (!autoResume && data?.remaining > 0) {
+            toast.info(`Batch complete. ${data.remaining} regions remaining. Click again to continue.`);
+            break;
+          }
+          
+          // Configurable delay between batches
+          await new Promise(resolve => setTimeout(resolve, pauseInterval * 1000));
         } else {
           toast.success(`Enrichment complete! ${totalEnriched} regions updated with real data.`);
         }
       }
 
-      if (iteration >= 1000) {
+      if (shouldStop) {
+        toast.info(`Enrichment stopped by user. ${totalEnriched} regions enriched, progress saved.`);
+      } else if (iteration >= 1000) {
         toast.warning('Enrichment paused after 1000 iterations. Click again to continue.');
       }
     } catch (error) {
@@ -73,6 +85,7 @@ export function DataEnrichment() {
   const handleEnrichRegions = async (year: number) => {
     try {
       setIsEnriching(true);
+      setShouldStop(false);
       toast.info(`Starting data enrichment for regions (${year})...`);
       
       let totalEnriched = 0;
@@ -80,7 +93,7 @@ export function DataEnrichment() {
       let shouldContinue = true;
       let iteration = 0;
 
-      while (shouldContinue && iteration < 1000) { // Safety limit increased for large datasets
+      while (shouldContinue && iteration < 1000 && !shouldStop) { // Safety limit increased for large datasets
         iteration++;
         
         const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
@@ -112,13 +125,22 @@ export function DataEnrichment() {
 
         if (shouldContinue) {
           console.log(`Batch ${iteration}: ${data?.enriched} enriched, ${data?.remaining} remaining...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (!autoResume && data?.remaining > 0) {
+            toast.info(`Batch complete. ${data.remaining} regions remaining. Click again to continue.`);
+            break;
+          }
+          
+          // Configurable delay between batches
+          await new Promise(resolve => setTimeout(resolve, pauseInterval * 1000));
         } else {
           toast.success(`Enrichment complete! ${totalEnriched} regions updated with real data.`);
         }
       }
 
-      if (iteration >= 1000) {
+      if (shouldStop) {
+        toast.info(`Enrichment stopped by user. ${totalEnriched} regions enriched, progress saved.`);
+      } else if (iteration >= 1000) {
         toast.warning('Enrichment paused after 1000 iterations. Click again to continue.');
       }
     } catch (error) {
@@ -145,49 +167,107 @@ export function DataEnrichment() {
       </p>
 
       <div className="space-y-4">
+        {/* Auto-Resume Configuration */}
+        <div className="space-y-3 pb-3 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="auto-resume"
+                checked={autoResume}
+                onChange={(e) => setAutoResume(e.target.checked)}
+                disabled={isEnriching}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+              />
+              <label htmlFor="auto-resume" className="text-sm font-medium text-foreground cursor-pointer">
+                Auto-resume enrichment
+              </label>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <label htmlFor="pause-interval" className="text-xs text-muted-foreground whitespace-nowrap">
+              Pause interval:
+            </label>
+            <input
+              type="number"
+              id="pause-interval"
+              min="1"
+              max="10"
+              value={pauseInterval}
+              onChange={(e) => setPauseInterval(Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
+              disabled={isEnriching}
+              className="w-16 h-8 px-2 text-sm rounded border border-border bg-background text-foreground focus:ring-2 focus:ring-primary"
+            />
+            <span className="text-xs text-muted-foreground">seconds between batches</span>
+          </div>
+        </div>
+
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">Countries (2024)</span>
-            <Button
-              size="sm"
-              onClick={() => handleEnrichCountries(2024)}
-              disabled={isEnriching}
-            >
-              {isEnriching ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Enriching...
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Enrich Countries
-                </>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleEnrichCountries(2024)}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Enriching...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Enrich Countries
+                  </>
+                )}
+              </Button>
+              {isEnriching && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setShouldStop(true)}
+                >
+                  Stop
+                </Button>
               )}
-            </Button>
+            </div>
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">Regions (2024)</span>
-            <Button
-              size="sm"
-              onClick={() => handleEnrichRegions(2024)}
-              disabled={isEnriching}
-            >
-              {isEnriching ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Enriching...
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Enrich Regions
-                </>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleEnrichRegions(2024)}
+                disabled={isEnriching}
+              >
+                {isEnriching ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Enriching...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Enrich Regions
+                  </>
+                )}
+              </Button>
+              {isEnriching && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setShouldStop(true)}
+                >
+                  Stop
+                </Button>
               )}
-            </Button>
+            </div>
           </div>
         </div>
 
