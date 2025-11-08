@@ -6,6 +6,7 @@ import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 
 const Index = () => {
   const [selectedRegion, setSelectedRegion] = useState<any>(null);
@@ -15,6 +16,16 @@ const Index = () => {
   const [mapboxToken, setMapboxToken] = useState('');
   const [isTokenSet, setIsTokenSet] = useState(false);
   const { toast } = useToast();
+
+  const handleTokenError = () => {
+    setIsTokenSet(false);
+    setMapboxToken('');
+    toast({
+      title: 'Token Error',
+      description: 'Please enter a valid Mapbox token to continue',
+      variant: 'destructive',
+    });
+  };
 
   const handleRegionClick = async (data: any) => {
     setSelectedRegion(data);
@@ -107,45 +118,55 @@ const Index = () => {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="w-96 bg-card border-r border-border overflow-y-auto">
-        <div className="p-6 space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground mb-1">AI Equity Mapper</h1>
-            <p className="text-sm text-muted-foreground">
-              Team NOPE - hAIckathon 2025
-            </p>
-          </div>
+    <ErrorBoundary title="Application Error">
+      <div className="flex h-screen bg-background">
+        {/* Sidebar */}
+        <div className="w-96 bg-card border-r border-border overflow-y-auto">
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground mb-1">AI Equity Mapper</h1>
+              <p className="text-sm text-muted-foreground">
+                Team NOPE - hAIckathon 2025
+              </p>
+            </div>
 
-          <StatisticsPanel />
-          <RegionDetails 
-            data={selectedRegion} 
-            aiInsight={aiInsight}
-            isLoadingInsight={isLoadingInsight}
-          />
+            <ErrorBoundary title="Statistics Loading Error">
+              <StatisticsPanel />
+            </ErrorBoundary>
 
-          <div className="pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              Data sources: OpenAQ, ERA5, Ookla, World Bank (ASDI)
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              AI-powered by Lovable AI (Gemini 2.5 Flash)
-            </p>
+            <ErrorBoundary title="Region Details Error">
+              <RegionDetails 
+                data={selectedRegion} 
+                aiInsight={aiInsight}
+                isLoadingInsight={isLoadingInsight}
+              />
+            </ErrorBoundary>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Data sources: OpenAQ, ERA5, Ookla, World Bank (ASDI)
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                AI-powered by Lovable AI (Gemini 2.5 Flash)
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Map Area */}
-      <div className="flex-1 relative">
-        <MapContainer 
-          onRegionClick={handleRegionClick} 
-          selectedRegion={selectedH3Index}
-          mapboxToken={mapboxToken}
-        />
-        <MapLegend />
+        {/* Map Area */}
+        <div className="flex-1 relative">
+          <ErrorBoundary title="Map Visualization Error">
+            <MapContainer 
+              onRegionClick={handleRegionClick} 
+              selectedRegion={selectedH3Index}
+              mapboxToken={mapboxToken}
+              onTokenError={handleTokenError}
+            />
+            <MapLegend />
+          </ErrorBoundary>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 };
 

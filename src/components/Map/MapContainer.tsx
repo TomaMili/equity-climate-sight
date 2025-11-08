@@ -2,30 +2,39 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { cellToBoundary } from 'h3-js';
+import { MapErrorFallback } from './MapErrorFallback';
 
 interface MapContainerProps {
   onRegionClick: (data: any) => void;
   selectedRegion: string | null;
   mapboxToken: string;
+  onTokenError?: () => void;
 }
 
-export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken }: MapContainerProps) => {
+export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError }: MapContainerProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [mapError, setMapError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
 
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [15, 45], // Central Europe
-      zoom: 4,
-      pitch: 0,
-    });
+    try {
+      mapboxgl.accessToken = mapboxToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [15, 45], // Central Europe
+        zoom: 4,
+        pitch: 0,
+      });
+    } catch (error) {
+      console.error('Error initializing Mapbox:', error);
+      setMapError(error instanceof Error ? error : new Error('Failed to initialize map'));
+      return;
+    }
 
     map.current.addControl(
       new mapboxgl.NavigationControl({
@@ -34,8 +43,15 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken }: Map
       'top-right'
     );
 
+    // Error handler
+    map.current.on('error', (e) => {
+      console.error('Mapbox error:', e);
+      setMapError(new Error(e.error?.message || 'Map loading error'));
+    });
+
     map.current.on('load', () => {
       setIsLoaded(true);
+      setMapError(null); // Clear any previous errors
       
       // Add source for hexagons
       map.current?.addSource('hexagons', {
@@ -103,7 +119,11 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken }: Map
     });
 
     return () => {
-      map.current?.remove();
+      try {
+        map.current?.remove();
+      } catch (error) {
+        console.error('Error cleaning up map:', error);
+      }
     };
   }, [mapboxToken, onRegionClick]);
 
@@ -171,15 +191,44 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken }: Map
         }
       } catch (error) {
         console.error('Error loading hexagon data:', error);
+        setMapError(error instanceof Error ? error : new Error('Failed to load region data'));
       }
     };
 
     loadHexagonData();
   }, [isLoaded]);
 
+  const handleRetry = () => {
+    setMapError(null);
+    setIsLoaded(false);
+    if (map.current) {
+      try {
+        map.current.remove();
+      } catch (e) {
+        console.error('Error removing map:', e);
+      }
+      map.current = null;
+    }
+  };
+
+  const handleChangeToken = () => {
+    if (onTokenError) {
+      onTokenError();
+    } else {
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
+      {mapError && (
+        <MapErrorFallback 
+          error={mapError} 
+          onRetry={handleRetry}
+          onChangeToken={handleChangeToken}
+        />
+      )}
     </div>
   );
 };
