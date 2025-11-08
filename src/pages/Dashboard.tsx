@@ -254,7 +254,7 @@ useEffect(() => {
                 </div>
 
                 <ErrorBoundary title="Statistics Loading Error">
-                  <StatisticsPanel />
+                  <StatisticsPanel viewMode={viewMode} year={year} />
                 </ErrorBoundary>
 
                 <ErrorBoundary title="Region Details Error">
