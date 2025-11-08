@@ -3,10 +3,13 @@ import { MapContainer } from '@/components/Map/MapContainer';
 import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
+import { DataRefresh } from '@/components/Admin/DataRefresh';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const Index = () => {
   const [selectedRegion, setSelectedRegion] = useState<any>(null);
@@ -15,6 +18,7 @@ const Index = () => {
   const [isLoadingInsight, setIsLoadingInsight] = useState(false);
   const [mapboxToken, setMapboxToken] = useState('');
   const [isTokenSet, setIsTokenSet] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const { toast } = useToast();
 
   const handleTokenError = () => {
@@ -133,6 +137,26 @@ const Index = () => {
             <ErrorBoundary title="Statistics Loading Error">
               <StatisticsPanel />
             </ErrorBoundary>
+
+            <div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdmin(!showAdmin)}
+                className="w-full justify-between text-sm"
+              >
+                <span>Data Management</span>
+                {showAdmin ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+              
+              {showAdmin && (
+                <div className="mt-3">
+                  <ErrorBoundary title="Data Refresh Error">
+                    <DataRefresh />
+                  </ErrorBoundary>
+                </div>
+              )}
+            </div>
 
             <ErrorBoundary title="Region Details Error">
               <RegionDetails 

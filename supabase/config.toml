@@ -2,3 +2,6 @@ project_id = "iwcyduqweqmdpehzdnax"
 
 [functions.generate-insights]
 verify_jwt = false
+
+[functions.fetch-openaq-data]
+verify_jwt = false

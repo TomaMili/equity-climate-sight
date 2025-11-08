@@ -103,6 +103,74 @@ The CII is calculated using AI-weighted factors from ASDI datasets:
 - 0.7 - 0.9: High inequality (orange) - Significant disparities
 - 0.9 - 1.0: Critical inequality (red) - Urgent intervention needed
 
+## 🔄 Live Data Integration
+
+### Automated Data Refresh
+
+The application includes a built-in data refresh system accessible from the sidebar:
+
+1. **Click "Data Management"** in the sidebar to expand the admin panel
+2. **Click "Refresh Data"** to fetch the latest air quality data
+3. The system fetches 7-day averages from OpenAQ for all 12 countries
+4. Updates happen automatically in the database
+5. View detailed refresh status and error logs
+
+### Manual ETL Script (Python)
+
+For advanced users or scheduled updates, use the Python ETL script:
+
+```bash
+# Navigate to scripts directory
+cd scripts/etl
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your Supabase credentials
+
+# Run ETL
+python openaq_etl.py
+```
+
+The script:
+- Fetches PM2.5 and NO₂ data from OpenAQ API
+- Calculates 7-day averages with outlier filtering
+- Updates all 12 European countries automatically
+- Provides detailed logging and error reporting
+
+### API Endpoint
+
+The Edge Function is also available as an API endpoint:
+
+```bash
+curl -X POST https://your-project.supabase.co/functions/v1/fetch-openaq-data \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"country_codes": ["DEU", "FRA", "ESP"], "days_back": 7}'
+```
+
+Response format:
+```json
+{
+  "summary": {
+    "total": 3,
+    "successful": 3,
+    "failed": 0,
+    "timestamp": "2024-11-08T12:00:00Z"
+  },
+  "results": {
+    "DEU": {
+      "success": true,
+      "pm25": 11.8,
+      "no2": 15.2,
+      "measurements": 2456
+    }
+  }
+}
+```
+
 ## 📈 ASDI Data Sources & Integration
 
 This application integrates data from the [Amazon Sustainability Data Initiative (ASDI)](https://registry.opendata.aws/collab/asdi/):
