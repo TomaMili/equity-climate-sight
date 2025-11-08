@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer } from '@/components/Map/MapContainer';
 import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
+import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { DataRefresh } from '@/components/Admin/DataRefresh';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,24 +12,47 @@ import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+// LocalStorage key for Mapbox token
+const MAPBOX_TOKEN_KEY = 'ai-equity-mapper-mapbox-token';
+
 const Index = () => {
   const [selectedRegion, setSelectedRegion] = useState<any>(null);
   const [selectedH3Index, setSelectedH3Index] = useState<string | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isLoadingInsight, setIsLoadingInsight] = useState(false);
-  const [mapboxToken, setMapboxToken] = useState('pk.eyJ1IjoidG9tYW1pbGkiLCJhIjoiY21ocDg3bHltMDNsYjJqcXUwYXk1NXRoZCJ9.pIJqrpchhmLFjhL1Fp4VTQ');
-  const [isTokenSet, setIsTokenSet] = useState(true); // Auto-set to true with provided token
+  const [mapboxToken, setMapboxToken] = useState('');
+  const [isTokenSet, setIsTokenSet] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
   const { toast } = useToast();
+
+  // Load token from localStorage on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem(MAPBOX_TOKEN_KEY);
+    if (savedToken) {
+      setMapboxToken(savedToken);
+      setIsTokenSet(true);
+      console.log('Loaded Mapbox token from localStorage');
+    } else {
+      // Use default token if none saved
+      const defaultToken = 'pk.eyJ1IjoidG9tYW1pbGkiLCJhIjoiY21ocDg3bHltMDNsYjJqcXUwYXk1NXRoZCJ9.pIJqrpchhmLFjhL1Fp4VTQ';
+      setMapboxToken(defaultToken);
+      setIsTokenSet(true);
+      localStorage.setItem(MAPBOX_TOKEN_KEY, defaultToken);
+    }
+  }, []);
 
   const handleTokenError = () => {
     setIsTokenSet(false);
-    setMapboxToken('pk.eyJ1IjoidG9tYW1pbGkiLCJhIjoiY21ocDg3bHltMDNsYjJqcXUwYXk1NXRoZCJ9.pIJqrpchhmLFjhL1Fp4VTQ');
     toast({
       title: 'Token Error',
       description: 'Please check your Mapbox token and try again',
       variant: 'destructive',
     });
+  };
+
+  const handleMapDataLoaded = () => {
+    setIsMapLoaded(true);
   };
 
   const handleRegionClick = async (data: any) => {
@@ -60,10 +84,12 @@ const Index = () => {
   const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mapboxToken.trim()) {
+      // Save token to localStorage
+      localStorage.setItem(MAPBOX_TOKEN_KEY, mapboxToken.trim());
       setIsTokenSet(true);
       toast({
-        title: 'Mapbox Token Set',
-        description: 'Map is now loading...',
+        title: 'Mapbox Token Saved',
+        description: 'Your token has been saved and the map is loading...',
       });
     } else {
       toast({
@@ -107,6 +133,7 @@ const Index = () => {
                 >
                   mapbox.com
                 </a>
+                . Your token will be saved for future visits.
               </p>
             </div>
             <button
@@ -134,37 +161,43 @@ const Index = () => {
               </p>
             </div>
 
-            <ErrorBoundary title="Statistics Loading Error">
-              <StatisticsPanel />
-            </ErrorBoundary>
+            {!isMapLoaded ? (
+              <SidebarSkeleton />
+            ) : (
+              <>
+                <ErrorBoundary title="Statistics Loading Error">
+                  <StatisticsPanel />
+                </ErrorBoundary>
 
-            <div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAdmin(!showAdmin)}
-                className="w-full justify-between text-sm"
-              >
-                <span>Data Management</span>
-                {showAdmin ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </Button>
-              
-              {showAdmin && (
-                <div className="mt-3">
-                  <ErrorBoundary title="Data Refresh Error">
-                    <DataRefresh />
-                  </ErrorBoundary>
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdmin(!showAdmin)}
+                    className="w-full justify-between text-sm"
+                  >
+                    <span>Data Management</span>
+                    {showAdmin ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </Button>
+                  
+                  {showAdmin && (
+                    <div className="mt-3">
+                      <ErrorBoundary title="Data Refresh Error">
+                        <DataRefresh />
+                      </ErrorBoundary>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <ErrorBoundary title="Region Details Error">
-              <RegionDetails 
-                data={selectedRegion} 
-                aiInsight={aiInsight}
-                isLoadingInsight={isLoadingInsight}
-              />
-            </ErrorBoundary>
+                <ErrorBoundary title="Region Details Error">
+                  <RegionDetails 
+                    data={selectedRegion} 
+                    aiInsight={aiInsight}
+                    isLoadingInsight={isLoadingInsight}
+                  />
+                </ErrorBoundary>
+              </>
+            )}
 
             <div className="pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">
@@ -185,6 +218,7 @@ const Index = () => {
               selectedRegion={selectedH3Index}
               mapboxToken={mapboxToken}
               onTokenError={handleTokenError}
+              onDataLoaded={handleMapDataLoaded}
             />
             <MapLegend />
           </ErrorBoundary>

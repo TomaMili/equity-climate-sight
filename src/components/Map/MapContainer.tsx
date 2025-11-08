@@ -2,21 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapErrorFallback } from './MapErrorFallback';
+import { MapLoadingSkeleton } from './MapLoadingSkeleton';
 
 interface MapContainerProps {
   onRegionClick: (data: any) => void;
   selectedRegion: string | null;
   mapboxToken: string;
   onTokenError?: () => void;
+  onDataLoaded?: () => void;
 }
 
-export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError }: MapContainerProps) => {
+export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded }: MapContainerProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapError, setMapError] = useState<Error | null>(null);
   const [regionsData, setRegionsData] = useState<any>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   // Load region data from backend FIRST, before map initialization
   useEffect(() => {
@@ -63,6 +66,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
 
         setRegionsData(geojsonData);
         setIsDataLoaded(true);
+        console.log('Region data loaded:', features.length, 'features');
       } catch (error) {
         console.error('Error loading region data:', error);
         setMapError(error instanceof Error ? error : new Error('Failed to load region data'));
@@ -176,6 +180,11 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         map.current.on('mouseleave', 'region-fill', () => {
           if (map.current) map.current.getCanvas().style.cursor = '';
         });
+
+        // Map is fully ready
+        setIsMapReady(true);
+        if (onDataLoaded) onDataLoaded();
+        console.log('Map fully initialized and ready');
       }
     });
 
@@ -244,6 +253,11 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
+      
+      {/* Show loading skeleton while map is initializing */}
+      {!isMapReady && !mapError && <MapLoadingSkeleton />}
+      
+      {/* Show error fallback if there's an error */}
       {mapError && (
         <MapErrorFallback 
           error={mapError} 
