@@ -56,7 +56,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             gdp_per_capita: item.gdp_per_capita,
             urban_population_percent: item.urban_population_percent,
           },
-          geometry: JSON.parse(item.geometry)
+          geometry: item.geometry
         }));
 
         const geojsonData = {
