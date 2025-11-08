@@ -5,12 +5,16 @@ import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { InitializationProgress } from '@/components/Admin/InitializationProgress';
+import { DataRefresh } from '@/components/Admin/DataRefresh';
+import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
 
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, Settings } from 'lucide-react';
 
 // LocalStorage key for Mapbox token
 const MAPBOX_TOKEN_KEY = 'ai-equity-mapper-mapbox-token';
@@ -27,6 +31,7 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'countries' | 'regions'>('regions');
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const { toast } = useToast();
 
 // Load token from localStorage on mount
@@ -261,6 +266,25 @@ useEffect(() => {
                   />
                 </ErrorBoundary>
               </>
+            )}
+
+            {/* Admin Controls */}
+            {!isInitializing && isMapLoaded && (
+              <Collapsible open={showAdmin} onOpenChange={setShowAdmin}>
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-center justify-between w-full p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">Admin Tools</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 mt-4">
+                  <ScheduledJobs />
+                  <DataRefresh />
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             <div className="pt-4 border-t border-border">
