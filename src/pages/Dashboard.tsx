@@ -4,13 +4,12 @@ import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
-import { DataRefresh } from '@/components/Admin/DataRefresh';
+
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // LocalStorage key for Mapbox token
 const MAPBOX_TOKEN_KEY = 'ai-equity-mapper-mapbox-token';
@@ -22,10 +21,11 @@ const Index = () => {
   const [isLoadingInsight, setIsLoadingInsight] = useState(false);
   const [mapboxToken, setMapboxToken] = useState('');
   const [isTokenSet, setIsTokenSet] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
+  
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'countries' | 'regions'>('regions');
   const [year, setYear] = useState<number>(2024);
+  const [isInitializing, setIsInitializing] = useState(false);
   const { toast } = useToast();
 
 // Load token from localStorage on mount
@@ -37,6 +37,46 @@ useEffect(() => {
     console.log('Loaded Mapbox token from localStorage');
   }
 }, []);
+
+// Auto-initialize data if needed
+useEffect(() => {
+  const checkAndInitializeData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('climate_inequality_regions')
+        .select('region_code')
+        .limit(1);
+
+      if (error) throw error;
+
+      // If no data exists, initialize
+      if (!data || data.length === 0) {
+        setIsInitializing(true);
+        toast({
+          title: 'Initializing Database',
+          description: 'Loading global climate data for 100+ countries...',
+        });
+
+        const { data: initData, error: initError } = await supabase.functions.invoke('initialize-data');
+
+        if (initError) throw initError;
+
+        toast({
+          title: 'Database Ready',
+          description: `Loaded data for ${initData.summary?.countries || 100} countries across 6 years`,
+        });
+        
+        setIsInitializing(false);
+        window.location.reload(); // Reload to show the data
+      }
+    } catch (error: any) {
+      console.error('Error initializing data:', error);
+      setIsInitializing(false);
+    }
+  };
+
+  checkAndInitializeData();
+}, [toast]);
 
   const handleTokenError = () => {
     setIsTokenSet(false);
@@ -157,7 +197,7 @@ useEffect(() => {
               </p>
             </div>
 
-            {!isMapLoaded ? (
+            {!isMapLoaded || isInitializing ? (
               <SidebarSkeleton />
             ) : (
               <>
@@ -179,26 +219,6 @@ useEffect(() => {
                 <ErrorBoundary title="Statistics Loading Error">
                   <StatisticsPanel />
                 </ErrorBoundary>
-
-                <div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAdmin(!showAdmin)}
-                    className="w-full justify-between text-sm"
-                  >
-                    <span>Data Management</span>
-                    {showAdmin ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </Button>
-                  
-                  {showAdmin && (
-                    <div className="mt-3">
-                      <ErrorBoundary title="Data Refresh Error">
-                        <DataRefresh />
-                      </ErrorBoundary>
-                    </div>
-                  )}
-                </div>
 
                 <ErrorBoundary title="Region Details Error">
                   <RegionDetails 

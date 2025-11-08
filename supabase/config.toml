@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.update-real-boundaries]
 verify_jwt = false
+
+[functions.initialize-data]
+verify_jwt = false
