@@ -34,93 +34,147 @@ serve(async (req) => {
 
     console.log(`Computing CII for ${region_type || 'all'} regions in year ${year}...`);
 
-    // Fetch all regions for the year (process ALL regions, not just those with real data)
-    let query = supabase
+    // Step 1: Fetch and process all REGION-level entries first
+    const { data: regionLevelData, error: regionFetchError } = await supabase
       .from('climate_inequality_regions')
       .select('*')
-      .eq('data_year', year);
+      .eq('data_year', year)
+      .eq('region_type', 'region');
 
-    if (region_type) {
-      query = query.eq('region_type', region_type);
-    }
+    if (regionFetchError) throw regionFetchError;
 
-    const { data: regions, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
-
-    if (!regions || regions.length === 0) {
-      console.log('No regions found');
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'No regions to compute CII for',
-          computed: 0
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Processing ${regions.length} regions...`);
+    console.log(`Processing ${regionLevelData?.length || 0} region-level entries...`);
     
     let computedCount = 0;
     let skippedCount = 0;
 
-    // Process in batches
-    for (let i = 0; i < regions.length; i += BATCH_SIZE) {
-      const batch = regions.slice(i, i + BATCH_SIZE);
-      
-      for (const region of batch) {
+    // Process regions in batches
+    if (regionLevelData && regionLevelData.length > 0) {
+      for (let i = 0; i < regionLevelData.length; i += BATCH_SIZE) {
+        const batch = regionLevelData.slice(i, i + BATCH_SIZE);
+        
+        for (const region of batch) {
+          try {
+            const cii = computeCII(region);
+            
+            if (cii === null) {
+              skippedCount++;
+              console.log(`⚠ Skipped ${region.region_code}: insufficient data`);
+              continue;
+            }
+
+            // Get component breakdown
+            const breakdown = getComponentBreakdown(region);
+            
+            // Update CII and component scores in database
+            const { error: updateError } = await supabase
+              .from('climate_inequality_regions')
+              .update({ 
+                cii_score: cii,
+                cii_climate_risk_component: breakdown.climateRisk,
+                cii_infrastructure_gap_component: breakdown.infrastructureGap,
+                cii_socioeconomic_vuln_component: breakdown.socioeconomicVuln,
+                cii_air_quality_component: breakdown.airQuality,
+                last_updated: new Date().toISOString()
+              })
+              .eq('region_code', region.region_code)
+              .eq('data_year', year);
+
+            if (updateError) {
+              console.error(`Error updating ${region.region_code}:`, updateError);
+            } else {
+              computedCount++;
+              if (computedCount % 50 === 0) {
+                console.log(`Processed ${computedCount}/${regionLevelData.length} regions...`);
+              }
+            }
+          } catch (error) {
+            console.error(`Error processing ${region.region_code}:`, error);
+          }
+        }
+
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log(`✅ Region-level CII computation complete: ${computedCount} computed, ${skippedCount} skipped`);
+
+    // Step 2: Calculate country-level CII as average of their regions
+    console.log('Computing country-level CII scores...');
+    
+    const { data: countryLevelData, error: countryFetchError } = await supabase
+      .from('climate_inequality_regions')
+      .select('*')
+      .eq('data_year', year)
+      .eq('region_type', 'country');
+
+    if (countryFetchError) throw countryFetchError;
+
+    let countryComputedCount = 0;
+
+    if (countryLevelData && countryLevelData.length > 0) {
+      for (const country of countryLevelData) {
         try {
-          const cii = computeCII(region);
-          
-          if (cii === null) {
-            skippedCount++;
-            console.log(`⚠ Skipped ${region.region_code}: insufficient data`);
+          // Get all regions for this country
+          const { data: countryRegions, error: regionsError } = await supabase
+            .from('climate_inequality_regions')
+            .select('cii_score, cii_climate_risk_component, cii_infrastructure_gap_component, cii_socioeconomic_vuln_component, cii_air_quality_component')
+            .eq('data_year', year)
+            .eq('region_type', 'region')
+            .eq('country', country.country)
+            .not('cii_score', 'is', null);
+
+          if (regionsError) throw regionsError;
+
+          if (!countryRegions || countryRegions.length === 0) {
+            console.log(`⚠ No regions found for ${country.country}, skipping country-level CII`);
             continue;
           }
 
-          // Get component breakdown
-          const breakdown = getComponentBreakdown(region);
-          
-          // Update CII and component scores in database
+          // Calculate averages from regions
+          const avgCII = countryRegions.reduce((sum, r) => sum + (r.cii_score || 0), 0) / countryRegions.length;
+          const avgClimateRisk = countryRegions.reduce((sum, r) => sum + (r.cii_climate_risk_component || 0), 0) / countryRegions.length;
+          const avgInfrastructure = countryRegions.reduce((sum, r) => sum + (r.cii_infrastructure_gap_component || 0), 0) / countryRegions.length;
+          const avgSocioeconomic = countryRegions.reduce((sum, r) => sum + (r.cii_socioeconomic_vuln_component || 0), 0) / countryRegions.length;
+          const avgAirQuality = countryRegions.reduce((sum, r) => sum + (r.cii_air_quality_component || 0), 0) / countryRegions.length;
+
+          // Update country with averaged values
           const { error: updateError } = await supabase
             .from('climate_inequality_regions')
             .update({ 
-              cii_score: cii,
-              cii_climate_risk_component: breakdown.climateRisk,
-              cii_infrastructure_gap_component: breakdown.infrastructureGap,
-              cii_socioeconomic_vuln_component: breakdown.socioeconomicVuln,
-              cii_air_quality_component: breakdown.airQuality,
+              cii_score: avgCII,
+              cii_climate_risk_component: avgClimateRisk,
+              cii_infrastructure_gap_component: avgInfrastructure,
+              cii_socioeconomic_vuln_component: avgSocioeconomic,
+              cii_air_quality_component: avgAirQuality,
               last_updated: new Date().toISOString()
             })
-            .eq('region_code', region.region_code)
+            .eq('region_code', country.region_code)
             .eq('data_year', year);
 
           if (updateError) {
-            console.error(`Error updating ${region.region_code}:`, updateError);
+            console.error(`Error updating country ${country.country}:`, updateError);
           } else {
-            computedCount++;
-            if (computedCount % 50 === 0) {
-              console.log(`Processed ${computedCount}/${regions.length} regions...`);
-            }
+            countryComputedCount++;
+            console.log(`✓ Updated ${country.country}: CII ${avgCII.toFixed(3)} (from ${countryRegions.length} regions)`);
           }
         } catch (error) {
-          console.error(`Error processing ${region.region_code}:`, error);
+          console.error(`Error processing country ${country.country}:`, error);
         }
       }
-
-      // Small delay between batches
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    console.log(`✅ CII computation complete: ${computedCount} computed, ${skippedCount} skipped`);
+    console.log(`✅ Country-level CII computation complete: ${countryComputedCount} countries updated`);
 
     return new Response(
       JSON.stringify({
         success: true,
         computed: computedCount,
         skipped: skippedCount,
-        total: regions.length,
-        message: `CII computed for ${computedCount} regions`
+        countries_updated: countryComputedCount,
+        total: computedCount + countryComputedCount,
+        message: `CII computed for ${computedCount} regions and ${countryComputedCount} countries`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
