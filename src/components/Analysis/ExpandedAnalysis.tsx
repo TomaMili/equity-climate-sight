@@ -25,8 +25,35 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
   const generateExpandedAnalysis = async () => {
     setIsLoading(true);
     try {
+      // Sanitize data before sending to edge function
+      const sanitizeNumber = (value: any) => {
+        if (value === null || value === undefined) return null;
+        const num = Number(value);
+        return isNaN(num) ? null : num;
+      };
+
+      const sanitizedRegionData = {
+        ...regionData,
+        // Ensure numeric fields are properly formatted
+        population: sanitizeNumber(regionData.population),
+        cii_score: sanitizeNumber(regionData.cii_score) ?? 0,
+        climate_risk_score: sanitizeNumber(regionData.climate_risk_score),
+        infrastructure_score: sanitizeNumber(regionData.infrastructure_score),
+        socioeconomic_score: sanitizeNumber(regionData.socioeconomic_score),
+        air_quality_pm25: sanitizeNumber(regionData.air_quality_pm25),
+        air_quality_no2: sanitizeNumber(regionData.air_quality_no2),
+        internet_speed_download: sanitizeNumber(regionData.internet_speed_download),
+        internet_speed_upload: sanitizeNumber(regionData.internet_speed_upload),
+        temperature_avg: sanitizeNumber(regionData.temperature_avg),
+        precipitation_avg: sanitizeNumber(regionData.precipitation_avg),
+        drought_index: sanitizeNumber(regionData.drought_index),
+        flood_risk_score: sanitizeNumber(regionData.flood_risk_score),
+        gdp_per_capita: sanitizeNumber(regionData.gdp_per_capita),
+        urban_population_percent: sanitizeNumber(regionData.urban_population_percent),
+      };
+
       const { data, error } = await supabase.functions.invoke('generate-expanded-insights', {
-        body: { regionData }
+        body: { regionData: sanitizedRegionData }
       });
 
       if (error) throw error;

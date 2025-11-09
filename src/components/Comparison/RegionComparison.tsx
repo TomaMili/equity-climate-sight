@@ -73,8 +73,29 @@ const RegionComparison = ({ regionIds, onRemoveRegion, onClose }: RegionComparis
 
       setAiLoading(true);
       try {
+        // Sanitize data before sending to edge function
+        const sanitizeNumber = (value: any) => {
+          if (value === null || value === undefined) return null;
+          const num = Number(value);
+          return isNaN(num) ? null : num;
+        };
+
+        const sanitizedRegions = regions.map(region => ({
+          ...region,
+          // Ensure numeric fields are properly formatted
+          population: sanitizeNumber(region.population),
+          cii_score: sanitizeNumber(region.cii_score) ?? 0,
+          cii_climate_risk_component: sanitizeNumber(region.cii_climate_risk_component),
+          cii_infrastructure_gap_component: sanitizeNumber(region.cii_infrastructure_gap_component),
+          cii_socioeconomic_vuln_component: sanitizeNumber(region.cii_socioeconomic_vuln_component),
+          cii_air_quality_component: sanitizeNumber(region.cii_air_quality_component),
+          air_quality_pm25: sanitizeNumber(region.air_quality_pm25),
+          temperature_avg: sanitizeNumber(region.temperature_avg),
+          gdp_per_capita: sanitizeNumber(region.gdp_per_capita),
+        }));
+
         const { data, error } = await supabase.functions.invoke('compare-regions', {
-          body: { regions }
+          body: { regions: sanitizedRegions }
         });
 
         if (error) throw error;

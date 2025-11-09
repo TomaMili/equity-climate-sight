@@ -198,9 +198,31 @@ useEffect(() => {
     addRecentRegion(data.region_code, data.region_name, data.country);
 
     try {
-      // Transform data_sources from string to array if needed
+      // Sanitize data before sending to edge function
+      const sanitizeNumber = (value: any) => {
+        if (value === null || value === undefined) return null;
+        const num = Number(value);
+        return isNaN(num) ? null : num;
+      };
+
       const regionDataForInsight = {
         ...data,
+        // Ensure numeric fields are properly formatted
+        population: sanitizeNumber(data.population),
+        cii_score: sanitizeNumber(data.cii_score) ?? 0,
+        climate_risk_score: sanitizeNumber(data.climate_risk_score),
+        infrastructure_score: sanitizeNumber(data.infrastructure_score),
+        socioeconomic_score: sanitizeNumber(data.socioeconomic_score),
+        air_quality_pm25: sanitizeNumber(data.air_quality_pm25),
+        air_quality_no2: sanitizeNumber(data.air_quality_no2),
+        internet_speed_download: sanitizeNumber(data.internet_speed_download),
+        internet_speed_upload: sanitizeNumber(data.internet_speed_upload),
+        temperature_avg: sanitizeNumber(data.temperature_avg),
+        precipitation_avg: sanitizeNumber(data.precipitation_avg),
+        drought_index: sanitizeNumber(data.drought_index),
+        flood_risk_score: sanitizeNumber(data.flood_risk_score),
+        gdp_per_capita: sanitizeNumber(data.gdp_per_capita),
+        urban_population_percent: sanitizeNumber(data.urban_population_percent),
         data_sources: typeof data.data_sources === 'string' 
           ? JSON.parse(data.data_sources)
           : data.data_sources
