@@ -9,6 +9,7 @@ import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
 import { DataEnrichment } from '@/components/Admin/DataEnrichment';
 import { ComputeCII } from '@/components/Admin/ComputeCII';
+import { EnrichmentStats } from '@/components/Admin/EnrichmentStats';
 import { SearchFilters, FilterState } from '@/components/Search/SearchFilters';
 
 import { Input } from '@/components/ui/input';
@@ -431,6 +432,7 @@ useEffect(() => {
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-4 mt-4">
+                  <EnrichmentStats />
                   <ScheduledJobs />
                   <DataEnrichment />
                   <ComputeCII />
