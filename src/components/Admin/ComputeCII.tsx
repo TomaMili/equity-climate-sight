@@ -88,7 +88,7 @@ export function ComputeCII() {
       </div>
 
       <p className="text-sm text-muted-foreground mb-4">
-        Recompute Climate Inequality Index from real metrics (climate risk, infrastructure, socioeconomic factors, air quality).
+        Recompute Climate Inequality Index from real metrics, then normalize to full 0-100% range for better visualization.
       </p>
 
       <div className="space-y-4">

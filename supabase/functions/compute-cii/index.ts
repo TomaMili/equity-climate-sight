@@ -85,6 +85,12 @@ serve(async (req) => {
       const nextOffset = offset + (rows?.length ?? 0);
       const has_more = nextOffset < (totalRegions ?? 0);
 
+      // If this was the last batch, normalize all CII scores to 0-1 range
+      if (!has_more) {
+        console.log("Final batch complete, normalizing CII scores...");
+        await normalizeCIIScores(supabase, year);
+      }
+
       return jsonOk({
         success: true,
         stage: "regions",
@@ -619,4 +625,53 @@ function lerp(a: number, b: number, t: number) {
 }
 function mean(arr: number[]) {
   return arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
+}
+
+/* ---- Normalization to spread CII across 0-1 ---- */
+async function normalizeCIIScores(supabase: any, year: number) {
+  try {
+    // Fetch all region CII scores
+    const { data: regions, error: fetchErr } = await supabase
+      .from("climate_inequality_regions")
+      .select("region_code, cii_score")
+      .eq("data_year", year)
+      .eq("region_type", "region")
+      .not("cii_score", "is", null);
+
+    if (fetchErr || !regions || regions.length === 0) {
+      console.error("Failed to fetch CII scores for normalization:", fetchErr);
+      return;
+    }
+
+    const scores = regions.map((r: any) => r.cii_score as number);
+    const minCII = Math.min(...scores);
+    const maxCII = Math.max(...scores);
+    const range = maxCII - minCII;
+
+    console.log(`Normalizing ${scores.length} regions: min=${minCII.toFixed(3)}, max=${maxCII.toFixed(3)}, range=${range.toFixed(3)}`);
+
+    if (range < 0.01) {
+      console.warn("CII range too small, skipping normalization");
+      return;
+    }
+
+    // Normalize each region: (score - min) / range
+    let normalized = 0;
+    for (const region of regions) {
+      const rawScore = region.cii_score;
+      const normalizedScore = (rawScore - minCII) / range;
+      
+      const { error: updErr } = await supabase
+        .from("climate_inequality_regions")
+        .update({ cii_score: clamp01(normalizedScore) })
+        .eq("region_code", region.region_code)
+        .eq("data_year", year);
+
+      if (!updErr) normalized++;
+    }
+
+    console.log(`Normalized ${normalized} region CII scores to 0-1 range`);
+  } catch (e) {
+    console.error("Normalization error:", e);
+  }
 }
