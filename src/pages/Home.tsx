@@ -15,9 +15,9 @@ export default function Home() {
             isRotate={false}
             mouseInteraction={true}
             pixelFilter={700}
-            color1="#DE443B"
-            color2="#006BB4"
-            color3="#162325"
+            color1="#1a704b"
+            color2="#162325"
+            color3="#000000"
             contrast={3.5}
             lighting={0.4}
           />
