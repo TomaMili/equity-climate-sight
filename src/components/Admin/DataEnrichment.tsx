@@ -75,9 +75,22 @@ export function DataEnrichment() {
       while (shouldContinue && iteration < 1000 && !shouldStop) { // Safety limit increased for large datasets
         iteration++;
         
-        const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
-          body: { year, region_type: 'country' }
-        });
+        // Retry up to 3 times on transient failures
+        let data: any = null;
+        let error: any = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const resp = await supabase.functions.invoke('enrich-with-real-data', {
+            body: { year, region_type: 'country' }
+          });
+          if (!resp.error && resp.data) {
+            data = resp.data;
+            error = null;
+            break;
+          }
+          error = resp.error;
+          // Backoff before retrying
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+        }
 
         if (error) {
           console.error(`Enrichment call failed (iteration ${iteration}):`, error);
@@ -220,7 +233,7 @@ export function DataEnrichment() {
                   worker_id: worker.id, 
                   enriched: 0, 
                   failed: 0, 
-                  complete: true, 
+                  complete: false, 
                   error: true,
                   rateLimited: isRateLimit
                 };
@@ -247,7 +260,7 @@ export function DataEnrichment() {
                 worker_id: worker.id, 
                 enriched: 0, 
                 failed: 0, 
-                complete: true, 
+                complete: false, 
                 error: true,
                 rateLimited: isRateLimit
               };
@@ -276,24 +289,30 @@ export function DataEnrichment() {
             successfulWorkers++;
           }
           
-          if (!result.complete && !result.error) {
+          if (result.error) {
+            // Keep worker active to retry same offset next iteration
+            const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
+            if (workerIndex !== -1) {
+              initialWorkers[workerIndex].failures += 1;
+              initialWorkers[workerIndex].lastSuccess = false;
+              // Do not advance offset on error
+            }
+            allComplete = false;
+          } else if (!result.complete) {
             allComplete = false;
             // Update worker offset for next iteration
             const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
             if (workerIndex !== -1) {
               initialWorkers[workerIndex].offset += currentWorkerCount * 20;
               initialWorkers[workerIndex].enriched += result.enriched;
-              initialWorkers[workerIndex].failures = result.error ? initialWorkers[workerIndex].failures + 1 : 0;
-              initialWorkers[workerIndex].lastSuccess = !result.error;
+              initialWorkers[workerIndex].failures = 0;
+              initialWorkers[workerIndex].lastSuccess = true;
             }
           } else {
-            // Mark worker as inactive
+            // Mark worker as inactive when it reports completion
             const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
             if (workerIndex !== -1) {
               initialWorkers[workerIndex].active = false;
-              if (result.error) {
-                initialWorkers[workerIndex].failures++;
-              }
             }
           }
         });
