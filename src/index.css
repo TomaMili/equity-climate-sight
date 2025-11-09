@@ -6,6 +6,19 @@
 All colors MUST be HSL.
 */
 
+/* Custom styles for map tooltips */
+.map-tooltip .mapboxgl-popup-content {
+  @apply bg-popover text-popover-foreground border border-border rounded-md shadow-lg p-0;
+}
+
+.map-tooltip .mapboxgl-popup-tip {
+  @apply border-t-border;
+}
+
+.map-tooltip .mapboxgl-popup-close-button {
+  display: none;
+}
+
 @layer base {
   :root {
     /* Base UI Colors */

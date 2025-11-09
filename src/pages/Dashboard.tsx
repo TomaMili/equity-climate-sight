@@ -6,10 +6,6 @@ import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { AnalyticsDashboard } from '@/components/Analytics/AnalyticsDashboard';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
-import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
-import { DataEnrichment } from '@/components/Admin/DataEnrichment';
-import { ComputeCII } from '@/components/Admin/ComputeCII';
-import { EnrichmentStats } from '@/components/Admin/EnrichmentStats';
 import { SearchFilters, FilterState } from '@/components/Search/SearchFilters';
 
 import { Input } from '@/components/ui/input';
@@ -18,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Settings, BarChart3, GitCompare } from 'lucide-react';
+import { ChevronDown, BarChart3, GitCompare } from 'lucide-react';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useRecentRegions } from '@/hooks/useRecentRegions';
 import RegionComparison from '@/components/Comparison/RegionComparison';
@@ -38,7 +34,6 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'countries' | 'regions'>('regions');
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(true);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
@@ -320,7 +315,7 @@ useEffect(() => {
 
   return (
     <ErrorBoundary title="Application Error">
-      <div className="flex h-screen bg-background">
+      <div className="flex h-full w-full bg-background">
         {/* Sidebar */}
         <div className="w-96 bg-card border-r border-border overflow-y-auto">
           <div className="p-6 space-y-6">
@@ -427,26 +422,6 @@ useEffect(() => {
               </>
             )}
 
-            {/* Admin Controls */}
-            {!isInitializing && isMapLoaded && (
-              <Collapsible open={showAdmin} onOpenChange={setShowAdmin}>
-                <CollapsibleTrigger className="w-full">
-                  <div className="flex items-center justify-between w-full p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-foreground">Admin Tools</span>
-                    </div>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 mt-4">
-                  <EnrichmentStats />
-                  <ScheduledJobs />
-                  <DataEnrichment />
-                  <ComputeCII />
-                </CollapsibleContent>
-              </Collapsible>
-            )}
 
             <div className="pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">

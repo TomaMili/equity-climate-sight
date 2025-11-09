@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapErrorFallback } from './MapErrorFallback';
 import { MapLoadingSkeleton } from './MapLoadingSkeleton';
+import { MapLoadingOverlay } from './MapLoadingOverlay';
 import { FilterState } from '@/components/Search/SearchFilters';
 
 interface MapContainerProps {
@@ -250,11 +251,66 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
           if (map.current) map.current.getCanvas().style.cursor = 'pointer';
         });
 
-        map.current.on('mouseleave', 'region-fill', () => {
-          if (map.current) map.current.getCanvas().style.cursor = '';
+        // Create popup for hover tooltips
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'map-tooltip'
         });
+
+        // Add hover tooltips for regions
+        map.current.on('mouseenter', 'region-fill', (e) => {
+          if (!map.current || !e.features || !e.features[0]) return;
+          
+          const feature = e.features[0];
+          const { region_name, country, cii_score } = feature.properties;
+          
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-2">
+                <div class="font-semibold text-sm">${region_name}</div>
+                <div class="text-xs text-muted-foreground">${country}</div>
+                <div class="text-xs mt-1">
+                  <span class="font-medium">CII:</span> ${(cii_score * 100).toFixed(1)}%
+                </div>
+              </div>
+            `)
+            .addTo(map.current);
+        });
+
+        map.current.on('mouseleave', 'region-fill', () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = '';
+            popup.remove();
+          }
+        });
+
+        // Add hover tooltips for countries
+        map.current.on('mouseenter', 'country-fill', (e) => {
+          if (!map.current || !e.features || !e.features[0]) return;
+          
+          const feature = e.features[0];
+          const { region_name, cii_score } = feature.properties;
+          
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-2">
+                <div class="font-semibold text-sm">${region_name}</div>
+                <div class="text-xs mt-1">
+                  <span class="font-medium">CII:</span> ${(cii_score * 100).toFixed(1)}%
+                </div>
+              </div>
+            `)
+            .addTo(map.current);
+        });
+
         map.current.on('mouseleave', 'country-fill', () => {
-          if (map.current) map.current.getCanvas().style.cursor = '';
+          if (map.current) {
+            map.current.getCanvas().style.cursor = '';
+            popup.remove();
+          }
         });
 
         // Apply initial visibility based on viewMode
@@ -405,6 +461,9 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       
       {/* Show loading skeleton while map is initializing */}
       {!isMapReady && !mapError && <MapLoadingSkeleton />}
+      
+      {/* Show loading overlay for data */}
+      {!isDataLoaded && !mapError && <MapLoadingOverlay />}
       
       {/* Show error fallback if there's an error */}
       {mapError && (
