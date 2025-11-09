@@ -104,6 +104,69 @@ serve(async (req) => {
   }
 });
 
+async function processRegion(
+  supabase: any,
+  region: { region_code: string; country: string; data_year: number },
+  year: number,
+  worker_id: number
+) {
+  // Extract ISO2 code from region_code (e.g., "US-CA" -> "US")
+  const iso2 = region.region_code.split('-')[0];
+  
+  const realData: any = {
+    data_sources: ['Natural Earth', 'Real Data'],
+    last_updated: new Date().toISOString()
+  };
+
+  // Fetch World Bank data
+  const worldBank = await fetchWorldBankData(iso2, year);
+  if (worldBank.population) realData.population = worldBank.population;
+  if (worldBank.gdp_per_capita) realData.gdp_per_capita = worldBank.gdp_per_capita;
+  if (worldBank.urban_percent) realData.urban_population_percent = worldBank.urban_percent;
+
+  // Fetch UN data as backup
+  if (!realData.population) {
+    const unData = await fetchUNPopulationData(iso2, year);
+    if (unData.population) realData.population = unData.population;
+  }
+
+  // Fetch OpenAQ air quality
+  const airQuality = await fetchOpenAQData(iso2);
+  if (airQuality.pm25) realData.air_quality_pm25 = airQuality.pm25;
+  if (airQuality.no2) realData.air_quality_no2 = airQuality.no2;
+
+  // Fetch climate data
+  const climate = await fetchWorldBankClimate(iso2, year);
+  if (climate.precipitation) realData.precipitation_avg = climate.precipitation;
+
+  // Fetch NASA climate data as supplement
+  const nasaClimate = await fetchNASAClimateData(iso2, year);
+  if (nasaClimate.temperature && !realData.temperature_avg) {
+    realData.temperature_avg = nasaClimate.temperature;
+  }
+  if (nasaClimate.precipitation && !realData.precipitation_avg) {
+    realData.precipitation_avg = nasaClimate.precipitation;
+  }
+
+  // Update the region with real data
+  if (Object.keys(realData).length > 2) { // More than just sources and timestamp
+    const { error: updateError } = await supabase
+      .from('climate_inequality_regions')
+      .update(realData)
+      .eq('region_code', region.region_code)
+      .eq('data_year', year);
+
+    if (updateError) {
+      console.error(`[Worker ${worker_id}] Update failed for ${region.region_code}:`, updateError);
+      throw updateError;
+    } else {
+      console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code}`);
+    }
+  } else {
+    console.log(`[Worker ${worker_id}] ⚠ No real data available for ${region.region_code}`);
+  }
+}
+
 async function fetchWorldBankData(iso2: string, year: number) {
   const result: { population?: number; gdp_per_capita?: number; urban_percent?: number } = {};
   const baseUrl = 'https://api.worldbank.org/v2/country';
