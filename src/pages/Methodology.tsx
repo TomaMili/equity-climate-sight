@@ -163,9 +163,13 @@ export default function Methodology() {
               </div>
 
               {/* Small data-source note */}
-              <div className="rounded-lg border bg-card/50 p-3 text-sm text-foreground/90 flex items-center gap-2">
-                <Database className="w-4 h-4 text-primary" />
-                Inputs are sourced from OpenAQ (air), World Bank (socioeconomics), and climate archives (ERA5 / others).
+              <div className="rounded-lg border bg-card/50 p-3 text-sm text-foreground/90 flex items-start gap-2">
+                <Database className="w-4 h-4 text-primary mt-0.5" />
+                <span>
+                  Inputs sourced from <strong>OpenAQ</strong> (real-time air quality), <strong>World Bank Open Data</strong> (GDP, urban population), 
+                  <strong> Natural Earth</strong> (geographic boundaries), and <strong>ERA5/satellite observations</strong> (climate indicators). 
+                  AI insights powered by <strong>Google Gemini</strong> free-tier API.
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -253,26 +257,28 @@ export default function Methodology() {
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Normalization</div>
                   <p className="text-sm text-foreground/90">
-                    Min–max scaling per indicator and year to 0–1. Outliers trimmed at the 1st/99th percentile.
+                    Min–max scaling per indicator and year to 0–1 range. Outlier detection and trimming at 1st/99th percentiles for data quality.
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Weighting</div>
                   <p className="text-sm text-foreground/90">
-                    0.40 risk · 0.30 infra · 0.30 socio. Directionality aligned (higher = worse) before combine.
+                    40% climate risk · 30% infrastructure · 30% socioeconomic. Directionality aligned so higher CII = worse vulnerability.
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Update Frequency</div>
                   <p className="text-sm text-foreground/90">
-                    OpenAQ weekly; socioeconomic annually; climate annually or on new releases.
+                    OpenAQ weekly updates; World Bank socioeconomic annually; climate data from ERA5 reanalysis and satellite observations.
                   </p>
                 </div>
               </div>
 
               <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
-                <strong>Note:</strong> The CII is a research tool to highlight patterns and potential inequities. 
-                Use alongside local expertise and context when prioritizing interventions.
+                <strong>Important:</strong> The CII is a research and analysis tool designed to identify climate inequality patterns. 
+                AI-powered insights use Google Gemini free-tier API for predictive modeling, anomaly detection, cluster analysis, 
+                and intervention recommendations. Always combine quantitative analysis with local expertise and community context when 
+                prioritizing climate adaptation interventions.
               </div>
             </CardContent>
           </Card>

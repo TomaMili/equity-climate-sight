@@ -136,19 +136,23 @@ export default function About() {
                 <ul className="space-y-3 text-foreground/90">
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>OpenAQ:</strong> Real-time air quality (PM2.5, NO₂)</span>
+                    <span><strong>OpenAQ:</strong> Real-time air quality data (PM2.5, NO₂) from global monitoring networks</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>Natural Earth:</strong> Geographic boundary data</span>
+                    <span><strong>Natural Earth:</strong> High-resolution geographic boundary and geospatial reference data</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>World Bank:</strong> Socioeconomic indicators</span>
+                    <span><strong>World Bank Open Data:</strong> GDP per capita, urban population, and development indicators</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>Climate Data Sources:</strong> Temperature, precipitation, drought indices</span>
+                    <span><strong>Climate Data:</strong> Temperature, precipitation, flood risk, and drought indices from ERA5 and satellite observations</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
+                    <span><strong>Google Gemini AI:</strong> Powered by free-tier Google Gemini API for ML-driven insights and analysis</span>
                   </li>
                 </ul>
               </CardContent>
@@ -177,34 +181,36 @@ export default function About() {
             <CardContent className="p-6">
               <div className="grid gap-6 md:grid-cols-3">
                 <div className="rounded-xl border bg-card/50 p-5 hover:shadow-md transition-all">
-                  <div className="text-xs text-muted-foreground">Regions</div>
-                  <div className="text-3xl font-extrabold tracking-tight">43</div>
+                  <div className="text-xs text-muted-foreground">Global Coverage</div>
+                  <div className="text-3xl font-extrabold tracking-tight">195+</div>
+                  <div className="text-xs text-muted-foreground mt-1">Countries & regions</div>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-5 hover:shadow-md transition-all">
-                  <div className="text-xs text-muted-foreground">Countries</div>
-                  <div className="text-3xl font-extrabold tracking-tight">20</div>
+                  <div className="text-xs text-muted-foreground">Data Sources</div>
+                  <div className="text-3xl font-extrabold tracking-tight">5+</div>
+                  <div className="text-xs text-muted-foreground mt-1">International databases</div>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-5 hover:shadow-md transition-all">
-                  <div className="text-xs text-muted-foreground">Granularity</div>
-                  <div className="text-3xl font-extrabold tracking-tight">Country + Region</div>
+                  <div className="text-xs text-muted-foreground">Analysis</div>
+                  <div className="text-3xl font-extrabold tracking-tight">AI</div>
+                  <div className="text-xs text-muted-foreground mt-1">ML-powered insights</div>
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6 mt-6">
                 <Card className="border-dashed hover:border-primary/40 transition-all">
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-2">European Coverage</h3>
+                    <h3 className="font-semibold mb-2">Real-Time Data Integration</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Germany, France, Spain, Italy, Poland, UK, Netherlands, Sweden, Portugal, Greece,
-                      Romania, Bulgaria
+                      Live air quality monitoring from OpenAQ network, updated weekly with measurements from thousands of sensors worldwide
                     </p>
                   </CardContent>
                 </Card>
                 <Card className="border-dashed hover:border-primary/40 transition-all">
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-2">Global Coverage</h3>
+                    <h3 className="font-semibold mb-2">AI-Powered Analysis</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      United States, Canada, China, India, Brazil, Mexico, Australia, Japan
+                      Machine learning models detect anomalies, predict trends, identify vulnerability clusters, and recommend interventions
                     </p>
                   </CardContent>
                 </Card>
