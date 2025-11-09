@@ -254,6 +254,22 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             }
           });
 
+          // Add a pulsing highlight layer for selected regions
+          map.current.addLayer({
+            id: 'region-highlight',
+            type: 'line',
+            source: 'country-regions',
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 6,
+              'line-opacity': 0.6,
+              'line-blur': 3
+            },
+            layout: {
+              'visibility': 'none'
+            }
+          });
+
         // Click handlers
       map.current.on('click', 'region-fill', (e) => {
         if (!currentCountryRef.current) return;
@@ -492,6 +508,45 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       }
     }
   }, [currentCountry, isLoaded]);
+
+  // Update selected region outline with pulsing effect
+  useEffect(() => {
+    if (!map.current || !isLoaded || !map.current.isStyleLoaded()) return;
+
+    if (selectedRegion && map.current.getLayer('region-highlight')) {
+      // Show highlight layer for selected region
+      map.current.setFilter('region-highlight', ['==', ['get', 'region_code'], selectedRegion]);
+      map.current.setLayoutProperty('region-highlight', 'visibility', 'visible');
+
+      // Animate the pulsing effect
+      let opacity = 0.6;
+      let increasing = false;
+      const pulseInterval = setInterval(() => {
+        if (!map.current || !map.current.isStyleLoaded()) return;
+        
+        if (increasing) {
+          opacity += 0.05;
+          if (opacity >= 0.8) increasing = false;
+        } else {
+          opacity -= 0.05;
+          if (opacity <= 0.3) increasing = true;
+        }
+        
+        try {
+          if (map.current.getLayer('region-highlight')) {
+            map.current.setPaintProperty('region-highlight', 'line-opacity', opacity);
+          }
+        } catch (e) {
+          clearInterval(pulseInterval);
+        }
+      }, 50);
+
+      return () => clearInterval(pulseInterval);
+    } else if (map.current.getLayer('region-highlight')) {
+      // Hide highlight layer when no region is selected
+      map.current.setLayoutProperty('region-highlight', 'visibility', 'none');
+    }
+  }, [selectedRegion, isLoaded]);
 
   // Update selected region outline
   useEffect(() => {

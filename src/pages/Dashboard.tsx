@@ -154,69 +154,8 @@ useEffect(() => {
     setIsMapLoaded(true);
   };
 
-  const handleRegionClick = async (data: any) => {
-    // If clicking a country, drill down to show its regions
-    if (data.region_type === 'country' && !compareMode) {
-      setCurrentCountry(data.country);
-      setSelectedRegion(null);
-      setAiInsight(null);
-      toast({
-        title: 'Viewing Regions',
-        description: `Showing regions in ${data.region_name}`,
-      });
-      return;
-    }
-
-    // If clicking a sub-region, drill down to its country first
-    if (data.region_type !== 'country' && data.country && currentCountry?.toLowerCase() !== data.country.toLowerCase() && !compareMode) {
-      setCurrentCountry(data.country);
-      // Wait a bit for the map to update, then select the specific region
-      setTimeout(() => {
-        setSelectedRegion(data);
-        setSelectedH3Index(data.region_code);
-        addRecentRegion(data.region_code, data.region_name, data.country);
-      }, 700);
-      
-      toast({
-        title: 'Zooming to Region',
-        description: `Navigating to ${data.region_name}, ${data.country}`,
-      });
-      return;
-    }
-
-    // If in compare mode, toggle region in comparison
-    if (compareMode) {
-      const regionId = data.id;
-      setCompareRegions(prev => {
-        if (prev.includes(regionId)) {
-          return prev.filter(id => id !== regionId);
-        } else if (prev.length < 4) {
-          toast({
-            title: 'Region Added',
-            description: `${data.region_name} added to comparison (${prev.length + 1}/4)`,
-          });
-          return [...prev, regionId];
-        } else {
-          toast({
-            title: 'Maximum Reached',
-            description: 'You can compare up to 4 regions at once',
-            variant: 'destructive',
-          });
-          return prev;
-        }
-      });
-      return;
-    }
-
-    // Normal mode - show region details in sidebar
-    setSelectedRegion(data);
-    setSelectedH3Index(data.region_code);
-    setAiInsight(null);
+  const generateAiInsight = async (data: any) => {
     setIsLoadingInsight(true);
-
-    // Add to recent regions
-    addRecentRegion(data.region_code, data.region_name, data.country);
-
     try {
       // Sanitize data before sending to edge function
       const sanitizeNumber = (value: any) => {
@@ -265,6 +204,74 @@ useEffect(() => {
     } finally {
       setIsLoadingInsight(false);
     }
+  };
+
+  const handleRegionClick = async (data: any) => {
+    // If clicking a country, drill down to show its regions
+    if (data.region_type === 'country' && !compareMode) {
+      setCurrentCountry(data.country);
+      setSelectedRegion(null);
+      setAiInsight(null);
+      toast({
+        title: 'Viewing Regions',
+        description: `Showing regions in ${data.region_name}`,
+      });
+      return;
+    }
+
+    // If clicking a sub-region, drill down to its country first
+    if (data.region_type !== 'country' && data.country && currentCountry?.toLowerCase() !== data.country.toLowerCase() && !compareMode) {
+      setCurrentCountry(data.country);
+      // Wait a bit for the map to update, then select the specific region
+      setTimeout(() => {
+        setSelectedRegion(data);
+        setSelectedH3Index(data.region_code);
+        addRecentRegion(data.region_code, data.region_name, data.country);
+        generateAiInsight(data);
+      }, 700);
+      
+      toast({
+        title: 'Zooming to Region',
+        description: `Navigating to ${data.region_name}, ${data.country}`,
+      });
+      return;
+    }
+
+    // If in compare mode, toggle region in comparison
+    if (compareMode) {
+      const regionId = data.id;
+      setCompareRegions(prev => {
+        if (prev.includes(regionId)) {
+          return prev.filter(id => id !== regionId);
+        } else if (prev.length < 4) {
+          toast({
+            title: 'Region Added',
+            description: `${data.region_name} added to comparison (${prev.length + 1}/4)`,
+          });
+          return [...prev, regionId];
+        } else {
+          toast({
+            title: 'Maximum Reached',
+            description: 'You can compare up to 4 regions at once',
+            variant: 'destructive',
+          });
+          return prev;
+        }
+      });
+      return;
+    }
+
+    // Normal mode - show region details in sidebar
+    setSelectedRegion(data);
+    setSelectedH3Index(data.region_code);
+    setAiInsight(null);
+
+    // Add to recent regions
+    addRecentRegion(data.region_code, data.region_name, data.country);
+
+    // Generate AI insight
+    generateAiInsight(data);
+
   };
 
   const handleRemoveCompareRegion = (regionId: string) => {
