@@ -3,6 +3,7 @@ import { MapContainer } from '@/components/Map/MapContainer';
 import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
+import { AnalyticsDashboard } from '@/components/Analytics/AnalyticsDashboard';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
@@ -16,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Settings } from 'lucide-react';
+import { ChevronDown, Settings, BarChart3 } from 'lucide-react';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useRecentRegions } from '@/hooks/useRecentRegions';
 
@@ -36,6 +37,7 @@ const Index = () => {
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showAdmin, setShowAdmin] = useState(true);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
     ciiRange: [0, 100],
@@ -317,6 +319,24 @@ useEffect(() => {
                 <ErrorBoundary title="Statistics Loading Error">
                   <StatisticsPanel viewMode={viewMode} year={year} />
                 </ErrorBoundary>
+
+                {/* Analytics Toggle */}
+                <Collapsible open={showAnalytics} onOpenChange={setShowAnalytics}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between w-full p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">Advanced Analytics</span>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showAnalytics ? 'rotate-180' : ''}`} />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4">
+                    <ErrorBoundary title="Analytics Error">
+                      <AnalyticsDashboard viewMode={viewMode} year={year} />
+                    </ErrorBoundary>
+                  </CollapsibleContent>
+                </Collapsible>
 
                 <ErrorBoundary title="Region Details Error">
                   <RegionDetails 
