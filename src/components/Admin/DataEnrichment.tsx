@@ -5,6 +5,12 @@ import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Database, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+interface SpeedDataPoint {
+  time: string;
+  itemsPerMinute: number;
+}
 
 export function DataEnrichment() {
   const [isEnriching, setIsEnriching] = useState(false);
@@ -12,13 +18,16 @@ export function DataEnrichment() {
   const [autoResume, setAutoResume] = useState(true);
   const [pauseInterval, setPauseInterval] = useState(2);
   const [shouldStop, setShouldStop] = useState(false);
-  const [timeEstimate, setTimeEstimate] = useState<{ startTime: number; itemsProcessed: number } | null>(null);
+  const [timeEstimate, setTimeEstimate] = useState<{ startTime: number; itemsProcessed: number; lastCheckTime: number; lastCheckItems: number } | null>(null);
+  const [speedData, setSpeedData] = useState<SpeedDataPoint[]>([]);
 
   const handleEnrichCountries = async (year: number) => {
     try {
       setIsEnriching(true);
       setShouldStop(false);
-      setTimeEstimate({ startTime: Date.now(), itemsProcessed: 0 });
+      const now = Date.now();
+      setTimeEstimate({ startTime: now, itemsProcessed: 0, lastCheckTime: now, lastCheckItems: 0 });
+      setSpeedData([]);
       toast.info(`Starting data enrichment for countries (${year})...`);
       
       let totalEnriched = 0;
@@ -54,7 +63,35 @@ export function DataEnrichment() {
           failed: totalFailed
         });
 
-        setTimeEstimate(prev => prev ? { ...prev, itemsProcessed: totalEnriched } : null);
+        // Update speed tracking
+        setTimeEstimate(prev => {
+          if (!prev) return null;
+          const now = Date.now();
+          const timeSinceLastCheck = (now - prev.lastCheckTime) / 1000 / 60; // minutes
+          const itemsSinceLastCheck = totalEnriched - prev.lastCheckItems;
+          
+          if (timeSinceLastCheck > 0 && itemsSinceLastCheck > 0) {
+            const itemsPerMinute = itemsSinceLastCheck / timeSinceLastCheck;
+            const elapsedMinutes = (now - prev.startTime) / 1000 / 60;
+            
+            setSpeedData(prevData => [
+              ...prevData,
+              {
+                time: `${Math.floor(elapsedMinutes)}m`,
+                itemsPerMinute: Math.round(itemsPerMinute * 10) / 10
+              }
+            ].slice(-20)); // Keep last 20 data points
+            
+            return {
+              ...prev,
+              itemsProcessed: totalEnriched,
+              lastCheckTime: now,
+              lastCheckItems: totalEnriched
+            };
+          }
+          
+          return { ...prev, itemsProcessed: totalEnriched };
+        });
 
         shouldContinue = data?.shouldContinue === true;
 
@@ -91,7 +128,9 @@ export function DataEnrichment() {
     try {
       setIsEnriching(true);
       setShouldStop(false);
-      setTimeEstimate({ startTime: Date.now(), itemsProcessed: 0 });
+      const now = Date.now();
+      setTimeEstimate({ startTime: now, itemsProcessed: 0, lastCheckTime: now, lastCheckItems: 0 });
+      setSpeedData([]);
       toast.info(`Starting data enrichment for regions (${year})...`);
       
       let totalEnriched = 0;
@@ -127,7 +166,35 @@ export function DataEnrichment() {
           failed: totalFailed
         });
 
-        setTimeEstimate(prev => prev ? { ...prev, itemsProcessed: totalEnriched } : null);
+        // Update speed tracking
+        setTimeEstimate(prev => {
+          if (!prev) return null;
+          const now = Date.now();
+          const timeSinceLastCheck = (now - prev.lastCheckTime) / 1000 / 60; // minutes
+          const itemsSinceLastCheck = totalEnriched - prev.lastCheckItems;
+          
+          if (timeSinceLastCheck > 0 && itemsSinceLastCheck > 0) {
+            const itemsPerMinute = itemsSinceLastCheck / timeSinceLastCheck;
+            const elapsedMinutes = (now - prev.startTime) / 1000 / 60;
+            
+            setSpeedData(prevData => [
+              ...prevData,
+              {
+                time: `${Math.floor(elapsedMinutes)}m`,
+                itemsPerMinute: Math.round(itemsPerMinute * 10) / 10
+              }
+            ].slice(-20)); // Keep last 20 data points
+            
+            return {
+              ...prev,
+              itemsProcessed: totalEnriched,
+              lastCheckTime: now,
+              lastCheckItems: totalEnriched
+            };
+          }
+          
+          return { ...prev, itemsProcessed: totalEnriched };
+        });
 
         shouldContinue = data?.shouldContinue === true;
 
@@ -326,6 +393,44 @@ export function DataEnrichment() {
                 </div>
               )}
             </div>
+
+            {speedData.length > 1 && (
+              <div className="pt-2">
+                <div className="text-xs text-muted-foreground mb-2">Enrichment Speed</div>
+                <ResponsiveContainer width="100%" height={120}>
+                  <LineChart data={speedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '10px' }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '10px' }}
+                      label={{ value: 'items/min', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                      labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="itemsPerMinute" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                      name="Speed"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         )}
 
