@@ -6,6 +6,49 @@ import { MapLoadingSkeleton } from './MapLoadingSkeleton';
 import { MapLoadingOverlay } from './MapLoadingOverlay';
 import { FilterState } from '@/components/Search/SearchFilters';
 
+// Dynamic color ramp helpers (quantile-based) to improve map color variance
+const DEFAULT_CII_STOPS = [0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
+const COLOR_RAMP = [
+  '#08519c', // deep blue
+  '#3182bd',
+  '#6baed6',
+  '#bdd7e7',
+  '#eff3ff',
+  '#fee5d9',
+  '#fcae91',
+  '#fb6a4a',
+  '#de2d26',
+  '#a50f15'  // deep red
+];
+
+function computeQuantiles(values: number[], percentiles: number[]) {
+  const v = values.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
+  if (!v.length) return percentiles.map(() => 0);
+  return percentiles.map((p) => v[Math.floor(p * Math.max(v.length - 1, 0))]);
+}
+
+function buildColorRamp(values: number[]) {
+  const ps = DEFAULT_CII_STOPS; // reuse the same percent thresholds as default stops
+  const thresholds = values.length >= 30 ? computeQuantiles(values, ps) : ps.slice();
+  // Ensure strictly increasing thresholds to satisfy Mapbox expressions
+  for (let i = 1; i < thresholds.length; i++) {
+    if (thresholds[i] <= thresholds[i - 1]) thresholds[i] = thresholds[i - 1] + 1e-6;
+  }
+  return [
+    'interpolate', ['linear'], ['get', 'cii_score'],
+    thresholds[0], COLOR_RAMP[0],
+    thresholds[1], COLOR_RAMP[1],
+    thresholds[2], COLOR_RAMP[2],
+    thresholds[3], COLOR_RAMP[3],
+    thresholds[4], COLOR_RAMP[4],
+    thresholds[5], COLOR_RAMP[5],
+    thresholds[6], COLOR_RAMP[6],
+    thresholds[7], COLOR_RAMP[7],
+    thresholds[8], COLOR_RAMP[8],
+    thresholds[9], COLOR_RAMP[9]
+  ] as any;
+}
+
 interface MapContainerProps {
   onRegionClick: (data: any) => void;
   selectedRegion: string | null;
@@ -152,6 +195,12 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       setIsLoaded(true);
       setMapError(null); // Clear any previous errors
       
+      // Prepare dynamic color ramp based on current dataset (countries)
+      const countryValues = (regionsData?.features || [])
+        .filter((f: any) => f.properties?.region_type === 'country')
+        .map((f: any) => Number(f.properties?.cii_score) || 0);
+      const countryColorRamp = buildColorRamp(countryValues);
+      
         // Add sources
         if (map.current && regionsData) {
           // All features (countries + regions)
@@ -173,21 +222,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             source: 'regions',
             filter: ['==', ['get', 'region_type'], 'country'],
             paint: {
-              'fill-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'cii_score'],
-                0, '#08519c',
-                0.2, '#3182bd',
-                0.3, '#6baed6',
-                0.4, '#bdd7e7',
-                0.5, '#eff3ff',
-                0.6, '#fee5d9',
-                0.7, '#fcae91',
-                0.8, '#fb6a4a',
-                0.9, '#de2d26',
-                1, '#a50f15'
-              ],
+              'fill-color': countryColorRamp,
               'fill-opacity': 0.7
             }
           });
@@ -209,21 +244,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             type: 'fill',
             source: 'country-regions',
             paint: {
-              'fill-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'cii_score'],
-                0, '#08519c',
-                0.2, '#3182bd',
-                0.3, '#6baed6',
-                0.4, '#bdd7e7',
-                0.5, '#eff3ff',
-                0.6, '#fee5d9',
-                0.7, '#fcae91',
-                0.8, '#fb6a4a',
-                0.9, '#de2d26',
-                1, '#a50f15'
-              ],
+              'fill-color': countryColorRamp,
               'fill-opacity': 0.85
             },
             layout: {
@@ -416,6 +437,13 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
 
       const fc: any = { type: 'FeatureCollection', features: subset };
       source.setData(fc);
+
+      // Recompute a dynamic color ramp for the selected country's regions
+      const regionValues = subset.map((f: any) => Number(f.properties?.cii_score) || 0);
+      const regionColorRamp = buildColorRamp(regionValues);
+      if (map.current.getLayer('region-fill')) {
+        map.current.setPaintProperty('region-fill', 'fill-color', regionColorRamp);
+      }
 
       // Make sure region layers are visible
       if (map.current.getLayer('region-fill')) map.current.setLayoutProperty('region-fill', 'visibility', subset.length ? 'visible' : 'none');

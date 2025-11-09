@@ -1,10 +1,11 @@
 export const MapLegend = () => {
+  // Static legend kept for simplicity; map uses dynamic quantile ramps for better variance
   const legendItems = [
-    { color: '#08519c', label: '0.0 - 0.3 (Low Risk)', range: '0.0-0.3' },
-    { color: '#6baed6', label: '0.3 - 0.5 (Low-Medium)', range: '0.3-0.5' },
-    { color: '#eff3ff', label: '0.5 - 0.6 (Neutral)', range: '0.5-0.6' },
-    { color: '#fcae91', label: '0.6 - 0.8 (High)', range: '0.6-0.8' },
-    { color: '#de2d26', label: '0.8 - 1.0 (Critical)', range: '0.8-1.0' },
+    { color: '#08519c', label: 'Low risk (relative)' },
+    { color: '#6baed6', label: 'Low-Medium (relative)' },
+    { color: '#eff3ff', label: 'Neutral (relative)' },
+    { color: '#fcae91', label: 'High (relative)' },
+    { color: '#de2d26', label: 'Critical (relative)' },
   ];
 
   return (
@@ -12,7 +13,7 @@ export const MapLegend = () => {
       <h3 className="text-sm font-semibold mb-3 text-foreground">Climate Inequality Index (CII)</h3>
       <div className="space-y-2">
         {legendItems.map((item) => (
-          <div key={item.range} className="flex items-center gap-2">
+          <div key={item.label} className="flex items-center gap-2">
             <div
               className="w-8 h-4 rounded border border-border/50"
               style={{ backgroundColor: item.color }}
@@ -22,7 +23,7 @@ export const MapLegend = () => {
         ))}
       </div>
       <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-        Higher values indicate greater climate inequality
+        Colors scale to current data distribution for better contrast
       </p>
     </div>
   );
