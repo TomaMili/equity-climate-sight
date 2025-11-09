@@ -12,6 +12,35 @@ const BATCH_SIZE = 6; // Schedule small batches to keep responses fast
 // Simple in-memory cache per cold start
 const WB_CACHE = new Map<string, { population?: number; gdp_per_capita?: number; urban_percent?: number }>();
 
+// Reusable fetch with exponential backoff retry logic
+async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 3): Promise<Response | null> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      
+      // If not OK but not a server error, don't retry (e.g., 404)
+      if (response.status < 500) {
+        console.log(`Non-retryable status ${response.status} for ${url}`);
+        return null;
+      }
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.log(`Retry attempt ${attempt}/${maxRetries} for ${url} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (error) {
+      console.error(`Fetch attempt ${attempt}/${maxRetries} failed for ${url}:`, error);
+      if (attempt === maxRetries) return null;
+      
+      const delay = Math.pow(2, attempt) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -197,39 +226,28 @@ async function fetchWorldBankData(iso2: string, year: number) {
   const result: { population?: number; gdp_per_capita?: number; urban_percent?: number } = {};
   const baseUrl = 'https://api.worldbank.org/v2/country';
 
-  const fetchWithRetry = async (url: string, maxRetries = 3): Promise<Response | null> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(url);
-        if (response.ok) return response;
-        
-        if (attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      } catch (error) {
-        if (attempt === maxRetries) return null;
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    return null;
-  };
+  // Cache key per country-year
+  const cacheKey = `${iso2}-${year}`;
+  const cached = WB_CACHE.get(cacheKey);
+  if (cached) {
+    console.log(`Cache hit for ${iso2}-${year}`);
+    return { ...cached };
+  }
+
+  console.log(`Fetching World Bank data for ${iso2}-${year}...`);
 
   try {
-    // Cache key per country-year
-    const cacheKey = `${iso2}-${year}`;
-    const cached = WB_CACHE.get(cacheKey);
-    if (cached) return { ...cached };
-
     const popResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`);
     if (popResp) {
       const popData = await popResp.json();
       if (popData[1]?.[0]?.value) {
         result.population = Math.round(popData[1][0].value);
+        console.log(`✓ Population for ${iso2}: ${result.population}`);
       }
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error(`Failed to fetch population for ${iso2}:`, e);
+  }
 
   try {
     const gdpResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`);
@@ -237,11 +255,13 @@ async function fetchWorldBankData(iso2: string, year: number) {
       const gdpData = await gdpResp.json();
       const val = gdpData[1]?.[0]?.value;
       if (val !== null && val !== undefined) {
-        // World Bank returns USD; keep as-is (e.g., US ~ 70,000)
         result.gdp_per_capita = Math.round(Number(val) * 100) / 100;
+        console.log(`✓ GDP per capita for ${iso2}: $${result.gdp_per_capita}`);
       }
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error(`Failed to fetch GDP for ${iso2}:`, e);
+  }
 
   try {
     const urbanResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`);
@@ -249,12 +269,15 @@ async function fetchWorldBankData(iso2: string, year: number) {
       const urbanData = await urbanResp.json();
       if (urbanData[1]?.[0]?.value !== null && urbanData[1]?.[0]?.value !== undefined) {
         result.urban_percent = Math.round(Number(urbanData[1][0].value) * 100) / 100;
+        console.log(`✓ Urban population for ${iso2}: ${result.urban_percent}%`);
       }
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error(`Failed to fetch urban % for ${iso2}:`, e);
+  }
 
   // Save to cache
-  WB_CACHE.set(`${iso2}-${year}`, { ...result });
+  WB_CACHE.set(cacheKey, { ...result });
 
   return result;
 }
@@ -263,24 +286,6 @@ async function fetchOpenAQData(iso2: string) {
   const result: { pm25?: number; no2?: number } = {};
   const apiKey = Deno.env.get('OPENAQ_API_KEY');
 
-  const fetchWithRetry = async (url: string, headers: any, maxRetries = 3): Promise<Response | null> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(url, { headers });
-        if (response.ok) return response;
-        if (attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      } catch (error) {
-        if (attempt === maxRetries) return null;
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    return null;
-  };
-
   const fetchParameter = async (parameterId: number) => {
     const url = new URL('https://api.openaq.org/v3/latest');
     url.searchParams.set('country', iso2);
@@ -288,8 +293,10 @@ async function fetchOpenAQData(iso2: string) {
     url.searchParams.set('limit', '1000');
 
     const resp = await fetchWithRetry(url.toString(), {
-      'Accept': 'application/json',
-      'X-API-Key': apiKey || ''
+      headers: {
+        'Accept': 'application/json',
+        'X-API-Key': apiKey || ''
+      }
     });
 
     if (!resp) return null;
@@ -307,13 +314,23 @@ async function fetchOpenAQData(iso2: string) {
 
   try {
     const pm25 = await fetchParameter(2);
-    if (pm25) result.pm25 = Math.round(pm25 * 100) / 100;
-  } catch (e) { /* ignore */ }
+    if (pm25) {
+      result.pm25 = Math.round(pm25 * 100) / 100;
+      console.log(`✓ PM2.5 for ${iso2}: ${result.pm25}`);
+    }
+  } catch (e) {
+    console.error(`Failed to fetch PM2.5 for ${iso2}:`, e);
+  }
 
   try {
     const no2 = await fetchParameter(10);
-    if (no2) result.no2 = Math.round(no2 * 100) / 100;
-  } catch (e) { /* ignore */ }
+    if (no2) {
+      result.no2 = Math.round(no2 * 100) / 100;
+      console.log(`✓ NO2 for ${iso2}: ${result.no2}`);
+    }
+  } catch (e) {
+    console.error(`Failed to fetch NO2 for ${iso2}:`, e);
+  }
 
   return result;
 }
@@ -361,24 +378,6 @@ async function fetchUNPopulationData(iso2: string, year: number) {
 async function fetchNASAClimateData(iso2: string, year: number) {
   const result: { temperature?: number; precipitation?: number } = {};
   
-  const fetchWithRetry = async (url: string, maxRetries = 3): Promise<Response | null> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(url);
-        if (response.ok) return response;
-        if (attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      } catch (error) {
-        if (attempt === maxRetries) return null;
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    return null;
-  };
-
   try {
     const coords = getCountryCoordinates(iso2);
     if (!coords) return result;
@@ -392,14 +391,18 @@ async function fetchNASAClimateData(iso2: string, year: number) {
       if (nasaData.properties && nasaData.properties.parameter) {
         if (nasaData.properties.parameter.T2M && nasaData.properties.parameter.T2M[year]) {
           result.temperature = Math.round(nasaData.properties.parameter.T2M[year] * 100) / 100;
+          console.log(`✓ NASA temp for ${iso2}: ${result.temperature}°C`);
         }
         
         if (nasaData.properties.parameter.PRECTOTCORR && nasaData.properties.parameter.PRECTOTCORR[year]) {
           result.precipitation = Math.round(nasaData.properties.parameter.PRECTOTCORR[year] * 365 * 100) / 100;
+          console.log(`✓ NASA precip for ${iso2}: ${result.precipitation}mm`);
         }
       }
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error(`Failed to fetch NASA climate for ${iso2}:`, e);
+  }
 
   return result;
 }
