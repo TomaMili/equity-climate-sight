@@ -60,7 +60,7 @@ serve(async (req) => {
     // Get regions to enrich - all regions for the year
     const { data: regions, error: fetchError } = await supabase
       .from('climate_inequality_regions')
-      .select('region_code, country, data_year, region_type, enrichment_attempts, next_retry_at')
+      .select('region_code, country, data_year, region_type, enrichment_attempts, next_retry_at, population')
       .eq('region_type', region_type)
       .eq('data_year', year)
       .range(offset, offset + BATCH_SIZE - 1); // Use offset for parallel workers
@@ -160,7 +160,7 @@ async function handleEnrichmentFailure(
 
 async function processRegion(
   supabase: any,
-  region: { region_code: string; country: string; data_year: number; region_type: string; enrichment_attempts?: number },
+  region: { region_code: string; country: string; data_year: number; region_type: string; enrichment_attempts?: number; population?: number },
   year: number,
   worker_id: number
 ): Promise<boolean> {
@@ -174,14 +174,14 @@ async function processRegion(
 
   const isCountry = region.region_type === 'country';
 
-  // CRITICAL: Explicitly null out population for regions to clean up bad data
+  // CRITICAL: For countries, preserve existing population. For regions, start with null and fetch from GeoNames.
   if (!isCountry) {
     realData.population = null;
   }
+  // Note: For countries, we deliberately don't touch population field to preserve existing data
 
-  // Fetch World Bank data - only store population for countries
+  // Fetch World Bank data - GDP and urban % only (population is preserved for countries)
   const worldBank = await fetchWorldBankData(iso2, year);
-  if (isCountry && worldBank.population) realData.population = worldBank.population;
   if (worldBank.gdp_per_capita) {
     realData.gdp_per_capita = worldBank.gdp_per_capita;
     realData.data_sources.push('World Bank');
@@ -189,12 +189,6 @@ async function processRegion(
   if (worldBank.urban_percent) {
     realData.urban_population_percent = worldBank.urban_percent;
     if (!realData.data_sources.includes('World Bank')) realData.data_sources.push('World Bank');
-  }
-
-  // Fetch UN population as backup for countries only
-  if (isCountry && !realData.population) {
-    const unData = await fetchUNPopulationData(iso2, year);
-    if (unData.population) realData.population = unData.population;
   }
 
   // Fetch GeoNames population for regions only
@@ -270,7 +264,10 @@ async function processRegion(
     if (!isCountry) {
       realData.population = null;
     }
+    // Null out all metric fields except population for countries
     for (const key of metricFields) {
+      // Skip population field for countries to preserve existing data
+      if (key === 'population' && isCountry) continue;
       realData[key] = null;
     }
   }
