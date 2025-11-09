@@ -1,19 +1,30 @@
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2, HelpCircle, Github, Linkedin, Mail } from 'lucide-react';
-import { StatCard } from '@/components/StatCard';
-import { usePlatformStats } from '@/hooks/usePlatformStats';
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  ArrowLeft,
+  Target,
+  Users,
+  Database,
+  ShieldCheck,
+  Globe2,
+  HelpCircle,
+  Github,
+  Linkedin,
+  Mail,
+} from "lucide-react";
+import { StatCard } from "@/components/StatCard";
+import { usePlatformStats } from "@/hooks/usePlatformStats";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5 }
-  }
+    transition: { duration: 0.5 },
+  },
 };
 
 export default function About() {
@@ -33,12 +44,7 @@ export default function About() {
 
       <div className="container mx-auto px-4 pb-16 max-w-4xl">
         {/* Header */}
-        <motion.div
-          initial="hidden"
-          animate="show"
-          variants={fadeIn}
-          className="space-y-4"
-        >
+        <motion.div initial="hidden" animate="show" variants={fadeIn} className="space-y-4">
           <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
             About the Project
           </h1>
@@ -50,12 +56,7 @@ export default function About() {
         {/* Mission / Why / Data */}
         <div className="mt-10 grid gap-6">
           {/* Mission */}
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={fadeIn}
-          >
+          <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
             <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-3">
@@ -70,21 +71,16 @@ export default function About() {
               </CardHeader>
               <CardContent className="pt-2">
                 <p className="text-muted-foreground leading-relaxed">
-                  The Climate Inequality Index (CII) visualizes and quantifies how climate change impacts
-                  are distributed unequally across regions, combining environmental factors with
-                  infrastructure access and socioeconomic conditions that shape adaptive capacity.
+                  The Climate Inequality Index (CII) visualizes and quantifies how climate change impacts are
+                  distributed unequally across regions, combining environmental factors with infrastructure access and
+                  socioeconomic conditions that shape adaptive capacity.
                 </p>
               </CardContent>
             </Card>
           </motion.div>
 
           {/* Why it matters */}
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={fadeIn}
-          >
+          <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
             <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-3">
@@ -99,10 +95,9 @@ export default function About() {
               </CardHeader>
               <CardContent className="pt-2">
                 <p className="text-muted-foreground leading-relaxed">
-                  Climate change doesn’t affect everyone equally. Regions with lower socioeconomic indicators
-                  often face higher climate risks while having fewer resources to adapt. Mapping these
-                  inequalities helps policymakers, researchers, and communities identify where intervention
-                  and support are most needed.
+                  Climate change doesn’t affect everyone equally. Regions with lower socioeconomic indicators often face
+                  higher climate risks while having fewer resources to adapt. Mapping these inequalities helps
+                  policymakers, researchers, and communities identify where intervention and support are most needed.
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-lg border bg-card/50 p-3">
@@ -119,12 +114,7 @@ export default function About() {
           </motion.div>
 
           {/* Data Sources */}
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={fadeIn}
-          >
+          <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
             <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-3">
@@ -141,23 +131,36 @@ export default function About() {
                 <ul className="space-y-3 text-foreground/90">
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>OpenAQ:</strong> Real-time air quality data (PM2.5, NO₂) from global monitoring networks</span>
+                    <span>
+                      <strong>OpenAQ:</strong> Real-time air quality data (PM2.5, NO₂) from global monitoring networks
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>Natural Earth:</strong> High-resolution geographic boundary and geospatial reference data</span>
+                    <span>
+                      <strong>Natural Earth:</strong> High-resolution geographic boundary and geospatial reference data
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>World Bank Open Data:</strong> GDP per capita, urban population, and development indicators</span>
+                    <span>
+                      <strong>World Bank Open Data:</strong> GDP per capita, urban population, and development
+                      indicators
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>Climate Data:</strong> Temperature, precipitation, flood risk, and drought indices from ERA5 and satellite observations</span>
+                    <span>
+                      <strong>Climate Data:</strong> Temperature, precipitation, flood risk, and drought indices from
+                      ERA5 and satellite observations
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 mt-1 text-primary" />
-                    <span><strong>Google Gemini AI:</strong> Powered by free-tier Google Gemini API for ML-driven insights and analysis</span>
+                    <span>
+                      <strong>Google Gemini AI:</strong> Powered by free-tier Google Gemini API for ML-driven insights
+                      and analysis
+                    </span>
                   </li>
                 </ul>
               </CardContent>
@@ -207,7 +210,8 @@ export default function About() {
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-2">Real-Time Data Integration</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Live air quality monitoring from OpenAQ network, updated weekly with measurements from thousands of sensors worldwide
+                      Live air quality monitoring from OpenAQ network, updated weekly with measurements from thousands
+                      of sensors worldwide
                     </p>
                   </CardContent>
                 </Card>
@@ -215,7 +219,8 @@ export default function About() {
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-2">AI-Powered Analysis</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Machine learning models detect anomalies, predict trends, identify vulnerability clusters, and recommend interventions
+                      Machine learning models detect anomalies, predict trends, identify vulnerability clusters, and
+                      recommend interventions
                     </p>
                   </CardContent>
                 </Card>
@@ -294,9 +299,9 @@ export default function About() {
               {/* Impact statement */}
               <div className="mt-6 rounded-xl border-l-4 border-primary bg-primary/5 p-4">
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">Making climate data accessible:</strong> Our platform has helped 
-                  researchers identify vulnerability hotspots across 3 continents, enabled policymakers to prioritize 
-                  climate adaptation funding for 120+ high-risk regions, and provided evidence-based insights for 
+                  <strong className="text-foreground">Making climate data accessible:</strong> Our platform has helped
+                  researchers identify vulnerability hotspots across 3 continents, enabled policymakers to prioritize
+                  climate adaptation funding for 120+ high-risk regions, and provided evidence-based insights for
                   communities advocating for climate justice.
                 </p>
               </div>
@@ -318,9 +323,7 @@ export default function About() {
                 <HelpCircle className="w-5 h-5 text-primary" />
                 <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Common questions about the Climate Inequality Index
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Common questions about the Climate Inequality Index</p>
             </div>
             <CardContent className="p-6">
               <Accordion type="single" collapsible className="w-full">
@@ -329,38 +332,37 @@ export default function About() {
                     How is the Climate Inequality Index (CII) calculated?
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    The CII is a weighted composite of three components: Climate Risk (40%), Infrastructure Access (30%), 
-                    and Socioeconomic Vulnerability (30%). Each component aggregates multiple normalized indicators 
-                    (0-1 scale) from real-world data sources. Higher CII scores indicate greater climate vulnerability 
-                    and lower adaptive capacity. See our <Link to="/methodology" className="text-primary hover:underline">Methodology page</Link> for 
-                    detailed formulas and component breakdowns.
+                    The CII is a weighted composite of three components: Climate Risk (40%), Infrastructure Access
+                    (30%), and Socioeconomic Vulnerability (30%). Each component aggregates multiple normalized
+                    indicators (0-1 scale) from real-world data sources. Higher CII scores indicate greater climate
+                    vulnerability and lower adaptive capacity. See our{" "}
+                    <Link to="/methodology" className="text-primary hover:underline">
+                      Methodology page
+                    </Link>{" "}
+                    for detailed formulas and component breakdowns.
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-2">
-                  <AccordionTrigger className="text-left">
-                    How accurate and reliable is the data?
-                  </AccordionTrigger>
+                  <AccordionTrigger className="text-left">How accurate and reliable is the data?</AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    We source data from authoritative international organizations: OpenAQ (air quality with 15,000+ 
-                    monitoring stations), World Bank Open Data (economic indicators), Natural Earth (geographic boundaries), 
-                    and ERA5 climate reanalysis (validated satellite and ground observations). Data undergoes quality 
-                    checks including outlier detection and cross-validation. However, data availability varies by region, 
-                    and indicators should be interpreted alongside local expertise. We clearly mark data gaps and 
-                    estimation methods in regional details.
+                    We source data from authoritative international organizations: OpenAQ (air quality with 15,000+
+                    monitoring stations), World Bank Open Data (economic indicators), Natural Earth (geographic
+                    boundaries), and ERA5 climate reanalysis (validated satellite and ground observations). Data
+                    undergoes quality checks including outlier detection and cross-validation. However, data
+                    availability varies by region, and indicators should be interpreted alongside local expertise. We
+                    clearly mark data gaps and estimation methods in regional details.
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-3">
-                  <AccordionTrigger className="text-left">
-                    How often is the data updated?
-                  </AccordionTrigger>
+                  <AccordionTrigger className="text-left">How often is the data updated?</AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Update frequencies vary by data source: <strong>OpenAQ air quality</strong> updates weekly with 
-                    real-time measurements; <strong>World Bank socioeconomic indicators</strong> (GDP, population) update 
-                    annually; <strong>climate data</strong> from ERA5 updates monthly to quarterly as new reanalysis 
-                    becomes available. The CII scores are recalculated whenever underlying data refreshes. You can see 
-                    the last update timestamp for each region in the dashboard.
+                    Update frequencies vary by data source: <strong>OpenAQ air quality</strong> updates weekly with
+                    real-time measurements; <strong>World Bank socioeconomic indicators</strong> (GDP, population)
+                    update annually; <strong>climate data</strong> from ERA5 updates monthly to quarterly as new
+                    reanalysis becomes available. The CII scores are recalculated whenever underlying data refreshes.
+                    You can see the last update timestamp for each region in the dashboard.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -369,14 +371,15 @@ export default function About() {
                     What AI models power the insights and analysis?
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    We use <strong>Google Gemini 2.5 Flash and Pro models</strong> via the free-tier API for advanced 
-                    analytics. The AI performs five types of analysis: <strong>(1) Trend Prediction</strong> - forecasting 
-                    CII trajectories to 2030 using XGBoost-style modeling; <strong>(2) Anomaly Detection</strong> - 
-                    identifying unusual climate-poverty correlations; <strong>(3) Cluster Analysis</strong> - discovering 
-                    geographic vulnerability hotspots using DBSCAN-style algorithms; <strong>(4) Pattern Discovery</strong> - 
-                    finding hidden correlations between factors; <strong>(5) Intervention Recommendations</strong> - 
-                    suggesting evidence-based climate adaptation strategies. All AI outputs are clearly labeled and 
-                    should complement, not replace, human expertise.
+                    We use <strong>Google Gemini 2.5 Flash and Pro models</strong> via the free-tier API for advanced
+                    analytics. The AI performs five types of analysis: <strong>(1) Trend Prediction</strong> -
+                    forecasting CII trajectories to 2030 using XGBoost-style modeling;{" "}
+                    <strong>(2) Anomaly Detection</strong> - identifying unusual climate-poverty correlations;{" "}
+                    <strong>(3) Cluster Analysis</strong> - discovering geographic vulnerability hotspots using
+                    DBSCAN-style algorithms; <strong>(4) Pattern Discovery</strong> - finding hidden correlations
+                    between factors; <strong>(5) Intervention Recommendations</strong> - suggesting evidence-based
+                    climate adaptation strategies. All AI outputs are clearly labeled and should complement, not
+                    replace, human expertise.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -385,11 +388,11 @@ export default function About() {
                     Can I use this data for research or policy work?
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Yes! The CII is designed as a research and decision-support tool for policymakers, researchers, 
-                    NGOs, and climate advocates. All underlying data sources (OpenAQ, World Bank, Natural Earth, ERA5) 
-                    are publicly available and properly attributed. When using CII data, please cite the relevant 
-                    original data sources and note that this is a composite index meant to identify patterns and 
-                    prioritize interventions. We recommend combining quantitative CII analysis with local community 
+                    Yes! The CII is designed as a research and decision-support tool for policymakers, researchers,
+                    NGOs, and climate advocates. All underlying data sources (OpenAQ, World Bank, Natural Earth, ERA5)
+                    are publicly available and properly attributed. When using CII data, please cite the relevant
+                    original data sources and note that this is a composite index meant to identify patterns and
+                    prioritize interventions. We recommend combining quantitative CII analysis with local community
                     knowledge, ground-truthing, and context-specific assessments for policy decisions.
                   </AccordionContent>
                 </AccordionItem>
@@ -399,23 +402,21 @@ export default function About() {
                     Why doesn't my region appear in the database?
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Regional coverage depends on data availability from our sources. Some regions may lack sufficient 
-                    air quality monitoring stations, updated socioeconomic data, or high-resolution climate observations. 
-                    We continuously expand coverage as new data becomes available. Currently, we prioritize regions with 
-                    complete datasets across all CII components. If your region is missing, it likely reflects gaps in 
-                    international monitoring infrastructure rather than lower climate risk. Check back regularly as we 
-                    add new regions with improved data coverage.
+                    Regional coverage depends on data availability from our sources. Some regions may lack sufficient
+                    air quality monitoring stations, updated socioeconomic data, or high-resolution climate
+                    observations. We continuously expand coverage as new data becomes available. Currently, we
+                    prioritize regions with complete datasets across all CII components. If your region is missing, it
+                    likely reflects gaps in international monitoring infrastructure rather than lower climate risk.
+                    Check back regularly as we add new regions with improved data coverage.
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-7">
-                  <AccordionTrigger className="text-left">
-                    How can I download or export the data?
-                  </AccordionTrigger>
+                  <AccordionTrigger className="text-left">How can I download or export the data?</AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Currently, you can view detailed metrics and AI-generated insights for each region directly in the 
-                    dashboard. We're working on adding CSV/JSON export capabilities for bulk data downloads. For now, 
-                    you can access individual region data through the interactive map and comparison tools. If you need 
+                    Currently, you can view detailed metrics and AI-generated insights for each region directly in the
+                    dashboard. We're working on adding CSV/JSON export capabilities for bulk data downloads. For now,
+                    you can access individual region data through the interactive map and comparison tools. If you need
                     bulk data access for research purposes, please contact us to discuss API access options.
                   </AccordionContent>
                 </AccordionItem>
@@ -425,13 +426,14 @@ export default function About() {
                     Are there limitations or biases in the CII methodology?
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Yes, like all composite indices, the CII has limitations: <strong>(1)</strong> Equal weighting 
-                    assumptions may not reflect local priorities; <strong>(2)</strong> Data availability varies by region, 
-                    potentially favoring well-monitored areas; <strong>(3)</strong> Aggregation can mask within-region 
-                    inequalities; <strong>(4)</strong> Historical data may not capture rapid recent changes; 
-                    <strong>(5)</strong> Cultural and political factors affecting vulnerability aren't quantified. 
-                    We address these through transparent methodology documentation, data quality indicators, and 
-                    recommending the CII as one tool among many for climate equity assessment. Always combine with 
+                    Yes, like all composite indices, the CII has limitations: <strong>(1)</strong> Equal weighting
+                    assumptions may not reflect local priorities; <strong>(2)</strong> Data availability varies by
+                    region, potentially favoring well-monitored areas; <strong>(3)</strong> Aggregation can mask
+                    within-region inequalities; <strong>(4)</strong> Historical data may not capture rapid recent
+                    changes;
+                    <strong>(5)</strong> Cultural and political factors affecting vulnerability aren't quantified. We
+                    address these through transparent methodology documentation, data quality indicators, and
+                    recommending the CII as one tool among many for climate equity assessment. Always combine with
                     qualitative local knowledge.
                   </AccordionContent>
                 </AccordionItem>
@@ -468,31 +470,26 @@ export default function About() {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {[
                     {
-                      name: "Alex Chen",
-                      role: "Lead Developer",
+                      name: "Toma Milićević",
+                      role: "Developer",
                       expertise: "Full-stack development, Data visualization",
-                      github: "#",
-                      linkedin: "#",
-                      email: "alex@example.com"
+                      github: "https://github.com/TomaMili",
+                      linkedin: "https://www.linkedin.com/in/toma-milićević",
+                      email: "tomatomamilicevic@gmail.com",
                     },
                     {
-                      name: "Dr. Sarah Martinez",
-                      role: "Climate Data Scientist",
-                      expertise: "Climate modeling, Statistical analysis",
-                      github: "#",
-                      linkedin: "#",
-                      email: "sarah@example.com"
+                      name: "Karlo Šiljevinac",
+                      role: "Developer",
+                      expertise: "Full-stack development, Statistical analysis",
+                      github: "https://github.com/Caladhir",
+                      linkedin: "https://www.linkedin.com/in/siljevinackarlo",
+                      email: "siljevinackarlo@gmail.com",
                     },
-                    {
-                      name: "Jordan Kim",
-                      role: "AI/ML Engineer",
-                      expertise: "Machine learning, Predictive modeling",
-                      github: "#",
-                      linkedin: "#",
-                      email: "jordan@example.com"
-                    }
                   ].map((member, i) => (
-                    <Card key={i} className="group border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300 hover-scale">
+                    <Card
+                      key={i}
+                      className="group border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300 hover-scale"
+                    >
                       <CardContent className="p-4">
                         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-3 mx-auto group-hover:scale-110 transition-transform">
                           <span className="text-2xl font-bold text-primary">{member.name.charAt(0)}</span>
@@ -501,22 +498,22 @@ export default function About() {
                         <p className="text-sm text-primary text-center mb-2">{member.role}</p>
                         <p className="text-xs text-muted-foreground text-center mb-3">{member.expertise}</p>
                         <div className="flex justify-center gap-2">
-                          <a 
-                            href={member.github} 
+                          <a
+                            href={member.github}
                             className="w-8 h-8 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/40 flex items-center justify-center transition-all"
                             aria-label="GitHub"
                           >
                             <Github className="w-4 h-4" />
                           </a>
-                          <a 
-                            href={member.linkedin} 
+                          <a
+                            href={member.linkedin}
                             className="w-8 h-8 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/40 flex items-center justify-center transition-all"
                             aria-label="LinkedIn"
                           >
                             <Linkedin className="w-4 h-4" />
                           </a>
-                          <a 
-                            href={`mailto:${member.email}`} 
+                          <a
+                            href={`mailto:${member.email}`}
                             className="w-8 h-8 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/40 flex items-center justify-center transition-all"
                             aria-label="Email"
                           >
@@ -541,26 +538,26 @@ export default function About() {
                       name: "OpenAQ",
                       contribution: "Real-time air quality monitoring data from 15,000+ stations globally",
                       website: "https://openaq.org",
-                      logo: "🌍"
+                      logo: "🌍",
                     },
                     {
                       name: "World Bank Open Data",
                       contribution: "Socioeconomic indicators including GDP, population, and development metrics",
                       website: "https://data.worldbank.org",
-                      logo: "🏛️"
+                      logo: "🏛️",
                     },
                     {
                       name: "Natural Earth",
                       contribution: "High-resolution geographic boundary data and geospatial reference systems",
                       website: "https://naturalearthdata.com",
-                      logo: "🗺️"
+                      logo: "🗺️",
                     },
                     {
                       name: "Google Gemini AI",
                       contribution: "Free-tier API powering ML insights, predictions, and climate analysis",
                       website: "https://ai.google.dev",
-                      logo: "🤖"
-                    }
+                      logo: "🤖",
+                    },
                   ].map((org, i) => (
                     <Card key={i} className="border-dashed hover:border-primary/40 transition-all hover-scale">
                       <CardContent className="p-4">
@@ -570,10 +567,8 @@ export default function About() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold mb-1">{org.name}</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-                              {org.contribution}
-                            </p>
-                            <a 
+                            <p className="text-xs text-muted-foreground leading-relaxed mb-2">{org.contribution}</p>
+                            <a
                               href={org.website}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -596,21 +591,23 @@ export default function About() {
                   Acknowledgments
                 </h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  This project builds upon the work of countless climate scientists, data engineers, and open-source 
-                  contributors who have made their datasets and tools publicly available. Special thanks to the 
-                  climate research community, ERA5 reanalysis team, OpenStreetMap contributors, and the developers 
-                  of open-source libraries that power this platform. We are committed to transparent, accessible 
-                  climate data and invite collaboration from researchers, policymakers, and communities worldwide.
+                  This project builds upon the work of countless climate scientists, data engineers, and open-source
+                  contributors who have made their datasets and tools publicly available. Special thanks to the climate
+                  research community, ERA5 reanalysis team, OpenStreetMap contributors, and the developers of
+                  open-source libraries that power this platform. We are committed to transparent, accessible climate
+                  data and invite collaboration from researchers, policymakers, and communities worldwide.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {['ERA5 Reanalysis', 'OpenStreetMap', 'React', 'Mapbox', 'Supabase', 'Lovable Cloud'].map((tech, i) => (
-                    <span 
-                      key={i}
-                      className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
-                    >
-                      {tech}
-                    </span>
-                  ))}
+                  {["ERA5 Reanalysis", "OpenStreetMap", "React", "Mapbox", "Supabase", "Lovable Cloud"].map(
+                    (tech, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                      >
+                        {tech}
+                      </span>
+                    ),
+                  )}
                 </div>
               </div>
 
@@ -619,9 +616,9 @@ export default function About() {
                 <CardContent className="p-5 text-center">
                   <h3 className="text-lg font-semibold mb-2">Want to Contribute?</h3>
                   <p className="text-sm text-muted-foreground mb-4 max-w-2xl mx-auto">
-                    We welcome contributions from climate scientists, data engineers, designers, and researchers. 
-                    Whether you have new data sources, improved methodologies, or want to help expand regional 
-                    coverage, we'd love to hear from you.
+                    We welcome contributions from climate scientists, data engineers, designers, and researchers.
+                    Whether you have new data sources, improved methodologies, or want to help expand regional coverage,
+                    we'd love to hear from you.
                   </p>
                   <Button variant="outline" className="hover:border-primary/60">
                     <Mail className="w-4 h-4 mr-2" />
