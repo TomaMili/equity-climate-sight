@@ -76,14 +76,12 @@ export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: Analytics
               country: region.country,
               count: 0,
               totalCII: 0,
-              totalPopulation: 0,
               highRiskCount: 0
             });
           }
           const countryData = countryMap.get(region.country);
           countryData.count++;
           countryData.totalCII += region.cii_score;
-          countryData.totalPopulation += region.population || 0;
           if (region.cii_score >= 0.7) countryData.highRiskCount++;
         });
 
@@ -92,7 +90,6 @@ export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: Analytics
             country: c.country,
             avgCII: c.totalCII / c.count,
             regions: c.count,
-            population: c.totalPopulation,
             highRiskRegions: c.highRiskCount
           }))
           .sort((a, b) => b.avgCII - a.avgCII)
@@ -108,14 +105,14 @@ export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: Analytics
         fullName: r.region_name,
         country: r.country,
         cii: r.cii_score,
-        population: r.population
+        population: viewMode === 'countries' ? r.population : null
       })));
       setBottomRegions(sorted.slice(-10).reverse().map(r => ({
         name: r.region_name.length > 20 ? r.region_name.substring(0, 20) + '...' : r.region_name,
         fullName: r.region_name,
         country: r.country,
         cii: r.cii_score,
-        population: r.population
+        population: viewMode === 'countries' ? r.population : null
       })));
 
       // CII Distribution (histogram bins)
@@ -286,7 +283,7 @@ export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: Analytics
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-destructive">{(region.cii * 100).toFixed(1)}%</p>
-                    {region.population && (
+                    {viewMode === 'countries' && region.population && (
                       <p className="text-xs text-muted-foreground">
                         {(region.population / 1000000).toFixed(1)}M
                       </p>
@@ -319,7 +316,7 @@ export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: Analytics
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-green-600">{(region.cii * 100).toFixed(1)}%</p>
-                    {region.population && (
+                    {viewMode === 'countries' && region.population && (
                       <p className="text-xs text-muted-foreground">
                         {(region.population / 1000000).toFixed(1)}M
                       </p>
@@ -366,12 +363,9 @@ export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: Analytics
                       <p className="font-medium text-foreground">{country.country}</p>
                       <Badge variant="outline">{(country.avgCII * 100).toFixed(1)}% CII</Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                       <div>
                         <p>Regions: {country.regions}</p>
-                      </div>
-                      <div>
-                        <p>Population: {(country.population / 1000000).toFixed(1)}M</p>
                       </div>
                       <div>
                         <p>High Risk: {country.highRiskRegions}</p>

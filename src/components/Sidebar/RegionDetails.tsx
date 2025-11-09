@@ -148,12 +148,14 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
                 {data.socioeconomic_score ? (data.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Population</p>
-              <p className="text-lg font-semibold text-foreground">
-                {data.population?.toLocaleString() || 'N/A'}
-              </p>
-            </div>
+            {data.region_type === 'country' && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Population</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {data.population?.toLocaleString() || 'N/A'}
+                </p>
+              </div>
+            )}
           </div>
 
           <CollapsibleContent className="mt-4 space-y-4">
