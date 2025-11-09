@@ -11,6 +11,9 @@ import { ExpandedAnalysis } from '@/components/Analysis/ExpandedAnalysis';
 import { ShareButton } from '@/components/Share/ShareButton';
 import { generateRegionShareUrl, generateRegionMetaTags } from '@/lib/shareUtils';
 import { useShareMetaTags } from '@/hooks/useShareMetaTags';
+import { DataQualityBadge } from '@/components/DataQuality/DataQualityBadge';
+import { QuickEnrichButton } from '@/components/DataQuality/QuickEnrichButton';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RegionDetailsProps {
   data: any | null;
@@ -34,6 +37,12 @@ function truncateAtWord(text: string, max: number) {
 export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked = false, onToggleBookmark }: RegionDetailsProps) => {
   const [showExpandedAnalysis, setShowExpandedAnalysis] = useState(false);
   const [showAllStats, setShowAllStats] = useState(true); // Start open by default
+  const [regionData, setRegionData] = useState(data);
+
+  // Update local state when data prop changes
+  useEffect(() => {
+    setRegionData(data);
+  }, [data]);
 
   const isTruncated = !!aiInsight && aiInsight.length > MAX_AI_CHARS;
   const insightPreview = useMemo(
@@ -43,19 +52,34 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
 
   // Generate share metadata
   const shareMetaTags = useMemo(() => {
-    if (!data) return null;
+    if (!regionData) return null;
     return generateRegionMetaTags({
-      id: data.id,
-      region_name: data.region_name,
-      country: data.country,
-      cii_score: data.cii_score,
+      id: regionData.id,
+      region_name: regionData.region_name,
+      country: regionData.country,
+      cii_score: regionData.cii_score,
     });
-  }, [data]);
+  }, [regionData]);
 
   // Update meta tags for social sharing
   useShareMetaTags(shareMetaTags);
 
-  if (!data) {
+  const handleEnrichComplete = async () => {
+    // Reload region data after enrichment
+    if (!regionData) return;
+    
+    const { data: updatedData, error } = await supabase
+      .from('climate_inequality_regions')
+      .select('*')
+      .eq('id', regionData.id)
+      .single();
+
+    if (!error && updatedData) {
+      setRegionData(updatedData);
+    }
+  };
+
+  if (!regionData) {
     return (
       <Card className="p-6">
         <p className="text-muted-foreground text-center">
@@ -73,7 +97,7 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
     return { label: 'Critical', variant: 'destructive' as const };
   };
 
-  const ciiLevel = getRiskLevel(data.cii_score);
+  const ciiLevel = getRiskLevel(regionData.cii_score);
 
   return (
     <div className="space-y-4">
@@ -81,14 +105,28 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
       <Card className="p-6">
         <div className="flex items-start justify-between gap-2 mb-4">
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-foreground mb-1">
-              {data.region_name || 'Unknown Region'}
-            </h2>
-            <p className="text-muted-foreground">{data.country || 'Unknown Country'}</p>
+            <div className="flex items-start gap-2 mb-2">
+              <h2 className="text-2xl font-bold text-foreground">
+                {regionData.region_name || 'Unknown Region'}
+              </h2>
+              <DataQualityBadge dataSources={regionData.data_sources || []} />
+            </div>
+            <p className="text-muted-foreground">{regionData.country || 'Unknown Country'}</p>
           </div>
           <div className="flex gap-2 shrink-0">
+            {regionData.data_sources?.includes('Synthetic') && (
+              <QuickEnrichButton
+                regionCode={regionData.region_code}
+                regionName={regionData.region_name}
+                year={regionData.data_year}
+                variant="outline"
+                size="sm"
+                showLabel={true}
+                onEnrichComplete={handleEnrichComplete}
+              />
+            )}
             <ShareButton
-              url={generateRegionShareUrl(data)}
+              url={generateRegionShareUrl(regionData)}
               title={shareMetaTags?.title || ''}
               description={shareMetaTags?.description || ''}
               variant="ghost"
@@ -112,7 +150,7 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
         
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Climate Inequality Index:</span>
-          <span className="text-2xl font-bold text-foreground">{(data.cii_score * 100).toFixed(1)}%</span>
+          <span className="text-2xl font-bold text-foreground">{(regionData.cii_score * 100).toFixed(1)}%</span>
           <Badge variant={ciiLevel.variant}>{ciiLevel.label}</Badge>
         </div>
       </Card>
@@ -185,26 +223,26 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
             <div>
               <p className="text-xs text-muted-foreground mb-1">Climate Risk</p>
               <p className="text-lg font-semibold text-foreground">
-                {data.climate_risk_score ? (data.climate_risk_score * 100).toFixed(1) + '%' : 'N/A'}
+                {regionData.climate_risk_score ? (regionData.climate_risk_score * 100).toFixed(1) + '%' : 'N/A'}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Infrastructure</p>
               <p className="text-lg font-semibold text-foreground">
-                {data.infrastructure_score ? (data.infrastructure_score * 100).toFixed(1) + '%' : 'N/A'}
+                {regionData.infrastructure_score ? (regionData.infrastructure_score * 100).toFixed(1) + '%' : 'N/A'}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Socioeconomic</p>
               <p className="text-lg font-semibold text-foreground">
-                {data.socioeconomic_score ? (data.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}
+                {regionData.socioeconomic_score ? (regionData.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}
               </p>
             </div>
-            {data.region_type === 'country' && (
+            {regionData.region_type === 'country' && (
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Population</p>
                 <p className="text-lg font-semibold text-foreground">
-                  {data.population?.toLocaleString() || 'N/A'}
+                  {regionData.population?.toLocaleString() || 'N/A'}
                 </p>
               </div>
             )}
@@ -217,62 +255,62 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground">Environmental</h4>
               <div className="space-y-2">
-                {data.air_quality_pm25 && (
+                {regionData.air_quality_pm25 && (
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">PM2.5 Air Quality</span>
-                    <span className="text-sm font-medium text-foreground">{data.air_quality_pm25} µg/m³</span>
+                    <span className="text-sm font-medium text-foreground">{regionData.air_quality_pm25} µg/m³</span>
                   </div>
                 )}
-                {data.air_quality_no2 && (
+                {regionData.air_quality_no2 && (
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">NO₂ Levels</span>
-                    <span className="text-sm font-medium text-foreground">{data.air_quality_no2} µg/m³</span>
+                    <span className="text-sm font-medium text-foreground">{regionData.air_quality_no2} µg/m³</span>
                   </div>
                 )}
-                {data.temperature_avg && (
+                {regionData.temperature_avg && (
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Average Temperature</span>
-                    <span className="text-sm font-medium text-foreground">{data.temperature_avg.toFixed(1)}°C</span>
+                    <span className="text-sm font-medium text-foreground">{regionData.temperature_avg.toFixed(1)}°C</span>
                   </div>
                 )}
-                {data.precipitation_avg && (
+                {regionData.precipitation_avg && (
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Annual Precipitation</span>
-                    <span className="text-sm font-medium text-foreground">{data.precipitation_avg.toFixed(0)} mm</span>
+                    <span className="text-sm font-medium text-foreground">{regionData.precipitation_avg.toFixed(0)} mm</span>
                   </div>
                 )}
-                {data.drought_index != null && (
+                {regionData.drought_index != null && (
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Drought Index</span>
-                    <span className="text-sm font-medium text-foreground">{data.drought_index.toFixed(2)}</span>
+                    <span className="text-sm font-medium text-foreground">{regionData.drought_index.toFixed(2)}</span>
                   </div>
                 )}
-                {data.flood_risk_score != null && (
+                {regionData.flood_risk_score != null && (
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Flood Risk Score</span>
-                    <span className="text-sm font-medium text-foreground">{(data.flood_risk_score * 100).toFixed(1)}%</span>
+                    <span className="text-sm font-medium text-foreground">{(regionData.flood_risk_score * 100).toFixed(1)}%</span>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Economic Data */}
-            {(data.gdp_per_capita || data.urban_population_percent) && (
+            {(regionData.gdp_per_capita || regionData.urban_population_percent) && (
               <>
                 <Separator />
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Economic & Social</h4>
                   <div className="space-y-2">
-                    {data.gdp_per_capita && (
+                    {regionData.gdp_per_capita && (
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">GDP per Capita</span>
-                        <span className="text-sm font-medium text-foreground">${data.gdp_per_capita.toLocaleString()}</span>
+                        <span className="text-sm font-medium text-foreground">${regionData.gdp_per_capita.toLocaleString()}</span>
                       </div>
                     )}
-                    {data.urban_population_percent != null && (
+                    {regionData.urban_population_percent != null && (
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Urban Population</span>
-                        <span className="text-sm font-medium text-foreground">{data.urban_population_percent.toFixed(1)}%</span>
+                        <span className="text-sm font-medium text-foreground">{regionData.urban_population_percent.toFixed(1)}%</span>
                       </div>
                     )}
                   </div>
@@ -281,22 +319,22 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
             )}
 
             {/* Infrastructure Data */}
-            {(data.internet_speed_download || data.internet_speed_upload) && (
+            {(regionData.internet_speed_download || regionData.internet_speed_upload) && (
               <>
                 <Separator />
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Infrastructure</h4>
                   <div className="space-y-2">
-                    {data.internet_speed_download && (
+                    {regionData.internet_speed_download && (
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Internet Download</span>
-                        <span className="text-sm font-medium text-foreground">{data.internet_speed_download} Mbps</span>
+                        <span className="text-sm font-medium text-foreground">{regionData.internet_speed_download} Mbps</span>
                       </div>
                     )}
-                    {data.internet_speed_upload && (
+                    {regionData.internet_speed_upload && (
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Internet Upload</span>
-                        <span className="text-sm font-medium text-foreground">{data.internet_speed_upload} Mbps</span>
+                        <span className="text-sm font-medium text-foreground">{regionData.internet_speed_upload} Mbps</span>
                       </div>
                     )}
                   </div>
@@ -309,7 +347,7 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-foreground">Data Sources</h4>
               <div className="flex flex-wrap gap-1">
-                {(Array.isArray(data.data_sources) ? data.data_sources : []).map((source: string, idx: number) => (
+                {(Array.isArray(regionData.data_sources) ? regionData.data_sources : []).map((source: string, idx: number) => (
                   <Badge key={idx} variant="outline" className="text-xs">
                     {source}
                   </Badge>
@@ -322,17 +360,17 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
 
       {/* CII Breakdown in Collapsible */}
       <CIIBreakdown 
-        climateRisk={data.cii_climate_risk_component}
-        infrastructureGap={data.cii_infrastructure_gap_component}
-        socioeconomicVuln={data.cii_socioeconomic_vuln_component}
-        airQuality={data.cii_air_quality_component}
+        climateRisk={regionData.cii_climate_risk_component}
+        infrastructureGap={regionData.cii_infrastructure_gap_component}
+        socioeconomicVuln={regionData.cii_socioeconomic_vuln_component}
+        airQuality={regionData.cii_air_quality_component}
       />
 
       {/* Expanded Analysis Modal */}
       <ExpandedAnalysis
         open={showExpandedAnalysis}
         onOpenChange={setShowExpandedAnalysis}
-        regionData={data}
+        regionData={regionData}
         basicInsight={aiInsight || ''}
       />
     </div>

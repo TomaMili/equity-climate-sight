@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DataQualityBadge } from '@/components/DataQuality/DataQualityBadge';
+import { QuickEnrichButton } from '@/components/DataQuality/QuickEnrichButton';
 
 interface CriticalRegion {
   region_code: string;
@@ -14,6 +16,7 @@ interface CriticalRegion {
   cii_infrastructure_gap_component: number | null;
   cii_socioeconomic_vuln_component: number | null;
   cii_air_quality_component: number | null;
+  data_sources: string[];
 }
 
 interface CriticalRegionsProps {
@@ -39,7 +42,8 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
             cii_climate_risk_component,
             cii_infrastructure_gap_component,
             cii_socioeconomic_vuln_component,
-            cii_air_quality_component
+            cii_air_quality_component,
+            data_sources
           `)
           .eq('data_year', year)
           .order('cii_score', { ascending: false })
@@ -56,6 +60,33 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
 
     fetchCriticalRegions();
   }, [year]);
+
+  const handleEnrichComplete = () => {
+    // Reload critical regions after enrichment
+    const fetchCriticalRegions = async () => {
+      const { data, error } = await supabase
+        .from('climate_inequality_regions')
+        .select(`
+          region_code,
+          region_name,
+          country,
+          cii_score,
+          cii_climate_risk_component,
+          cii_infrastructure_gap_component,
+          cii_socioeconomic_vuln_component,
+          cii_air_quality_component,
+          data_sources
+        `)
+        .eq('data_year', year)
+        .order('cii_score', { ascending: false })
+        .limit(10);
+
+      if (!error && data) {
+        setCriticalRegions(data);
+      }
+    };
+    fetchCriticalRegions();
+  };
 
   const getSeverityColor = (score: number): string => {
     if (score >= 0.8) return 'bg-destructive text-destructive-foreground';
@@ -122,21 +153,45 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
             {criticalRegions.map((region, index) => (
               <div
                 key={region.region_code}
-                className="p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                className="p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group relative"
                 onClick={() => handleRegionClick(region.region_code)}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
+                  <div className="flex-1 pr-8">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-sm">#{index + 1}</span>
                       <h4 className="font-medium text-sm">{region.region_name}</h4>
                     </div>
-                    <p className="text-xs text-muted-foreground">{region.country}</p>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-xs text-muted-foreground">{region.country}</p>
+                      <DataQualityBadge 
+                        dataSources={region.data_sources || []} 
+                        size="sm"
+                        showIcon={false}
+                      />
+                    </div>
                   </div>
-                  <Badge className={getSeverityColor(region.cii_score)}>
-                    {getSeverityLabel(region.cii_score)}
-                  </Badge>
+                  <div className="flex gap-2 items-start">
+                    <Badge className={getSeverityColor(region.cii_score)}>
+                      {getSeverityLabel(region.cii_score)}
+                    </Badge>
+                  </div>
                 </div>
+                {region.data_sources?.includes('Synthetic') && (
+                  <div 
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <QuickEnrichButton
+                      regionCode={region.region_code}
+                      regionName={region.region_name}
+                      year={year}
+                      size="icon"
+                      variant="ghost"
+                      onEnrichComplete={handleEnrichComplete}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">

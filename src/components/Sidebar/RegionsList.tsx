@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { DataQualityBadge } from '@/components/DataQuality/DataQualityBadge';
+import { QuickEnrichButton } from '@/components/DataQuality/QuickEnrichButton';
 
 interface RegionsListProps {
   country: string;
@@ -18,7 +20,7 @@ export function RegionsList({ country, year, onRegionClick, selectedRegionCode }
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadRegions = async () => {
+  const loadRegions = async () => {
       try {
         setIsLoading(true);
         const { data, error } = await supabase
@@ -40,6 +42,24 @@ export function RegionsList({ country, year, onRegionClick, selectedRegionCode }
 
     loadRegions();
   }, [country, year]);
+
+  const handleEnrichComplete = () => {
+    // Reload regions after enrichment
+    const loadRegions = async () => {
+      const { data, error } = await supabase
+        .from('climate_inequality_regions')
+        .select('*')
+        .eq('data_year', year)
+        .eq('country', country)
+        .eq('region_type', 'region')
+        .order('cii_score', { ascending: false });
+
+      if (!error && data) {
+        setRegions(data);
+      }
+    };
+    loadRegions();
+  };
 
   const getRiskColor = (score: number) => {
     if (score < 0.3) return 'text-green-600';
@@ -79,24 +99,42 @@ export function RegionsList({ country, year, onRegionClick, selectedRegionCode }
       <ScrollArea className="h-[400px] pr-3">
         <div className="space-y-2">
           {regions.map((region) => (
-            <Button
-              key={region.region_code}
-              variant={selectedRegionCode === region.region_code ? "default" : "outline"}
-              className="w-full justify-start h-auto py-3 px-3"
-              onClick={() => onRegionClick(region)}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
-                <div className="flex-1 text-left">
-                  <p className="font-medium text-sm">{region.region_name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-xs font-semibold ${getRiskColor(region.cii_score)}`}>
-                      CII: {(region.cii_score * 100).toFixed(1)}%
-                    </span>
+            <div key={region.region_code} className="relative group">
+              <Button
+                variant={selectedRegionCode === region.region_code ? "default" : "outline"}
+                className="w-full justify-start h-auto py-3 px-3 pr-12"
+                onClick={() => onRegionClick(region)}
+              >
+                <div className="flex items-start gap-3 w-full">
+                  <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-sm">{region.region_name}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`text-xs font-semibold ${getRiskColor(region.cii_score)}`}>
+                        CII: {(region.cii_score * 100).toFixed(1)}%
+                      </span>
+                      <DataQualityBadge 
+                        dataSources={region.data_sources || []} 
+                        size="sm"
+                        showIcon={false}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Button>
+              </Button>
+              {region.data_sources?.includes('Synthetic') && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <QuickEnrichButton
+                    regionCode={region.region_code}
+                    regionName={region.region_name}
+                    year={year}
+                    size="icon"
+                    variant="ghost"
+                    onEnrichComplete={handleEnrichComplete}
+                  />
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </ScrollArea>
