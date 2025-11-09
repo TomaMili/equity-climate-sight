@@ -68,7 +68,8 @@ serve(async (req) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).EdgeRuntime?.waitUntil?.(processBatch());
 
-
+    // Add small delay to allow some processing to start before returning
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Check if more regions need enrichment
     const { count } = await supabase

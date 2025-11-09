@@ -38,6 +38,9 @@ interface ScalingState {
 }
 
 export function DataEnrichment() {
+  // Constants
+  const BATCH_SIZE = 6; // Must match edge function BATCH_SIZE
+  
   const [isEnriching, setIsEnriching] = useState(false);
   const [progress, setProgress] = useState({ enriched: 0, total: 0, failed: 0 });
   const [autoResume, setAutoResume] = useState(true);
@@ -90,6 +93,7 @@ export function DataEnrichment() {
       let totalFailed = 0;
       let shouldContinue = true;
       let iteration = 0;
+      let offset = 0; // Track current offset
 
       while (shouldContinue && iteration < 1000 && !shouldStop) { // Safety limit increased for large datasets
         iteration++;
@@ -99,7 +103,7 @@ export function DataEnrichment() {
         let error: any = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           const resp = await supabase.functions.invoke('enrich-with-real-data', {
-            body: { year, region_type: 'country' }
+            body: { year, region_type: 'country', worker_id: 0, offset }
           });
           if (!resp.error && resp.data) {
             data = resp.data;
@@ -166,7 +170,10 @@ export function DataEnrichment() {
         shouldContinue = data?.shouldContinue === true;
 
         if (shouldContinue) {
-          console.log(`Batch ${iteration}: ${data?.enriched} enriched, ${data?.remaining} remaining...`);
+          // Increment offset for next batch
+          offset += BATCH_SIZE;
+          
+          console.log(`Batch ${iteration}: ${data?.enriched} enriched, ${data?.remaining} remaining, offset now ${offset}...`);
           addLog(`Batch ${iteration}: +${data?.enriched} enriched, ${data?.remaining} remaining`, 'success');
           
           if (!autoResume && data?.remaining > 0) {
@@ -213,7 +220,7 @@ export function DataEnrichment() {
         id: i,
         active: true,
         enriched: 0,
-        offset: i * 20,
+        offset: i * BATCH_SIZE, // Fixed: use BATCH_SIZE instead of hardcoded 20
         failures: 0,
         lastSuccess: true
       }));
@@ -335,7 +342,7 @@ export function DataEnrichment() {
             // Update worker offset for next iteration
             const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
             if (workerIndex !== -1) {
-              initialWorkers[workerIndex].offset += currentWorkerCount * 20;
+              initialWorkers[workerIndex].offset += currentWorkerCount * BATCH_SIZE; // Fixed: use BATCH_SIZE
               initialWorkers[workerIndex].enriched += result.enriched;
               initialWorkers[workerIndex].failures = 0;
               initialWorkers[workerIndex].lastSuccess = true;
@@ -410,7 +417,7 @@ export function DataEnrichment() {
                 id: initialWorkers.length,
                 active: true,
                 enriched: 0,
-                offset: initialWorkers.length * 20,
+                offset: initialWorkers.length * BATCH_SIZE, // Fixed: use BATCH_SIZE
                 failures: 0,
                 lastSuccess: true
               });
