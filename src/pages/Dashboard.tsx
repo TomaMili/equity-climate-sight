@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MapContainer } from '@/components/Map/MapContainer';
 import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
+import { RegionsList } from '@/components/Sidebar/RegionsList';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { AnalyticsDashboard } from '@/components/Analytics/AnalyticsDashboard';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
@@ -498,6 +499,18 @@ useEffect(() => {
                   </ErrorBoundary>
                 )}
 
+                {/* Regions List - Show when country selected but no specific region */}
+                {!compareMode && currentCountry && !selectedRegion && (
+                  <ErrorBoundary title="Regions List Error">
+                    <RegionsList
+                      country={currentCountry}
+                      year={year}
+                      onRegionClick={handleRegionClick}
+                      selectedRegionCode={selectedRegion?.region_code}
+                    />
+                  </ErrorBoundary>
+                )}
+
                 {/* Comparison Section */}
                 {compareMode && compareRegions.length > 0 && (
                   <ErrorBoundary title="Comparison Error">
@@ -509,13 +522,13 @@ useEffect(() => {
                   </ErrorBoundary>
                 )}
 
-                {/* Statistics Section - Only when no region selected */}
-                {!compareMode && !selectedRegion && (
+                {/* Statistics Section - Only when no region selected and no country drilled down */}
+                {!compareMode && !selectedRegion && !currentCountry && (
                   <ErrorBoundary title="Statistics Loading Error">
                     <StatisticsPanel 
-                      viewMode={currentCountry ? 'regions' : 'countries'}
+                      viewMode="countries"
                       year={year} 
-                      currentCountry={currentCountry}
+                      currentCountry={null}
                     />
                   </ErrorBoundary>
                 )}
