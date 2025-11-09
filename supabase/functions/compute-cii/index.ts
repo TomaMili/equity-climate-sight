@@ -1,529 +1,567 @@
+// deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BATCH_SIZE = 100; // Process 100 regions at a time
-
-/**
- * Compute Climate Inequality Index from real metrics
- * 
- * CII Formula (0-1 scale, higher = worse inequality):
- * - Climate Risk (30%): Temperature extremes, precipitation, drought/flood risk
- * - Infrastructure Gap (25%): Inverse of infrastructure score
- * - Socioeconomic Vulnerability (25%): GDP per capita, urban %, population density
- * - Air Quality (20%): PM2.5 and NO2 levels
- * 
- * Each component is normalized to 0-1 scale where 1 = worst inequality
- */
+const DEFAULT_LIMIT = 200;
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { year = 2024, region_type } = await req.json().catch(() => ({}));
-    
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const payload = await req.json().catch(() => ({}));
+    const {
+      year = 2024,
+      stage = "regions", // 'regions' | 'countries'
+      offset = 0,
+      limit = DEFAULT_LIMIT,
+    } = payload as { year?: number; stage?: "regions" | "countries"; offset?: number; limit?: number };
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`Computing CII for ${region_type || 'all'} regions in year ${year}...`);
+    if (stage === "regions") {
+      // --- total count for regions (for client progress UI)
+      const { count: totalRegions, error: countErr } = await supabase
+        .from("climate_inequality_regions")
+        .select("*", { count: "exact", head: true })
+        .eq("data_year", year)
+        .eq("region_type", "region");
+      if (countErr) throw countErr;
 
-    // Step 1: Fetch and process all REGION-level entries first
-    const { data: regionLevelData, error: regionFetchError } = await supabase
-      .from('climate_inequality_regions')
-      .select('*')
-      .eq('data_year', year)
-      .eq('region_type', 'region');
+      // --- fetch a batch
+      const { data: rows, error: fetchErr } = await supabase
+        .from("climate_inequality_regions")
+        .select("*")
+        .eq("data_year", year)
+        .eq("region_type", "region")
+        .order("region_code", { ascending: true })
+        .range(offset, offset + limit - 1);
 
-    if (regionFetchError) throw regionFetchError;
+      if (fetchErr) throw fetchErr;
 
-    console.log(`Processing ${regionLevelData?.length || 0} region-level entries...`);
-    
-    let computedCount = 0;
-    let skippedCount = 0;
+      let computed = 0;
+      let skipped = 0;
 
-    // Process regions in batches
-    if (regionLevelData && regionLevelData.length > 0) {
-      for (let i = 0; i < regionLevelData.length; i += BATCH_SIZE) {
-        const batch = regionLevelData.slice(i, i + BATCH_SIZE);
-        
-        for (const region of batch) {
-          try {
-            const cii = computeCII(region);
-            
-            if (cii === null) {
-              skippedCount++;
-              console.log(`⚠ Skipped ${region.region_code}: insufficient data`);
-              continue;
-            }
-
-            // Get component breakdown
-            const breakdown = getComponentBreakdown(region);
-            
-            // Update CII and component scores in database
-            const { error: updateError } = await supabase
-              .from('climate_inequality_regions')
-              .update({ 
-                cii_score: cii,
-                cii_climate_risk_component: breakdown.climateRisk,
-                cii_infrastructure_gap_component: breakdown.infrastructureGap,
-                cii_socioeconomic_vuln_component: breakdown.socioeconomicVuln,
-                cii_air_quality_component: breakdown.airQuality,
-                last_updated: new Date().toISOString()
-              })
-              .eq('region_code', region.region_code)
-              .eq('data_year', year);
-
-            if (updateError) {
-              console.error(`Error updating ${region.region_code}:`, updateError);
-            } else {
-              computedCount++;
-              if (computedCount % 50 === 0) {
-                console.log(`Processed ${computedCount}/${regionLevelData.length} regions...`);
-              }
-            }
-          } catch (error) {
-            console.error(`Error processing ${region.region_code}:`, error);
-          }
-        }
-
-        // Small delay between batches
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    console.log(`✅ Region-level CII computation complete: ${computedCount} computed, ${skippedCount} skipped`);
-
-    // Step 2: Calculate country-level CII as average of their regions
-    console.log('Computing country-level CII scores...');
-    
-    const { data: countryLevelData, error: countryFetchError } = await supabase
-      .from('climate_inequality_regions')
-      .select('*')
-      .eq('data_year', year)
-      .eq('region_type', 'country');
-
-    if (countryFetchError) throw countryFetchError;
-
-    let countryComputedCount = 0;
-
-    if (countryLevelData && countryLevelData.length > 0) {
-      for (const country of countryLevelData) {
+      for (const region of rows ?? []) {
         try {
-          // Get all regions for this country
-          const { data: countryRegions, error: regionsError } = await supabase
-            .from('climate_inequality_regions')
-            .select('cii_score, cii_climate_risk_component, cii_infrastructure_gap_component, cii_socioeconomic_vuln_component, cii_air_quality_component')
-            .eq('data_year', year)
-            .eq('region_type', 'region')
-            .eq('country', country.country)
-            .not('cii_score', 'is', null);
-
-          if (regionsError) throw regionsError;
-
-          if (!countryRegions || countryRegions.length === 0) {
-            console.log(`⚠ No regions found for ${country.country}, skipping country-level CII`);
+          const cii = computeCII(region);
+          const breakdown = getComponentBreakdown(region);
+          if (cii === null) {
+            skipped++;
             continue;
           }
-
-          // Calculate averages from regions
-          const avgCII = countryRegions.reduce((sum, r) => sum + (r.cii_score || 0), 0) / countryRegions.length;
-          const avgClimateRisk = countryRegions.reduce((sum, r) => sum + (r.cii_climate_risk_component || 0), 0) / countryRegions.length;
-          const avgInfrastructure = countryRegions.reduce((sum, r) => sum + (r.cii_infrastructure_gap_component || 0), 0) / countryRegions.length;
-          const avgSocioeconomic = countryRegions.reduce((sum, r) => sum + (r.cii_socioeconomic_vuln_component || 0), 0) / countryRegions.length;
-          const avgAirQuality = countryRegions.reduce((sum, r) => sum + (r.cii_air_quality_component || 0), 0) / countryRegions.length;
-
-          // Update country with averaged values
-          const { error: updateError } = await supabase
-            .from('climate_inequality_regions')
-            .update({ 
-              cii_score: avgCII,
-              cii_climate_risk_component: avgClimateRisk,
-              cii_infrastructure_gap_component: avgInfrastructure,
-              cii_socioeconomic_vuln_component: avgSocioeconomic,
-              cii_air_quality_component: avgAirQuality,
-              last_updated: new Date().toISOString()
+          const { error: updErr } = await supabase
+            .from("climate_inequality_regions")
+            .update({
+              cii_score: cii,
+              cii_climate_risk_component: breakdown.climateRisk,
+              cii_infrastructure_gap_component: breakdown.infrastructureGap,
+              cii_socioeconomic_vuln_component: breakdown.socioeconomicVuln,
+              cii_air_quality_component: breakdown.airQuality,
+              last_updated: new Date().toISOString(),
             })
-            .eq('region_code', country.region_code)
-            .eq('data_year', year);
-
-          if (updateError) {
-            console.error(`Error updating country ${country.country}:`, updateError);
+            .eq("region_code", region.region_code)
+            .eq("data_year", year);
+          if (updErr) {
+            console.error("update region failed:", updErr);
+            skipped++;
           } else {
-            countryComputedCount++;
-            console.log(`✓ Updated ${country.country}: CII ${avgCII.toFixed(3)} (from ${countryRegions.length} regions)`);
+            computed++;
           }
-        } catch (error) {
-          console.error(`Error processing country ${country.country}:`, error);
+        } catch (e) {
+          console.error("region process error:", e);
+          skipped++;
         }
+      }
+
+      const nextOffset = offset + (rows?.length ?? 0);
+      const has_more = nextOffset < (totalRegions ?? 0);
+
+      return jsonOk({
+        success: true,
+        stage: "regions",
+        year,
+        computed,
+        skipped,
+        total: totalRegions ?? 0,
+        has_more,
+        next_offset: nextOffset,
+        message: `Processed ${computed} region rows (offset ${offset}…${nextOffset - 1})`,
+      });
+    }
+
+    // stage === 'countries' -> average countries in small batches too
+    // 1) fetch all countries list (just codes) to paginate deterministically
+    const { data: countries, error: listErr } = await supabase
+      .from("climate_inequality_regions")
+      .select("region_code,country")
+      .eq("data_year", year)
+      .eq("region_type", "country")
+      .order("region_code", { ascending: true });
+
+    if (listErr) throw listErr;
+
+    const totalCountries = countries?.length ?? 0;
+    const batch = countries?.slice(offset, offset + limit) ?? [];
+
+    let updated = 0;
+    for (const c of batch) {
+      try {
+        const { data: parts, error: partErr } = await supabase
+          .from("climate_inequality_regions")
+          .select(
+            "cii_score, cii_climate_risk_component, cii_infrastructure_gap_component, cii_socioeconomic_vuln_component, cii_air_quality_component",
+          )
+          .eq("data_year", year)
+          .eq("region_type", "region")
+          .eq("country", c.country)
+          .not("cii_score", "is", null);
+
+        if (partErr) throw partErr;
+        if (!parts || parts.length === 0) continue;
+
+        const avgCII = mean(parts.map((r) => r.cii_score ?? 0));
+        const avgClimate = mean(parts.map((r) => r.cii_climate_risk_component ?? 0));
+        const avgInfra = mean(parts.map((r) => r.cii_infrastructure_gap_component ?? 0));
+        const avgSocio = mean(parts.map((r) => r.cii_socioeconomic_vuln_component ?? 0));
+        const avgAir = mean(parts.map((r) => r.cii_air_quality_component ?? 0));
+
+        const { error: updErr } = await supabase
+          .from("climate_inequality_regions")
+          .update({
+            cii_score: avgCII,
+            cii_climate_risk_component: avgClimate,
+            cii_infrastructure_gap_component: avgInfra,
+            cii_socioeconomic_vuln_component: avgSocio,
+            cii_air_quality_component: avgAir,
+            last_updated: new Date().toISOString(),
+          })
+          .eq("region_code", c.region_code)
+          .eq("data_year", year);
+
+        if (!updErr) updated++;
+      } catch (e) {
+        console.error("country process error:", e);
       }
     }
 
-    console.log(`✅ Country-level CII computation complete: ${countryComputedCount} countries updated`);
+    const nextOffset = offset + batch.length;
+    const has_more = nextOffset < totalCountries;
 
+    return jsonOk({
+      success: true,
+      stage: "countries",
+      year,
+      computed: updated,
+      skipped: 0,
+      total: totalCountries,
+      has_more,
+      next_offset: nextOffset,
+      message: `Averaged ${updated} countries (offset ${offset}…${nextOffset - 1})`,
+    });
+  } catch (error) {
+    console.error("Fatal error:", error);
     return new Response(
       JSON.stringify({
-        success: true,
-        computed: computedCount,
-        skipped: skippedCount,
-        countries_updated: countryComputedCount,
-        total: computedCount + countryComputedCount,
-        message: `CII computed for ${computedCount} regions and ${countryComputedCount} countries`
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Fatal error:', error);
-    return new Response(
-      JSON.stringify({ 
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
 
-/**
- * Compute CII from region metrics
- * Returns null if insufficient data available
- */
+/* ------------- Scoring (same sharp version as before) ------------- */
+
 function computeCII(region: any): number | null {
-  const components: { score: number; weight: number; available: boolean }[] = [];
+  const parts: { score: number; weight: number }[] = [];
 
-  // 1. Climate Risk Component (30%)
-  const climateRisk = computeClimateRisk(region);
-  if (climateRisk !== null) {
-    components.push({ score: climateRisk, weight: 0.30, available: true });
+  const climate = computeClimateRisk(region);
+  if (climate !== null) parts.push({ score: climate, weight: 0.3 });
+
+  const infra = computeInfrastructureGap(region);
+  if (infra !== null) parts.push({ score: infra, weight: 0.25 });
+
+  const socio = computeSocioeconomicVulnerability(region);
+  if (socio !== null) parts.push({ score: socio, weight: 0.25 });
+
+  const air = computeAirQualityScore(region);
+  if (air !== null) parts.push({ score: air, weight: 0.2 });
+
+  if (!parts.length) {
+    const est =
+      0.3 * estimateClimateRiskByRegion(region) +
+      0.25 * estimateInfrastructureGapByRegion(region) +
+      0.25 * estimateSocioeconomicVulnByRegion(region) +
+      0.2 * estimateAirQualityByRegion(region);
+    return clamp01(est);
   }
 
-  // 2. Infrastructure Gap Component (25%)
-  const infrastructureGap = computeInfrastructureGap(region);
-  if (infrastructureGap !== null) {
-    components.push({ score: infrastructureGap, weight: 0.25, available: true });
-  }
-
-  // 3. Socioeconomic Vulnerability Component (25%)
-  const socioeconomicVuln = computeSocioeconomicVulnerability(region);
-  if (socioeconomicVuln !== null) {
-    components.push({ score: socioeconomicVuln, weight: 0.25, available: true });
-  }
-
-  // 4. Air Quality Component (20%)
-  const airQuality = computeAirQualityScore(region);
-  if (airQuality !== null) {
-    components.push({ score: airQuality, weight: 0.20, available: true });
-  }
-
-  // Always compute CII even with partial data (use estimation functions)
-  if (components.length === 0) {
-    // Fallback: compute based on regional estimates
-    const estimatedClimate = estimateClimateRiskByRegion(region);
-    const estimatedInfra = estimateInfrastructureGapByRegion(region);
-    const estimatedSocio = estimateSocioeconomicVulnByRegion(region);
-    const estimatedAir = estimateAirQualityByRegion(region);
-    
-    return (estimatedClimate * 0.30) + (estimatedInfra * 0.25) + (estimatedSocio * 0.25) + (estimatedAir * 0.20);
-  }
-
-  // Normalize weights for available components
-  const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
-  
-  // Compute weighted average
-  const cii = components.reduce((sum, c) => {
-    const normalizedWeight = c.weight / totalWeight;
-    return sum + (c.score * normalizedWeight);
-  }, 0);
-
-  return Math.max(0, Math.min(1, cii)); // Clamp to [0, 1]
+  const total = parts.reduce((s, p) => s + p.weight, 0);
+  return clamp01(parts.reduce((s, p) => s + p.score * (p.weight / total), 0));
 }
 
-/**
- * Compute climate risk score (0-1, higher = worse)
- * Based on temperature extremes, precipitation patterns, drought/flood risk
- */
+/* ---- Climate ---- */
 function computeClimateRisk(region: any): number | null {
-  const factors: number[] = [];
-
-  // Temperature risk (extreme heat and cold both increase risk)
-  if (region.temperature_avg !== null && region.temperature_avg !== undefined) {
-    // Optimal: 10-20°C. <0°C or >30°C = high risk
-    let tempRisk = 0;
-    if (region.temperature_avg < 10) {
-      tempRisk = Math.min(1, (10 - region.temperature_avg) / 20);
-    } else if (region.temperature_avg > 20) {
-      tempRisk = Math.min(1, (region.temperature_avg - 20) / 20);
-    }
-    factors.push(tempRisk * 1.5); // Weight temperature more heavily
+  const f: number[] = [];
+  if (isNum(region.temperature_avg)) {
+    const t = +region.temperature_avg;
+    let r = 0;
+    if (t < 10) r = Math.min(1, (10 - t) / 18);
+    else if (t > 20) r = Math.min(1, (t - 20) / 18);
+    f.push(clamp01(r * 1.4));
   }
-
-  // Drought risk - critical for agriculture
-  if (region.drought_index !== null && region.drought_index !== undefined) {
-    factors.push(region.drought_index * 1.3); // Weight drought heavily
+  if (isNum(region.drought_index)) f.push(clamp01(region.drought_index) * 1.3);
+  if (isNum(region.flood_risk_score)) f.push(clamp01(region.flood_risk_score) * 1.25);
+  if (isNum(region.precipitation_avg)) {
+    const p = +region.precipitation_avg;
+    let r = 0;
+    if (p < 400) r = lerp(0.8, 1.0, (400 - p) / 400);
+    else if (p > 3000) r = lerp(0.7, 1.0, Math.min(1, (p - 3000) / 2000));
+    else if (p < 800) r = lerp(0.0, 0.3, (800 - p) / 400);
+    else if (p > 2000) r = lerp(0.0, 0.3, (p - 2000) / 1000);
+    f.push(clamp01(r));
   }
-
-  // Flood risk - critical for infrastructure
-  if (region.flood_risk_score !== null && region.flood_risk_score !== undefined) {
-    factors.push(region.flood_risk_score * 1.3); // Weight flooding heavily
-  }
-
-  // Precipitation extremes (both too low and too high are risky)
-  if (region.precipitation_avg !== null && region.precipitation_avg !== undefined) {
-    // Optimal range: 800-2000mm/year
-    // < 400mm = severe drought risk, > 3000mm = severe flood risk
-    let precipRisk = 0;
-    if (region.precipitation_avg < 400) {
-      precipRisk = 0.8 + (0.2 * (1 - region.precipitation_avg / 400)); // 0.8-1.0
-    } else if (region.precipitation_avg > 3000) {
-      precipRisk = 0.7 + Math.min(0.3, (region.precipitation_avg - 3000) / 3000); // 0.7-1.0
-    } else if (region.precipitation_avg < 800) {
-      precipRisk = 0.3 * (800 - region.precipitation_avg) / 400; // 0-0.3
-    } else if (region.precipitation_avg > 2000) {
-      precipRisk = 0.3 * (region.precipitation_avg - 2000) / 1000; // 0-0.3
-    }
-    factors.push(precipRisk);
-  }
-
-  // Use existing climate_risk_score if available
-  if (region.climate_risk_score !== null && region.climate_risk_score !== undefined) {
-    factors.push(region.climate_risk_score);
-  }
-
-  // If we have no factors, estimate based on region location
-  if (factors.length === 0) {
-    // Estimate based on country and region characteristics
-    return estimateClimateRiskByRegion(region);
-  }
-
-  // Average all factors
-  const avgRisk = factors.reduce((sum, f) => sum + f, 0) / factors.length;
-  return Math.max(0, Math.min(1, avgRisk));
+  if (isNum(region.climate_risk_score)) f.push(clamp01(region.climate_risk_score));
+  if (!f.length) return estimateClimateRiskByRegion(region);
+  return clamp01(mean(f));
 }
 
-/**
- * Estimate climate risk based on regional characteristics
- */
 function estimateClimateRiskByRegion(region: any): number {
-  const country = (region.country || '').toLowerCase();
-  
-  // Sub-Saharan Africa - high risk
-  const subSaharanCountries = ['nigeria', 'kenya', 'ethiopia', 'tanzania', 'uganda', 'ghana', 'mozambique', 
-    'mali', 'niger', 'chad', 'sudan', 'somalia', 'senegal', 'burkina faso', 'malawi', 'zambia', 'zimbabwe',
-    'madagascar', 'cameroon', 'ivory coast', 'angola', 'benin', 'togo', 'sierra leone', 'liberia', 'guinea',
-    'democratic republic of the congo', 'burundi', 'rwanda', 'namibia', 'botswana'];
-  
-  // Small island states - very high risk
-  const smallIslands = ['maldives', 'seychelles', 'mauritius', 'fiji', 'samoa', 'tonga', 'vanuatu', 
-    'solomon islands', 'kiribati', 'marshall islands', 'tuvalu', 'nauru'];
-  
-  // South Asia - high risk
-  const southAsia = ['india', 'bangladesh', 'pakistan', 'sri lanka', 'nepal', 'bhutan', 'afghanistan'];
-  
-  // Southeast Asia - moderate-high risk  
-  const southeastAsia = ['indonesia', 'philippines', 'vietnam', 'myanmar', 'thailand', 'cambodia', 'laos', 'malaysia'];
-  
-  // Middle East & North Africa - high risk (heat, water stress)
-  const mena = ['egypt', 'saudi arabia', 'iraq', 'iran', 'yemen', 'syria', 'jordan', 'libya', 'tunisia', 'morocco', 'algeria'];
-  
-  // Latin America - moderate risk
-  const latinAmerica = ['brazil', 'mexico', 'colombia', 'argentina', 'peru', 'venezuela', 'chile', 'ecuador', 'bolivia'];
-  
-  if (subSaharanCountries.includes(country)) return 0.75;
-  if (smallIslands.includes(country)) return 0.85;
-  if (southAsia.includes(country)) return 0.80;
-  if (southeastAsia.includes(country)) return 0.65;
-  if (mena.includes(country)) return 0.70;
-  if (latinAmerica.includes(country)) return 0.55;
-  
-  // Default moderate
-  return 0.50;
+  const c = (region.country || "").toLowerCase();
+  const subSaharan = [
+    "nigeria",
+    "kenya",
+    "ethiopia",
+    "tanzania",
+    "uganda",
+    "ghana",
+    "mozambique",
+    "mali",
+    "niger",
+    "chad",
+    "sudan",
+    "somalia",
+    "senegal",
+    "burkina faso",
+    "malawi",
+    "zambia",
+    "zimbabwe",
+    "madagascar",
+    "cameroon",
+    "ivory coast",
+    "angola",
+    "benin",
+    "togo",
+    "sierra leone",
+    "liberia",
+    "guinea",
+    "democratic republic of the congo",
+    "burundi",
+    "rwanda",
+    "namibia",
+    "botswana",
+  ];
+  const smallIslands = [
+    "maldives",
+    "seychelles",
+    "mauritius",
+    "fiji",
+    "samoa",
+    "tonga",
+    "vanuatu",
+    "solomon islands",
+    "kiribati",
+    "marshall islands",
+    "tuvalu",
+    "nauru",
+  ];
+  const southAsia = ["india", "bangladesh", "pakistan", "sri lanka", "nepal", "bhutan", "afghanistan"];
+  const seAsia = ["indonesia", "philippines", "vietnam", "myanmar", "thailand", "cambodia", "laos", "malaysia"];
+  const mena = [
+    "egypt",
+    "saudi arabia",
+    "iraq",
+    "iran",
+    "yemen",
+    "syria",
+    "jordan",
+    "libya",
+    "tunisia",
+    "morocco",
+    "algeria",
+  ];
+  const latin = ["brazil", "mexico", "colombia", "argentina", "peru", "venezuela", "chile", "ecuador", "bolivia"];
+  if (subSaharan.includes(c)) return 0.75;
+  if (smallIslands.includes(c)) return 0.85;
+  if (southAsia.includes(c)) return 0.8;
+  if (seAsia.includes(c)) return 0.65;
+  if (mena.includes(c)) return 0.7;
+  if (latin.includes(c)) return 0.55;
+  return 0.5;
 }
 
-/**
- * Compute infrastructure gap score (0-1, higher = worse gap)
- * Inverse of infrastructure quality
- */
+/* ---- Infra ---- */
 function computeInfrastructureGap(region: any): number | null {
-  const factors: number[] = [];
+  const f: number[] = [];
+  if (isNum(region.infrastructure_score)) f.push(1 - clamp01(region.infrastructure_score));
 
-  // Use existing infrastructure score (inverse it - low score = high gap)
-  if (region.infrastructure_score !== null && region.infrastructure_score !== undefined) {
-    factors.push(1 - region.infrastructure_score);
+  if (isNum(region.internet_speed_download) || isNum(region.internet_speed_upload)) {
+    const d = Math.max(+region.internet_speed_download || 0, 0);
+    const u = Math.max(+region.internet_speed_upload || 0, 0);
+    const idx = (mbps: number) => {
+      if (mbps <= 10) return 0.95;
+      if (mbps <= 50) return lerp(0.95, 0.75, (mbps - 10) / 40);
+      if (mbps <= 100) return lerp(0.75, 0.5, (mbps - 50) / 50);
+      if (mbps <= 250) return lerp(0.5, 0.25, (mbps - 100) / 150);
+      return 0.1;
+    };
+    const gap = clamp01(0.7 * idx(d) + 0.3 * idx(u));
+    f.push(gap);
   }
 
-  // Internet connectivity gap (low speed = high gap)
-  if (region.internet_speed_download !== null && region.internet_speed_download !== undefined && region.internet_speed_download > 0) {
-    // < 10 Mbps = severe gap (0.9), > 100 Mbps = minimal gap (0.1)
-    const speedGap = 1 - Math.min(1, Math.max(0, region.internet_speed_download) / 100);
-    factors.push(speedGap);
+  if (isNum(region.urban_population_percent)) {
+    const u = clamp01(+region.urban_population_percent / 100);
+    f.push(lerp(0.8, 0.1, u));
   }
 
-  // If no data, estimate by region
-  if (factors.length === 0) {
-    return estimateInfrastructureGapByRegion(region);
-  }
-
-  return factors.reduce((sum, f) => sum + f, 0) / factors.length;
+  if (!f.length) return estimateInfrastructureGapByRegion(region);
+  return mean(f);
 }
 
-/**
- * Estimate infrastructure gap based on regional development
- */
 function estimateInfrastructureGapByRegion(region: any): number {
-  const country = (region.country || '').toLowerCase();
-  
-  const lowInfra = ['nigeria', 'ethiopia', 'democratic republic of the congo', 'mozambique', 'madagascar',
-    'niger', 'chad', 'mali', 'burkina faso', 'burundi', 'sierra leone', 'liberia', 'guinea', 'somalia', 'afghanistan', 'yemen'];
-  const moderateInfra = ['india', 'pakistan', 'bangladesh', 'philippines', 'indonesia', 'vietnam', 'myanmar', 
-    'cambodia', 'kenya', 'uganda', 'tanzania', 'ghana', 'senegal', 'zambia', 'zimbabwe'];
-  
-  if (lowInfra.includes(country)) return 0.85;
-  if (moderateInfra.includes(country)) return 0.65;
-  return 0.40;
+  const c = (region.country || "").toLowerCase();
+  const highIncome = [
+    "united states",
+    "canada",
+    "australia",
+    "new zealand",
+    "japan",
+    "south korea",
+    "singapore",
+    "germany",
+    "france",
+    "italy",
+    "spain",
+    "portugal",
+    "netherlands",
+    "belgium",
+    "luxembourg",
+    "austria",
+    "sweden",
+    "norway",
+    "finland",
+    "denmark",
+    "ireland",
+    "switzerland",
+    "united kingdom",
+  ];
+  const lowInfra = [
+    "nigeria",
+    "ethiopia",
+    "democratic republic of the congo",
+    "mozambique",
+    "madagascar",
+    "niger",
+    "chad",
+    "mali",
+    "burkina faso",
+    "burundi",
+    "sierra leone",
+    "liberia",
+    "guinea",
+    "somalia",
+    "afghanistan",
+    "yemen",
+  ];
+  const moderateInfra = [
+    "india",
+    "pakistan",
+    "bangladesh",
+    "philippines",
+    "indonesia",
+    "vietnam",
+    "myanmar",
+    "cambodia",
+    "kenya",
+    "uganda",
+    "tanzania",
+    "ghana",
+    "senegal",
+    "zambia",
+    "zimbabwe",
+  ];
+  if (highIncome.includes(c)) return 0.12;
+  if (lowInfra.includes(c)) return 0.85;
+  if (moderateInfra.includes(c)) return 0.6;
+  return 0.35;
 }
 
-/**
- * Compute socioeconomic vulnerability score (0-1, higher = more vulnerable)
- * Based on GDP per capita, urbanization, population density
- */
+/* ---- Socio ---- */
 function computeSocioeconomicVulnerability(region: any): number | null {
-  const factors: number[] = [];
-
-  // Use existing socioeconomic score
-  if (region.socioeconomic_score !== null && region.socioeconomic_score !== undefined) {
-    factors.push(region.socioeconomic_score);
+  const f: number[] = [];
+  if (isNum(region.socioeconomic_score)) f.push(clamp01(region.socioeconomic_score));
+  if (isNum(region.gdp_per_capita)) {
+    const g = +region.gdp_per_capita;
+    let v: number;
+    if (g < 2000) v = 0.95;
+    else if (g < 10000) v = lerp(0.95, 0.7, (g - 2000) / 8000);
+    else if (g < 20000) v = lerp(0.7, 0.45, (g - 10000) / 10000);
+    else if (g < 40000) v = lerp(0.45, 0.15, (g - 20000) / 20000);
+    else v = 0.05;
+    f.push(v);
   }
-
-  // GDP per capita vulnerability (lower GDP = higher vulnerability)
-  if (region.gdp_per_capita !== null && region.gdp_per_capita !== undefined) {
-    // < $2,000 = extreme vuln (0.95), < $10,000 = high (0.7), > $40,000 = low (0.1)
-    let gdpVuln = 0;
-    if (region.gdp_per_capita < 2000) {
-      gdpVuln = 0.95;
-    } else if (region.gdp_per_capita < 10000) {
-      gdpVuln = 0.7 + (0.25 * (1 - (region.gdp_per_capita - 2000) / 8000));
-    } else {
-      gdpVuln = Math.max(0.1, 1 - (region.gdp_per_capita / 40000));
-    }
-    factors.push(gdpVuln * 1.5); // Weight GDP heavily
+  if (isNum(region.urban_population_percent)) {
+    const u = clamp01(+region.urban_population_percent / 100);
+    const uV = 0.6 * (1 - Math.exp(-4 * Math.pow(u - 0.7, 2))) + 0.1;
+    f.push(clamp01(uV));
   }
-
-  // Urban population (low urbanization = limited services vulnerability)
-  if (region.urban_population_percent !== null && region.urban_population_percent !== undefined) {
-    // < 30% urban = higher vulnerability (0.6), 50-70% = moderate (0.3), > 80% = overcrowding (0.4)
-    let urbanVuln = 0;
-    if (region.urban_population_percent < 30) {
-      urbanVuln = 0.6 * (1 - region.urban_population_percent / 30);
-    } else if (region.urban_population_percent > 80) {
-      urbanVuln = 0.4 * ((region.urban_population_percent - 80) / 20);
-    } else {
-      urbanVuln = 0.2;
-    }
-    factors.push(urbanVuln);
-  }
-
-  // If no data, estimate by region
-  if (factors.length === 0) {
-    return estimateSocioeconomicVulnByRegion(region);
-  }
-
-  const avgVuln = factors.reduce((sum, f) => sum + f, 0) / factors.length;
-  return Math.max(0, Math.min(1, avgVuln));
+  if (!f.length) return estimateSocioeconomicVulnByRegion(region);
+  return clamp01(mean(f));
 }
 
-/**
- * Estimate socioeconomic vulnerability based on region
- */
 function estimateSocioeconomicVulnByRegion(region: any): number {
-  const country = (region.country || '').toLowerCase();
-  
-  const extremeVuln = ['burundi', 'south sudan', 'somalia', 'niger', 'chad', 'central african republic', 
-    'democratic republic of the congo', 'mozambique', 'madagascar', 'malawi', 'liberia', 'sierra leone'];
-  const highVuln = ['ethiopia', 'uganda', 'tanzania', 'rwanda', 'burkina faso', 'mali', 'guinea', 'benin', 
-    'togo', 'zambia', 'zimbabwe', 'haiti', 'afghanistan', 'yemen', 'nepal', 'bangladesh'];
-  const moderateVuln = ['india', 'pakistan', 'philippines', 'indonesia', 'vietnam', 'myanmar', 'cambodia', 
-    'laos', 'kenya', 'ghana', 'senegal', 'nigeria', 'cameroon'];
-  
-  if (extremeVuln.includes(country)) return 0.90;
-  if (highVuln.includes(country)) return 0.75;
-  if (moderateVuln.includes(country)) return 0.60;
+  const c = (region.country || "").toLowerCase();
+  const extreme = [
+    "burundi",
+    "south sudan",
+    "somalia",
+    "niger",
+    "chad",
+    "central african republic",
+    "democratic republic of the congo",
+    "mozambique",
+    "madagascar",
+    "malawi",
+    "liberia",
+    "sierra leone",
+  ];
+  const high = [
+    "ethiopia",
+    "uganda",
+    "tanzania",
+    "rwanda",
+    "burkina faso",
+    "mali",
+    "guinea",
+    "benin",
+    "togo",
+    "zambia",
+    "zimbabwe",
+    "haiti",
+    "afghanistan",
+    "yemen",
+    "nepal",
+    "bangladesh",
+  ];
+  const moderate = [
+    "india",
+    "pakistan",
+    "philippines",
+    "indonesia",
+    "vietnam",
+    "myanmar",
+    "cambodia",
+    "laos",
+    "kenya",
+    "ghana",
+    "senegal",
+    "nigeria",
+    "cameroon",
+  ];
+  const lowHighIncome = [
+    "united states",
+    "canada",
+    "australia",
+    "new zealand",
+    "japan",
+    "south korea",
+    "singapore",
+    "germany",
+    "france",
+    "italy",
+    "spain",
+    "portugal",
+    "netherlands",
+    "belgium",
+    "luxembourg",
+    "austria",
+    "sweden",
+    "norway",
+    "finland",
+    "denmark",
+    "ireland",
+    "switzerland",
+    "united kingdom",
+  ];
+  if (lowHighIncome.includes(c)) return 0.1;
+  if (extreme.includes(c)) return 0.9;
+  if (high.includes(c)) return 0.75;
+  if (moderate.includes(c)) return 0.6;
   return 0.45;
 }
 
-/**
- * Compute air quality score (0-1, higher = worse quality)
- * Based on PM2.5 and NO2 levels
- */
+/* ---- Air ---- */
 function computeAirQualityScore(region: any): number | null {
-  const factors: number[] = [];
-
-  // PM2.5 pollution (WHO guideline: 5 µg/m³, dangerous: 35+ µg/m³, hazardous: 55+ µg/m³)
-  if (region.air_quality_pm25 !== null && region.air_quality_pm25 !== undefined) {
-    // Scale: 0-5 = excellent (0.1), 5-15 = good (0.3), 15-35 = moderate (0.5), 35-55 = poor (0.75), >55 = hazardous (0.95)
-    let pm25Risk = 0;
-    if (region.air_quality_pm25 < 5) {
-      pm25Risk = 0.1;
-    } else if (region.air_quality_pm25 < 15) {
-      pm25Risk = 0.1 + (0.2 * (region.air_quality_pm25 - 5) / 10);
-    } else if (region.air_quality_pm25 < 35) {
-      pm25Risk = 0.3 + (0.2 * (region.air_quality_pm25 - 15) / 20);
-    } else if (region.air_quality_pm25 < 55) {
-      pm25Risk = 0.5 + (0.25 * (region.air_quality_pm25 - 35) / 20);
-    } else {
-      pm25Risk = Math.min(1, 0.75 + (0.25 * (region.air_quality_pm25 - 55) / 50));
-    }
-    factors.push(pm25Risk);
+  const f: number[] = [];
+  if (isNum(region.air_quality_pm25)) {
+    const pm = +region.air_quality_pm25;
+    let r: number;
+    if (pm < 5) r = 0.05;
+    else if (pm < 15) r = lerp(0.05, 0.3, (pm - 5) / 10);
+    else if (pm < 35) r = lerp(0.3, 0.55, (pm - 15) / 20);
+    else if (pm < 55) r = lerp(0.55, 0.8, (pm - 35) / 20);
+    else r = Math.min(1, 0.8 + (pm - 55) / 80);
+    f.push(clamp01(r));
   }
-
-  // NO2 pollution (WHO guideline: 10 µg/m³, dangerous: 40+ µg/m³)
-  if (region.air_quality_no2 !== null && region.air_quality_no2 !== undefined) {
-    const no2Risk = Math.min(1, Math.max(0, region.air_quality_no2 / 40));
-    factors.push(no2Risk);
+  if (isNum(region.air_quality_no2)) {
+    const n = +region.air_quality_no2;
+    f.push(clamp01((n - 5) / 35));
   }
-
-  // If no data, estimate by region
-  if (factors.length === 0) {
-    return estimateAirQualityByRegion(region);
-  }
-
-  return factors.reduce((sum, f) => sum + f, 0) / factors.length;
+  if (!f.length) return estimateAirQualityByRegion(region);
+  return clamp01(mean(f));
 }
 
-/**
- * Estimate air quality based on region characteristics
- */
 function estimateAirQualityByRegion(region: any): number {
-  const country = (region.country || '').toLowerCase();
-  
-  // Countries with severe air pollution
-  const severeAirPollution = ['india', 'bangladesh', 'pakistan', 'china', 'egypt', 'nigeria'];
-  const highAirPollution = ['indonesia', 'vietnam', 'thailand', 'philippines', 'iran', 'iraq', 'turkey'];
-  
-  if (severeAirPollution.includes(country)) return 0.80;
-  if (highAirPollution.includes(country)) return 0.60;
-  return 0.40;
+  const c = (region.country || "").toLowerCase();
+  const severe = ["india", "bangladesh", "pakistan", "china", "egypt", "nigeria"];
+  const high = ["indonesia", "vietnam", "thailand", "philippines", "iran", "iraq", "turkey"];
+  if (severe.includes(c)) return 0.8;
+  if (high.includes(c)) return 0.6;
+  return 0.4;
 }
 
-/**
- * Get component breakdown for a region
- * Returns individual component scores (null if not available)
- */
-function getComponentBreakdown(region: any): {
-  climateRisk: number | null;
-  infrastructureGap: number | null;
-  socioeconomicVuln: number | null;
-  airQuality: number | null;
-} {
+/* ---- Helpers ---- */
+function getComponentBreakdown(region: any) {
   return {
     climateRisk: computeClimateRisk(region),
     infrastructureGap: computeInfrastructureGap(region),
     socioeconomicVuln: computeSocioeconomicVulnerability(region),
     airQuality: computeAirQualityScore(region),
   };
+}
+
+function jsonOk(body: unknown) {
+  return new Response(JSON.stringify(body), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n));
+}
+function isNum(v: any) {
+  return typeof v === "number" && Number.isFinite(v);
+}
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * Math.max(0, Math.min(1, t));
+}
+function mean(arr: number[]) {
+  return arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
 }
