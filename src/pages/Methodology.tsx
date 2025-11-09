@@ -67,7 +67,7 @@ export default function Methodology() {
             </CardHeader>
             <CardContent className="pt-2 space-y-5">
               <p className="text-muted-foreground leading-relaxed">
-                The CII combines three primary dimensions to assess climate vulnerability and adaptive capacity. Each
+                The CII combines four primary dimensions to assess climate vulnerability and adaptive capacity. Each
                 component is normalized to 0–1 and then weighted to produce a single score.
               </p>
 
@@ -78,9 +78,10 @@ export default function Methodology() {
                   Weighted composite
                 </div>
                 <pre className="text-sm leading-7 overflow-x-auto rounded-md p-3 bg-muted/60">
-                  {`CII = 0.40 · ClimateRisk
-    + 0.30 · (1 - InfrastructureAccess)
-    + 0.30 · SocioeconomicVulnerability`}
+                  {`CII = 0.30 · ClimateRisk
+    + 0.25 · (1 - InfrastructureAccess)
+    + 0.25 · SocioeconomicVulnerability
+    + 0.20 · AirQuality`}
                 </pre>
                 <p className="text-xs text-muted-foreground mt-2">
                   We invert InfrastructureAccess so that better access reduces the overall risk.
@@ -88,26 +89,33 @@ export default function Methodology() {
               </div>
 
               {/* Quick metric tiles */}
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground">Weight</div>
-                  <div className="text-2xl font-bold">40%</div>
+                  <div className="text-2xl font-bold">30%</div>
                   <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
                     <Activity className="w-3.5 h-3.5" /> Climate Risk
                   </div>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground">Weight</div>
-                  <div className="text-2xl font-bold">30%</div>
+                  <div className="text-2xl font-bold">25%</div>
                   <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <Gauge className="w-3.5 h-3.5" /> Infrastructure Access
+                    <Gauge className="w-3.5 h-3.5" /> Infrastructure Gap
                   </div>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground">Weight</div>
-                  <div className="text-2xl font-bold">30%</div>
+                  <div className="text-2xl font-bold">25%</div>
                   <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5" /> Socioeconomic Score
+                    <TrendingUp className="w-3.5 h-3.5" /> Socioeconomic
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-card/50 p-4">
+                  <div className="text-xs text-muted-foreground">Weight</div>
+                  <div className="text-2xl font-bold">20%</div>
+                  <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                    <Database className="w-3.5 h-3.5" /> Air Quality
                   </div>
                 </div>
               </div>
@@ -138,24 +146,31 @@ export default function Methodology() {
             <CardContent className="pt-2 space-y-6">
               <div className="space-y-4 pl-4 border-l-4 border-primary/25">
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">1) Climate Risk (40%)</h3>
+                  <h3 className="font-semibold text-lg mb-1">1) Climate Risk (30%)</h3>
                   <p className="text-sm text-muted-foreground">
                     Aggregates temperature anomalies, precipitation variability, drought index, and flood risk. Each
                     sub-indicator is min-max normalized per year.
                   </p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">2) Infrastructure Access (30%)</h3>
+                  <h3 className="font-semibold text-lg mb-1">2) Infrastructure Gap (25%)</h3>
                   <p className="text-sm text-muted-foreground">
-                    Captures enabling conditions such as internet speed (down/up), urban share, and air quality (PM2.5,
-                    NO₂). Higher access → lower contribution (we invert this term).
+                    Measures lack of access to enabling infrastructure such as internet speed (down/up), urban share, 
+                    and services quality. Higher access → lower contribution (we invert this term).
                   </p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">3) Socioeconomic (30%)</h3>
+                  <h3 className="font-semibold text-lg mb-1">3) Socioeconomic Vulnerability (25%)</h3>
                   <p className="text-sm text-muted-foreground">
                     Uses GDP per capita (PPP where available) and population density as proxies for adaptive capacity
                     and stress. Indicators are normalized and direction-aligned.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">4) Air Quality (20%)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Measures pollution levels using PM2.5 and NO₂ concentrations from real-time monitoring stations.
+                    Higher pollution levels indicate worse health outcomes and environmental stress.
                   </p>
                 </div>
               </div>
@@ -286,8 +301,8 @@ export default function Methodology() {
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Weighting</div>
                   <p className="text-sm text-foreground/90">
-                    40% climate risk · 30% infrastructure · 30% socioeconomic. Directionality aligned so higher CII =
-                    worse vulnerability.
+                    30% climate risk · 25% infrastructure gap · 25% socioeconomic · 20% air quality. 
+                    Directionality aligned so higher CII = worse vulnerability.
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">

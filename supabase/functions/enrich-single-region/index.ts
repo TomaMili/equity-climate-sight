@@ -363,8 +363,14 @@ async function fetchGeoNamesPopulation(regionCode: string, iso2: string) {
       const match = adm1 || data.geonames.find((g: any) => g.population);
       
       if (match && match.population) {
-        result.population = parseInt(match.population);
-        console.log(`✓ Found population for ${adminCode}: ${result.population} (${match.name}, ${match.fcode})`);
+        const population = parseInt(match.population);
+        // Additional validation: ensure population is a valid positive number
+        if (!isNaN(population) && population > 0 && population < 2_000_000_000) {
+          result.population = population;
+          console.log(`✓ Found population for ${adminCode}: ${result.population} (${match.name}, ${match.fcode})`);
+        } else {
+          console.warn(`⚠ Invalid population value for ${adminCode}: ${match.population} (parsed: ${population})`);
+        }
       } else {
         console.log(`⚠ No population data in GeoNames for ${adminCode}`);
       }

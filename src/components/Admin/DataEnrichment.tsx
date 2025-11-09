@@ -95,21 +95,19 @@ export function DataEnrichment() {
       const year = selectedYear;
       const now = new Date().toISOString();
       
-      // Check countries (synthetic or ready for retry)
+      // Check countries - count all countries for the year (allow re-enrichment of all)
       const { count: countriesCount } = await supabase
         .from('climate_inequality_regions')
         .select('region_code', { count: 'exact', head: true })
         .eq('region_type', 'country')
-        .eq('data_year', year)
-        .or(`data_sources.cs.{Synthetic},and(enrichment_attempts.lt.5,next_retry_at.lte.${now})`);
+        .eq('data_year', year);
       
-      // Check regions (synthetic or ready for retry)
+      // Check regions - count all regions for the year (allow re-enrichment of all)
       const { count: regionsCount } = await supabase
         .from('climate_inequality_regions')
         .select('region_code', { count: 'exact', head: true })
         .eq('region_type', 'region')
-        .eq('data_year', year)
-        .or(`data_sources.cs.{Synthetic},and(enrichment_attempts.lt.5,next_retry_at.lte.${now})`);
+        .eq('data_year', year);
       
       setResumeStatus({
         countriesRemaining: countriesCount || 0,

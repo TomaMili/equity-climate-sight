@@ -203,8 +203,14 @@ async function processRegion(
   if (!isCountry) {
     const geoNamesData = await fetchGeoNamesPopulation(region.region_code, iso2);
     if (geoNamesData.population) {
-      realData.population = geoNamesData.population;
-      if (!realData.data_sources.includes('GeoNames')) realData.data_sources.push('GeoNames');
+      // Validate population is positive and reasonable (between 1 and 2 billion)
+      const pop = geoNamesData.population;
+      if (pop > 0 && pop < 2_000_000_000) {
+        realData.population = pop;
+        if (!realData.data_sources.includes('GeoNames')) realData.data_sources.push('GeoNames');
+      } else {
+        console.warn(`Invalid population value for ${region.region_code}: ${pop} (outside valid range)`);
+      }
     }
   }
 
@@ -490,8 +496,14 @@ async function fetchGeoNamesPopulation(regionCode: string, iso2: string) {
       const match = adm1 || data.geonames.find((g: any) => g.population);
       
       if (match && match.population) {
-        result.population = parseInt(match.population);
-        console.log(`✓ Found population for ${adminCode}: ${result.population} (${match.name}, ${match.fcode})`);
+        const population = parseInt(match.population);
+        // Additional validation: ensure population is a valid positive number
+        if (!isNaN(population) && population > 0 && population < 2_000_000_000) {
+          result.population = population;
+          console.log(`✓ Found population for ${adminCode}: ${result.population} (${match.name}, ${match.fcode})`);
+        } else {
+          console.warn(`⚠ Invalid population value for ${adminCode}: ${match.population} (parsed: ${population})`);
+        }
       } else {
         console.log(`⚠ No population data in GeoNames for ${adminCode}`);
       }
