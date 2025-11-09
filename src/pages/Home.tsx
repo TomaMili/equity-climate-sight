@@ -16,8 +16,8 @@ export default function Home() {
             mouseInteraction={true}
             pixelFilter={700}
             color1="#4A9EFF"
-            color2="#de2d26"
-            color3="#0f1419"
+color2="#de2d26"
+color3="#0f1419"
             contrast={3.8}
             lighting={0.5}
           />
