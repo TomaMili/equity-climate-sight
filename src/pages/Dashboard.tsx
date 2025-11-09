@@ -545,6 +545,11 @@ useEffect(() => {
               filters={filters}
               onFilteredCountChange={setFilteredCount}
               currentCountry={currentCountry}
+              onExitDrillDown={() => {
+                setCurrentCountry(null);
+                setSelectedRegion(null);
+                setAiInsight(null);
+              }}
             />
             <MapLegend />
           </ErrorBoundary>
