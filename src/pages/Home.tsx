@@ -15,6 +15,11 @@ export default function Home() {
             isRotate={false}
             mouseInteraction={true}
             pixelFilter={700}
+            color1="#4A9EFF"
+            color2="#de2d26"
+            color3="#0f1419"
+            contrast={3.8}
+            lighting={0.5}
           />
         </div>
         
@@ -38,15 +43,21 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              <Button asChild size="lg" className="text-lg px-8 h-14 shadow-xl">
+              <Button asChild size="lg" className="group relative text-lg px-8 h-14 overflow-hidden">
                 <Link to="/dashboard">
-                  Explore Interactive Map
-                  <ArrowRight className="ml-2 w-5 h-5" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] group-hover:bg-[position:100%_0] transition-all duration-500" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl bg-primary/50" />
+                  <span className="relative z-10 flex items-center">
+                    Explore Interactive Map
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="text-lg px-8 h-14 bg-background/80 backdrop-blur-sm border-2 shadow-xl">
+              <Button asChild variant="outline" size="lg" className="group relative text-lg px-8 h-14 bg-background/80 backdrop-blur-sm border-2 overflow-hidden">
                 <Link to="/methodology">
-                  Learn Methodology
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-primary/10 to-accent/10" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl bg-primary/30" />
+                  <span className="relative z-10">Learn Methodology</span>
                 </Link>
               </Button>
             </div>
@@ -142,10 +153,14 @@ export default function Home() {
             <p className="text-xl text-muted-foreground">
               Dive into the interactive map to discover climate inequality patterns across 43 regions in 20 countries.
             </p>
-            <Button asChild size="lg" className="text-lg px-8 h-14">
+            <Button asChild size="lg" className="group relative text-lg px-8 h-14 overflow-hidden">
               <Link to="/dashboard">
-                Start Exploring
-                <ArrowRight className="ml-2 w-5 h-5" />
+                <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] group-hover:bg-[position:100%_0] transition-all duration-500" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl bg-primary/50" />
+                <span className="relative z-10 flex items-center">
+                  Start Exploring
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </span>
               </Link>
             </Button>
           </div>
