@@ -16,9 +16,10 @@ interface MapContainerProps {
   year?: number;
   filters?: FilterState;
   onFilteredCountChange?: (count: number) => void;
+  currentCountry?: string | null;
 }
 
-export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded, viewMode = 'regions', year = 2024, filters, onFilteredCountChange }: MapContainerProps) => {
+export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded, viewMode = 'regions', year = 2024, filters, onFilteredCountChange, currentCountry = null }: MapContainerProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -353,6 +354,13 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         const filteredFeatures = regionsData.features.filter((feature: any) => {
           const props = feature.properties;
           
+          // Country drill-down filter
+          if (currentCountry) {
+            // When drilling down, only show regions from the selected country
+            if (props.region_type === 'country') return false;
+            if (props.country !== currentCountry) return false;
+          }
+          
           // Search query
           if (filters.searchQuery) {
             const query = filters.searchQuery.toLowerCase();
@@ -403,7 +411,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         onFilteredCountChange?.(regionsData.features.length);
       }
     }
-  }, [regionsData, isLoaded, filters]);
+  }, [regionsData, isLoaded, filters, currentCountry]);
 
   // Update layer visibility when viewMode changes
   useEffect(() => {

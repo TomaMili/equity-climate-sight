@@ -14,7 +14,15 @@ import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, BarChart3, GitCompare } from 'lucide-react';
+import { ChevronDown, BarChart3, GitCompare, Home, ChevronRight } from 'lucide-react';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useRecentRegions } from '@/hooks/useRecentRegions';
 import RegionComparison from '@/components/Comparison/RegionComparison';
@@ -44,6 +52,7 @@ const Index = () => {
   const [filteredCount, setFilteredCount] = useState(0);
   const [compareMode, setCompareMode] = useState(false);
   const [compareRegions, setCompareRegions] = useState<string[]>([]);
+  const [currentCountry, setCurrentCountry] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { bookmarks, toggleBookmark, isBookmarked } = useBookmarks();
@@ -144,6 +153,17 @@ useEffect(() => {
   };
 
   const handleRegionClick = async (data: any) => {
+    // If clicking a country and not in drill-down mode, drill down to show its regions
+    if (data.region_type === 'country' && !currentCountry && !compareMode) {
+      setCurrentCountry(data.region_name);
+      setViewMode('regions');
+      toast({
+        title: 'Viewing Regions',
+        description: `Showing regions in ${data.region_name}`,
+      });
+      return;
+    }
+
     // If in compare mode, toggle region in comparison
     if (compareMode) {
       const regionId = data.id;
@@ -330,10 +350,61 @@ useEffect(() => {
               <SidebarSkeleton />
             ) : (
               <>
+                {/* Breadcrumb Navigation */}
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink
+                        onClick={() => {
+                          setCurrentCountry(null);
+                          setViewMode('countries');
+                          setSelectedRegion(null);
+                        }}
+                        className="flex items-center gap-1 cursor-pointer"
+                      >
+                        <Home className="h-3 w-3" />
+                        All Countries
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    {currentCountry && (
+                      <>
+                        <BreadcrumbSeparator>
+                          <ChevronRight className="h-4 w-4" />
+                        </BreadcrumbSeparator>
+                        <BreadcrumbItem>
+                          <BreadcrumbPage className="font-medium">
+                            {currentCountry} Regions
+                          </BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </>
+                    )}
+                  </BreadcrumbList>
+                </Breadcrumb>
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant={viewMode === 'regions' ? 'default' : 'outline'} onClick={() => setViewMode('regions')}>Regions</Button>
-                    <Button size="sm" variant={viewMode === 'countries' ? 'default' : 'outline'} onClick={() => setViewMode('countries')}>Countries</Button>
+                    <Button 
+                      size="sm" 
+                      variant={viewMode === 'regions' && !currentCountry ? 'default' : 'outline'} 
+                      onClick={() => {
+                        setViewMode('regions');
+                        setCurrentCountry(null);
+                      }}
+                      disabled={!!currentCountry}
+                    >
+                      Regions
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant={viewMode === 'countries' && !currentCountry ? 'default' : 'outline'} 
+                      onClick={() => {
+                        setViewMode('countries');
+                        setCurrentCountry(null);
+                      }}
+                      disabled={!!currentCountry}
+                    >
+                      Countries
+                    </Button>
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Year</label>
@@ -453,6 +524,7 @@ useEffect(() => {
               year={year}
               filters={filters}
               onFilteredCountChange={setFilteredCount}
+              currentCountry={currentCountry}
             />
             <MapLegend />
           </ErrorBoundary>
