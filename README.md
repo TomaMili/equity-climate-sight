@@ -7,6 +7,29 @@
 
 AI Equity Mapper is an interactive web application that visualizes climate inequality across regions using the Climate Inequality Index (CII). It combines data from Amazon Sustainability Data Initiative (ASDI) with AI-powered insights to help policymakers and researchers understand and address climate-related disparities.
 
+## 📸 Screenshots
+
+### Home Page
+![Home Page](public/screenshots/home.png)
+
+### Interactive Map Dashboard
+![Dashboard with Region Details](public/screenshots/dashboard-region.png)
+
+### Global Overview
+![Global Overview](public/screenshots/global-overview.png)
+
+### AI-Powered Climate Analysis
+![Comprehensive Climate Equity Analysis](public/screenshots/analysis-modal.png)
+
+### CII Component Breakdown
+![CII Component Breakdown](public/screenshots/cii-breakdown.png)
+
+### Critical Regions View
+![Critical Regions](public/screenshots/critical-regions.png)
+
+### Admin Dashboard
+![Admin Dashboard](public/screenshots/admin-dashboard.png)
+
 ## 🚀 Features
 
 ### Core MVP Features (Implemented)
