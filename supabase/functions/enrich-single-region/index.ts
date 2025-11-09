@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_RETRY_ATTEMPTS = 5;
+const BASE_RETRY_DELAY = 2; // Base delay in minutes
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -27,7 +30,7 @@ serve(async (req) => {
     // Get the region data
     const { data: region, error: fetchError } = await supabase
       .from('climate_inequality_regions')
-      .select('region_code, country, data_year, region_type, data_sources')
+      .select('region_code, country, data_year, region_type, data_sources, enrichment_attempts')
       .eq('region_code', region_code)
       .eq('data_year', year)
       .single();
@@ -95,10 +98,19 @@ serve(async (req) => {
       console.warn(`NASA fetch failed for ${iso2}:`, error);
     }
 
-    // Add sources to data_sources array
+    // Add sources to data_sources array and remove Synthetic marker
     if (sources.length > 0) {
       realData.data_sources = ['Natural Earth', 'Real Data', ...sources];
+    } else {
+      // If no real sources were added, mark as attempted
+      realData.data_sources = ['Natural Earth', 'Attempted'];
     }
+
+    // Reset retry tracking on successful enrichment
+    realData.enrichment_attempts = 0;
+    realData.last_enrichment_attempt = new Date().toISOString();
+    realData.next_retry_at = null;
+    realData.enrichment_error = null;
 
     // Update the region
     const { error: updateError } = await supabase
@@ -129,6 +141,43 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error enriching region:', error);
+    
+    // Handle enrichment failure with retry logic
+    try {
+      const { region_code, year = 2025 } = await req.json();
+      if (region_code) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        const { data: region } = await supabase
+          .from('climate_inequality_regions')
+          .select('enrichment_attempts')
+          .eq('region_code', region_code)
+          .eq('data_year', year)
+          .single();
+        
+        const attempts = (region?.enrichment_attempts || 0) + 1;
+        const delayMinutes = Math.pow(2, attempts - 1) * BASE_RETRY_DELAY;
+        const nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000);
+        
+        await supabase
+          .from('climate_inequality_regions')
+          .update({
+            enrichment_attempts: attempts,
+            last_enrichment_attempt: new Date().toISOString(),
+            next_retry_at: attempts < MAX_RETRY_ATTEMPTS ? nextRetryAt.toISOString() : null,
+            enrichment_error: String(error).substring(0, 500)
+          })
+          .eq('region_code', region_code)
+          .eq('data_year', year);
+        
+        console.log(`Scheduled retry ${attempts}/${MAX_RETRY_ATTEMPTS} for ${region_code} in ${delayMinutes} minutes`);
+      }
+    } catch (retryError) {
+      console.error('Error scheduling retry:', retryError);
+    }
+    
     return new Response(
       JSON.stringify({ error: String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

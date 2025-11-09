@@ -8,6 +8,8 @@ const corsHeaders = {
 };
 
 const BATCH_SIZE = 6; // Schedule small batches to keep responses fast
+const MAX_RETRY_ATTEMPTS = 5; // Maximum number of retry attempts
+const BASE_RETRY_DELAY = 2; // Base delay in minutes for exponential backoff
 
 // Simple in-memory cache per cold start
 const WB_CACHE = new Map<string, { population?: number; gdp_per_capita?: number; urban_percent?: number }>();
@@ -55,13 +57,13 @@ serve(async (req) => {
 
     console.log(`[Worker ${worker_id}] Enriching ${region_type}s for year ${year} with offset ${offset}...`);
 
-    // Get regions that need enrichment (those with synthetic data)
+    // Get regions that need enrichment (those with synthetic data or ready for retry)
     const { data: regions, error: fetchError } = await supabase
       .from('climate_inequality_regions')
-      .select('region_code, country, data_year, region_type')
+      .select('region_code, country, data_year, region_type, enrichment_attempts, next_retry_at')
       .eq('region_type', region_type)
       .eq('data_year', year)
-      .contains('data_sources', ['Synthetic'])
+      .or(`data_sources.cs.{Synthetic},and(enrichment_attempts.lt.${MAX_RETRY_ATTEMPTS},next_retry_at.lte.${new Date().toISOString()})`)
       .range(offset, offset + BATCH_SIZE - 1); // Use offset for parallel workers
 
     if (fetchError) throw fetchError;
@@ -86,12 +88,17 @@ serve(async (req) => {
     // Process regions synchronously to ensure accurate count tracking
     for (const region of regions) {
       try {
-        await processRegion(supabase, region, year, worker_id);
-        enrichedCount++;
+        const success = await processRegion(supabase, region, year, worker_id);
+        if (success) {
+          enrichedCount++;
+        } else {
+          failedCount++;
+        }
         // Small delay to respect API rate limits
         await new Promise(resolve => setTimeout(resolve, 50));
       } catch (error) {
         console.error(`Error processing ${region.region_code}:`, error);
+        await handleEnrichmentFailure(supabase, region, error, worker_id);
         failedCount++;
       }
     }
@@ -130,12 +137,35 @@ serve(async (req) => {
   }
 });
 
-async function processRegion(
+async function handleEnrichmentFailure(
   supabase: any,
-  region: { region_code: string; country: string; data_year: number; region_type: string },
-  year: number,
+  region: { region_code: string; enrichment_attempts?: number },
+  error: any,
   worker_id: number
 ) {
+  const attempts = (region.enrichment_attempts || 0) + 1;
+  const delayMinutes = Math.pow(2, attempts - 1) * BASE_RETRY_DELAY; // Exponential backoff: 2, 4, 8, 16, 32 minutes
+  const nextRetryAt = new Date(Date.now() + delayMinutes * 60 * 1000);
+
+  console.log(`[Worker ${worker_id}] Scheduling retry ${attempts}/${MAX_RETRY_ATTEMPTS} for ${region.region_code} in ${delayMinutes} minutes`);
+
+  await supabase
+    .from('climate_inequality_regions')
+    .update({
+      enrichment_attempts: attempts,
+      last_enrichment_attempt: new Date().toISOString(),
+      next_retry_at: attempts < MAX_RETRY_ATTEMPTS ? nextRetryAt.toISOString() : null,
+      enrichment_error: String(error).substring(0, 500) // Store first 500 chars of error
+    })
+    .eq('region_code', region.region_code);
+}
+
+async function processRegion(
+  supabase: any,
+  region: { region_code: string; country: string; data_year: number; region_type: string; enrichment_attempts?: number },
+  year: number,
+  worker_id: number
+): Promise<boolean> {
   // Extract ISO2 code from region_code (e.g., "US-CA" -> "US")
   const iso2 = region.region_code.split('-')[0];
   
@@ -205,6 +235,12 @@ async function processRegion(
     realData.data_sources = ['Natural Earth', 'Attempted'];
   }
 
+  // Reset retry tracking on successful enrichment
+  realData.enrichment_attempts = 0;
+  realData.last_enrichment_attempt = new Date().toISOString();
+  realData.next_retry_at = null;
+  realData.enrichment_error = null;
+
   const { error: updateError } = await supabase
     .from('climate_inequality_regions')
     .update(realData)
@@ -216,11 +252,13 @@ async function processRegion(
     throw updateError;
   }
   
-  const dataCount = Object.keys(realData).length - 2; // Exclude sources and timestamp
+  const dataCount = Object.keys(realData).length - 6; // Exclude sources, timestamp, and retry fields
   if (dataCount > 0) {
     console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code} with ${dataCount} fields from ${realData.data_sources.join(', ')}`);
+    return true;
   } else {
     console.log(`[Worker ${worker_id}] ⚠ No external data found for ${region.region_code}, marked as attempted`);
+    return false;
   }
 }
 

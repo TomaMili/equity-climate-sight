@@ -93,22 +93,23 @@ export function DataEnrichment() {
     setResumeStatus(prev => ({ ...prev, loading: true }));
     try {
       const year = selectedYear;
+      const now = new Date().toISOString();
       
-      // Check countries
+      // Check countries (synthetic or ready for retry)
       const { count: countriesCount } = await supabase
         .from('climate_inequality_regions')
         .select('region_code', { count: 'exact', head: true })
         .eq('region_type', 'country')
         .eq('data_year', year)
-        .contains('data_sources', ['Synthetic']);
+        .or(`data_sources.cs.{Synthetic},and(enrichment_attempts.lt.5,next_retry_at.lte.${now})`);
       
-      // Check regions
+      // Check regions (synthetic or ready for retry)
       const { count: regionsCount } = await supabase
         .from('climate_inequality_regions')
         .select('region_code', { count: 'exact', head: true })
         .eq('region_type', 'region')
         .eq('data_year', year)
-        .contains('data_sources', ['Synthetic']);
+        .or(`data_sources.cs.{Synthetic},and(enrichment_attempts.lt.5,next_retry_at.lte.${now})`);
       
       setResumeStatus({
         countriesRemaining: countriesCount || 0,
@@ -689,7 +690,7 @@ export function DataEnrichment() {
 
           <p className="text-sm text-muted-foreground mb-4">
             Replace synthetic data with real measurements from World Bank, OpenAQ, NASA, and other public APIs. 
-            The enrichment process fetches actual data for each region and removes the "Synthetic" marker.
+            Failed enrichments are automatically retried with exponential backoff (2, 4, 8, 16, 32 minutes) up to 5 attempts.
           </p>
 
           {/* Status Card */}

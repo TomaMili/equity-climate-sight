@@ -30,6 +30,8 @@ export type Database = {
           data_sources: string[] | null
           data_year: number
           drought_index: number | null
+          enrichment_attempts: number | null
+          enrichment_error: string | null
           flood_risk_score: number | null
           gdp_per_capita: number | null
           geometry: unknown
@@ -37,7 +39,9 @@ export type Database = {
           infrastructure_score: number | null
           internet_speed_download: number | null
           internet_speed_upload: number | null
+          last_enrichment_attempt: string | null
           last_updated: string | null
+          next_retry_at: string | null
           population: number | null
           precipitation_avg: number | null
           region_code: string
@@ -62,6 +66,8 @@ export type Database = {
           data_sources?: string[] | null
           data_year: number
           drought_index?: number | null
+          enrichment_attempts?: number | null
+          enrichment_error?: string | null
           flood_risk_score?: number | null
           gdp_per_capita?: number | null
           geometry: unknown
@@ -69,7 +75,9 @@ export type Database = {
           infrastructure_score?: number | null
           internet_speed_download?: number | null
           internet_speed_upload?: number | null
+          last_enrichment_attempt?: string | null
           last_updated?: string | null
+          next_retry_at?: string | null
           population?: number | null
           precipitation_avg?: number | null
           region_code: string
@@ -94,6 +102,8 @@ export type Database = {
           data_sources?: string[] | null
           data_year?: number
           drought_index?: number | null
+          enrichment_attempts?: number | null
+          enrichment_error?: string | null
           flood_risk_score?: number | null
           gdp_per_capita?: number | null
           geometry?: unknown
@@ -101,7 +111,9 @@ export type Database = {
           infrastructure_score?: number | null
           internet_speed_download?: number | null
           internet_speed_upload?: number | null
+          last_enrichment_attempt?: string | null
           last_updated?: string | null
+          next_retry_at?: string | null
           population?: number | null
           precipitation_avg?: number | null
           region_code?: string
