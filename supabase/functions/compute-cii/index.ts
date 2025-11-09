@@ -34,19 +34,26 @@ serve(async (req) => {
 
     console.log(`Computing CII for ${region_type || 'all'} regions in year ${year}...`);
 
-    // Fetch regions with real data (not synthetic)
+    // Fetch all regions for the year
     let query = supabase
       .from('climate_inequality_regions')
       .select('*')
-      .eq('data_year', year)
-      .not('data_sources', 'cs', '["Synthetic"]'); // Exclude purely synthetic data
+      .eq('data_year', year);
 
     if (region_type) {
       query = query.eq('region_type', region_type);
     }
 
-    const { data: regions, error: fetchError } = await query;
+    const { data: allRegions, error: fetchError } = await query;
     if (fetchError) throw fetchError;
+
+    // Filter out regions with ONLY synthetic data
+    // Only process regions that have at least one real data source
+    const regions = allRegions?.filter(region => {
+      if (!region.data_sources || !Array.isArray(region.data_sources)) return false;
+      // Has real data if data_sources contains anything other than just "Synthetic"
+      return region.data_sources.length > 1 || !region.data_sources.includes('Synthetic');
+    }) || [];
 
     if (!regions || regions.length === 0) {
       console.log('No regions with real data found');
