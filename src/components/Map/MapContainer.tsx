@@ -353,7 +353,11 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
           // When drilling into a country, filter regions by country (case-insensitive)
           if (currentCountry) {
             const cc = currentCountry.toLowerCase();
-            conditions.push(['==', ['downcase', ['get', 'country']], cc]);
+            conditions.push([
+              'any',
+              ['==', ['downcase', ['get', 'country']], cc],
+              ['>=', ['index-of', cc, ['downcase', ['get', 'country']]], 0]
+            ]);
           }
         } else {
           conditions.push(['==', ['get', 'region_type'], 'country']);
@@ -364,8 +368,8 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
           const query = filters.searchQuery.toLowerCase();
           conditions.push([
             'any',
-            ['in', query, ['downcase', ['get', 'region_name']]],
-            ['in', query, ['downcase', ['get', 'country']]]
+            ['>=', ['index-of', query, ['downcase', ['get', 'region_name']]], 0],
+            ['>=', ['index-of', query, ['downcase', ['get', 'country']]], 0]
           ]);
         }
         
@@ -458,6 +462,45 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     }
     if (map.current.getLayer('region-outline')) {
       map.current.setLayoutProperty('region-outline', 'visibility', regionVis);
+    }
+  }, [currentCountry, isLoaded]);
+
+  // Dim non-selected countries and highlight selected
+  useEffect(() => {
+    if (!map.current || !isLoaded || !map.current.isStyleLoaded()) return;
+
+    // Adjust fill opacity
+    if (map.current.getLayer('country-fill')) {
+      if (currentCountry) {
+        const cc = currentCountry.toLowerCase();
+        map.current.setPaintProperty('country-fill', 'fill-opacity', [
+          'case',
+          ['==', ['downcase', ['get', 'country']], cc], 0.8,
+          0.25
+        ]);
+      } else {
+        map.current.setPaintProperty('country-fill', 'fill-opacity', 0.7);
+      }
+    }
+
+    // Adjust outline for highlight
+    if (map.current.getLayer('country-outline')) {
+      if (currentCountry) {
+        const cc = currentCountry.toLowerCase();
+        map.current.setPaintProperty('country-outline', 'line-color', [
+          'case',
+          ['==', ['downcase', ['get', 'country']], cc], '#ffffff',
+          '#2b2b2b'
+        ]);
+        map.current.setPaintProperty('country-outline', 'line-width', [
+          'case',
+          ['==', ['downcase', ['get', 'country']], cc], 3,
+          1.5
+        ]);
+      } else {
+        map.current.setPaintProperty('country-outline', 'line-color', '#2b2b2b');
+        map.current.setPaintProperty('country-outline', 'line-width', 1.5);
+      }
     }
   }, [currentCountry, isLoaded]);
 
