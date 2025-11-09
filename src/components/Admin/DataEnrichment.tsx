@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,6 +63,17 @@ export function DataEnrichment() {
   const [validationType, setValidationType] = useState<'all' | 'countries' | 'regions'>('all');
   const [logs, setLogs] = useState<Array<{ time: string; message: string; type: 'info' | 'success' | 'error' | 'warning' }>>([]);
   const [workerErrors, setWorkerErrors] = useState<Record<number, string[]>>({});
+  const [resumeStatus, setResumeStatus] = useState<{
+    countriesRemaining: number;
+    regionsRemaining: number;
+    total: number;
+    loading: boolean;
+  }>({
+    countriesRemaining: 0,
+    regionsRemaining: 0,
+    total: 0,
+    loading: true
+  });
 
   const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
     const time = new Date().toLocaleTimeString();
@@ -74,6 +85,66 @@ export function DataEnrichment() {
       ...prev,
       [workerId]: [...(prev[workerId] || []).slice(-4), error]
     }));
+  };
+
+  // Check what needs enrichment on mount and when enrichment completes
+  const checkResumeStatus = async () => {
+    setResumeStatus(prev => ({ ...prev, loading: true }));
+    try {
+      const year = 2024;
+      
+      // Check countries
+      const { count: countriesCount } = await supabase
+        .from('climate_inequality_regions')
+        .select('region_code', { count: 'exact', head: true })
+        .eq('region_type', 'country')
+        .eq('data_year', year)
+        .contains('data_sources', ['Synthetic']);
+      
+      // Check regions
+      const { count: regionsCount } = await supabase
+        .from('climate_inequality_regions')
+        .select('region_code', { count: 'exact', head: true })
+        .eq('region_type', 'region')
+        .eq('data_year', year)
+        .contains('data_sources', ['Synthetic']);
+      
+      setResumeStatus({
+        countriesRemaining: countriesCount || 0,
+        regionsRemaining: regionsCount || 0,
+        total: (countriesCount || 0) + (regionsCount || 0),
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error checking resume status:', error);
+      setResumeStatus(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Check status on mount
+  useEffect(() => {
+    checkResumeStatus();
+  }, []);
+
+  const handleResumeEnrichment = async () => {
+    setShowValidation(false);
+    
+    if (resumeStatus.countriesRemaining > 0 && resumeStatus.regionsRemaining > 0) {
+      // Both need enrichment - do full enrichment
+      toast.info(`Resuming enrichment: ${resumeStatus.countriesRemaining} countries + ${resumeStatus.regionsRemaining} regions`);
+      await handleEnrichAll();
+    } else if (resumeStatus.countriesRemaining > 0) {
+      // Only countries need enrichment
+      toast.info(`Resuming enrichment: ${resumeStatus.countriesRemaining} countries`);
+      await handleEnrichCountries(2024);
+    } else if (resumeStatus.regionsRemaining > 0) {
+      // Only regions need enrichment
+      toast.info(`Resuming enrichment: ${resumeStatus.regionsRemaining} regions`);
+      await handleEnrichRegions(2024);
+    }
+    
+    // Refresh status after enrichment
+    await checkResumeStatus();
   };
 
   const handleEnrichCountries = async (year: number) => {
@@ -200,6 +271,7 @@ export function DataEnrichment() {
     } finally {
       setIsEnriching(false);
       setTimeEstimate(null);
+      await checkResumeStatus(); // Refresh resume status
     }
   };
 
@@ -523,6 +595,7 @@ export function DataEnrichment() {
       setIsEnriching(false);
       setTimeEstimate(null);
       setWorkers([]);
+      await checkResumeStatus(); // Refresh resume status
     }
   };
 
@@ -563,6 +636,7 @@ export function DataEnrichment() {
     } finally {
       setEnrichingAll(false);
       setCurrentPhase(null);
+      await checkResumeStatus(); // Refresh resume status
     }
   };
 
@@ -616,6 +690,27 @@ export function DataEnrichment() {
           </p>
 
       <div className="space-y-4">
+        {/* Resume Enrichment Button - Shows when there's incomplete enrichment */}
+        {!resumeStatus.loading && resumeStatus.total > 0 && !isEnriching && !enrichingAll && (
+          <div className="pb-3 border-b">
+            <Button
+              size="default"
+              onClick={handleResumeEnrichment}
+              className="w-full"
+              variant="secondary"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Resume Enrichment ({resumeStatus.total} remaining)
+            </Button>
+            <div className="mt-2 text-xs text-muted-foreground text-center">
+              {resumeStatus.countriesRemaining > 0 && `${resumeStatus.countriesRemaining} countries`}
+              {resumeStatus.countriesRemaining > 0 && resumeStatus.regionsRemaining > 0 && ' + '}
+              {resumeStatus.regionsRemaining > 0 && `${resumeStatus.regionsRemaining} regions`}
+              {' need enrichment'}
+            </div>
+          </div>
+        )}
+
         {/* Enrich All Button */}
         <div className="pb-3 border-b">
           <Button
