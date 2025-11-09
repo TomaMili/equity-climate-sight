@@ -32,7 +32,7 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'countries' | 'regions'>('regions');
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(true);
   const { toast } = useToast();
 
 // Load token from localStorage on mount
