@@ -57,13 +57,12 @@ serve(async (req) => {
 
     console.log(`[Worker ${worker_id}] Enriching ${region_type}s for year ${year} with offset ${offset}...`);
 
-    // Get regions that need enrichment (those with synthetic data or ready for retry)
+    // Get regions to enrich - all regions for the year
     const { data: regions, error: fetchError } = await supabase
       .from('climate_inequality_regions')
       .select('region_code, country, data_year, region_type, enrichment_attempts, next_retry_at')
       .eq('region_type', region_type)
       .eq('data_year', year)
-      .or(`data_sources.cs.{Synthetic},and(enrichment_attempts.lt.${MAX_RETRY_ATTEMPTS},next_retry_at.lte.${new Date().toISOString()})`)
       .range(offset, offset + BATCH_SIZE - 1); // Use offset for parallel workers
 
     if (fetchError) throw fetchError;
@@ -108,8 +107,7 @@ serve(async (req) => {
       .from('climate_inequality_regions')
       .select('region_code', { count: 'exact', head: true })
       .eq('region_type', region_type)
-      .eq('data_year', year)
-      .contains('data_sources', ['Synthetic']);
+      .eq('data_year', year);
 
     const remaining = (count || 0);
     const isComplete = remaining === 0;

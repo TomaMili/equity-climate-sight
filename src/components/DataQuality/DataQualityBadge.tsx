@@ -9,10 +9,13 @@ interface DataQualityBadgeProps {
 }
 
 export function DataQualityBadge({ dataSources, size = 'default', showIcon = true }: DataQualityBadgeProps) {
-  const isSynthetic = dataSources?.includes('Synthetic');
-  const isReal = !isSynthetic && dataSources?.length > 0;
+  // Ensure dataSources is always an array
+  const sourceArray = Array.isArray(dataSources) ? dataSources : [];
   
-  const sources = dataSources?.filter(s => s !== 'Natural Earth' && s !== 'Real Data') || [];
+  const isSynthetic = sourceArray.includes('Synthetic');
+  const isReal = !isSynthetic && sourceArray.length > 0;
+  
+  const sources = sourceArray.filter(s => s !== 'Natural Earth' && s !== 'Real Data');
   const sourcesText = sources.length > 0 ? sources.join(', ') : 'No data sources';
   
   if (isSynthetic) {
