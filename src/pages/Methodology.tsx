@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   ArrowLeft,
   Sigma,
@@ -11,16 +11,16 @@ import {
   RefreshCcw,
   Palette,
   Database,
-  TrendingUp
-} from 'lucide-react';
+  TrendingUp,
+} from "lucide-react";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.45 }
-  }
+    transition: { duration: 0.45 },
+  },
 };
 
 export default function Methodology() {
@@ -39,12 +39,10 @@ export default function Methodology() {
       <div className="container mx-auto px-4 pb-16 max-w-4xl">
         {/* Header */}
         <motion.div initial="hidden" animate="show" variants={fadeIn} className="space-y-4">
-          <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+          <h1 className="text-5xl font-semibold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
             Methodology
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground">
-            How we calculate the Climate Inequality Index
-          </p>
+          <p className="text-lg md:text-xl text-muted-foreground">How we calculate the Climate Inequality Index</p>
         </motion.div>
 
         {/* CII Overview + Formula */}
@@ -69,8 +67,8 @@ export default function Methodology() {
             </CardHeader>
             <CardContent className="pt-2 space-y-5">
               <p className="text-muted-foreground leading-relaxed">
-                The CII combines three primary dimensions to assess climate vulnerability and adaptive capacity.
-                Each component is normalized to 0–1 and then weighted to produce a single score.
+                The CII combines three primary dimensions to assess climate vulnerability and adaptive capacity. Each
+                component is normalized to 0–1 and then weighted to produce a single score.
               </p>
 
               {/* Formula block */}
@@ -80,7 +78,7 @@ export default function Methodology() {
                   Weighted composite
                 </div>
                 <pre className="text-sm leading-7 overflow-x-auto rounded-md p-3 bg-muted/60">
-{`CII = 0.40 · ClimateRisk
+                  {`CII = 0.40 · ClimateRisk
     + 0.30 · (1 - InfrastructureAccess)
     + 0.30 · SocioeconomicVulnerability`}
                 </pre>
@@ -142,22 +140,22 @@ export default function Methodology() {
                 <div>
                   <h3 className="font-semibold text-lg mb-1">1) Climate Risk (40%)</h3>
                   <p className="text-sm text-muted-foreground">
-                    Aggregates temperature anomalies, precipitation variability, drought index, and flood risk.
-                    Each sub-indicator is min-max normalized per year.
+                    Aggregates temperature anomalies, precipitation variability, drought index, and flood risk. Each
+                    sub-indicator is min-max normalized per year.
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-1">2) Infrastructure Access (30%)</h3>
                   <p className="text-sm text-muted-foreground">
-                    Captures enabling conditions such as internet speed (down/up), urban share, and air quality
-                    (PM2.5, NO₂). Higher access → lower contribution (we invert this term).
+                    Captures enabling conditions such as internet speed (down/up), urban share, and air quality (PM2.5,
+                    NO₂). Higher access → lower contribution (we invert this term).
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-1">3) Socioeconomic (30%)</h3>
                   <p className="text-sm text-muted-foreground">
-                    Uses GDP per capita (PPP where available) and population density as proxies for adaptive
-                    capacity and stress. Indicators are normalized and direction-aligned.
+                    Uses GDP per capita (PPP where available) and population density as proxies for adaptive capacity
+                    and stress. Indicators are normalized and direction-aligned.
                   </p>
                 </div>
               </div>
@@ -166,9 +164,11 @@ export default function Methodology() {
               <div className="rounded-lg border bg-card/50 p-3 text-sm text-foreground/90 flex items-start gap-2">
                 <Database className="w-4 h-4 text-primary mt-0.5" />
                 <span>
-                  Inputs sourced from <strong>OpenAQ</strong> (real-time air quality), <strong>World Bank Open Data</strong> (GDP, urban population), 
-                  <strong> Natural Earth</strong> (geographic boundaries), and <strong>ERA5/satellite observations</strong> (climate indicators). 
-                  AI insights powered by <strong>Google Gemini</strong> free-tier API.
+                  Inputs sourced from <strong>OpenAQ</strong> (real-time air quality),{" "}
+                  <strong>World Bank Open Data</strong> (GDP, urban population),
+                  <strong> Natural Earth</strong> (geographic boundaries), and{" "}
+                  <strong>ERA5/satellite observations</strong> (climate indicators). AI insights powered by{" "}
+                  <strong>Google Gemini</strong> free-tier API.
                 </span>
               </div>
             </CardContent>
@@ -213,16 +213,38 @@ export default function Methodology() {
               {/* Legend rows */}
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
-                  { swatch: 'cii-1', range: '0.0 – 0.2', label: 'Very Low Risk', desc: 'Strong adaptive capacity, minimal climate risk' },
-                  { swatch: 'cii-3', range: '0.3 – 0.4', label: 'Low–Medium Risk', desc: 'Good infrastructure, moderate exposure' },
-                  { swatch: 'cii-5', range: '≈ 0.5', label: 'Neutral', desc: 'Balanced risk and capacity' },
-                  { swatch: 'cii-7', range: '0.6 – 0.7', label: 'High Risk', desc: 'Significant exposure, limited infrastructure' },
-                  { swatch: 'cii-9', range: '0.8 – 1.0', label: 'Critical', desc: 'High vulnerability, minimal capacity' }
+                  {
+                    swatch: "cii-1",
+                    range: "0.0 – 0.2",
+                    label: "Very Low Risk",
+                    desc: "Strong adaptive capacity, minimal climate risk",
+                  },
+                  {
+                    swatch: "cii-3",
+                    range: "0.3 – 0.4",
+                    label: "Low–Medium Risk",
+                    desc: "Good infrastructure, moderate exposure",
+                  },
+                  { swatch: "cii-5", range: "≈ 0.5", label: "Neutral", desc: "Balanced risk and capacity" },
+                  {
+                    swatch: "cii-7",
+                    range: "0.6 – 0.7",
+                    label: "High Risk",
+                    desc: "Significant exposure, limited infrastructure",
+                  },
+                  {
+                    swatch: "cii-9",
+                    range: "0.8 – 1.0",
+                    label: "Critical",
+                    desc: "High vulnerability, minimal capacity",
+                  },
                 ].map((i) => (
                   <div key={i.swatch} className="flex items-center gap-4 rounded-lg border bg-card/50 p-3">
                     <div className={`w-14 h-8 rounded bg-[hsl(var(--${i.swatch}))] flex-shrink-0`} />
                     <div>
-                      <p className="font-medium">{i.range}: {i.label}</p>
+                      <p className="font-medium">
+                        {i.range}: {i.label}
+                      </p>
                       <p className="text-xs text-muted-foreground">{i.desc}</p>
                     </div>
                   </div>
@@ -257,28 +279,31 @@ export default function Methodology() {
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Normalization</div>
                   <p className="text-sm text-foreground/90">
-                    Min–max scaling per indicator and year to 0–1 range. Outlier detection and trimming at 1st/99th percentiles for data quality.
+                    Min–max scaling per indicator and year to 0–1 range. Outlier detection and trimming at 1st/99th
+                    percentiles for data quality.
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Weighting</div>
                   <p className="text-sm text-foreground/90">
-                    40% climate risk · 30% infrastructure · 30% socioeconomic. Directionality aligned so higher CII = worse vulnerability.
+                    40% climate risk · 30% infrastructure · 30% socioeconomic. Directionality aligned so higher CII =
+                    worse vulnerability.
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card/50 p-4">
                   <div className="text-xs text-muted-foreground mb-1">Update Frequency</div>
                   <p className="text-sm text-foreground/90">
-                    OpenAQ weekly updates; World Bank socioeconomic annually; climate data from ERA5 reanalysis and satellite observations.
+                    OpenAQ weekly updates; World Bank socioeconomic annually; climate data from ERA5 reanalysis and
+                    satellite observations.
                   </p>
                 </div>
               </div>
 
               <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
-                <strong>Important:</strong> The CII is a research and analysis tool designed to identify climate inequality patterns. 
-                AI-powered insights use Google Gemini free-tier API for predictive modeling, anomaly detection, cluster analysis, 
-                and intervention recommendations. Always combine quantitative analysis with local expertise and community context when 
-                prioritizing climate adaptation interventions.
+                <strong>Important:</strong> The CII is a research and analysis tool designed to identify climate
+                inequality patterns. AI-powered insights use Google Gemini free-tier API for predictive modeling,
+                anomaly detection, cluster analysis, and intervention recommendations. Always combine quantitative
+                analysis with local expertise and community context when prioritizing climate adaptation interventions.
               </div>
             </CardContent>
           </Card>
