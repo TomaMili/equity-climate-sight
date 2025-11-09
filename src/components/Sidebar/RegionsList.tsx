@@ -93,11 +93,6 @@ export function RegionsList({ country, year, onRegionClick, selectedRegionCode }
                     <span className={`text-xs font-semibold ${getRiskColor(region.cii_score)}`}>
                       CII: {(region.cii_score * 100).toFixed(1)}%
                     </span>
-                    {region.population && (
-                      <span className="text-xs text-muted-foreground">
-                        • Pop: {(region.population / 1000).toFixed(0)}K
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
