@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2 } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2, HelpCircle } from 'lucide-react';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
@@ -215,6 +216,142 @@ export default function About() {
                   </CardContent>
                 </Card>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* FAQ Section */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={fadeIn}
+          className="mt-12"
+        >
+          <Card className="border-border/70">
+            <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 px-6 py-5 border-b">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-primary" />
+                <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Common questions about the Climate Inequality Index
+              </p>
+            </div>
+            <CardContent className="p-6">
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger className="text-left">
+                    How is the Climate Inequality Index (CII) calculated?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    The CII is a weighted composite of three components: Climate Risk (40%), Infrastructure Access (30%), 
+                    and Socioeconomic Vulnerability (30%). Each component aggregates multiple normalized indicators 
+                    (0-1 scale) from real-world data sources. Higher CII scores indicate greater climate vulnerability 
+                    and lower adaptive capacity. See our <Link to="/methodology" className="text-primary hover:underline">Methodology page</Link> for 
+                    detailed formulas and component breakdowns.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-2">
+                  <AccordionTrigger className="text-left">
+                    How accurate and reliable is the data?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    We source data from authoritative international organizations: OpenAQ (air quality with 15,000+ 
+                    monitoring stations), World Bank Open Data (economic indicators), Natural Earth (geographic boundaries), 
+                    and ERA5 climate reanalysis (validated satellite and ground observations). Data undergoes quality 
+                    checks including outlier detection and cross-validation. However, data availability varies by region, 
+                    and indicators should be interpreted alongside local expertise. We clearly mark data gaps and 
+                    estimation methods in regional details.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-3">
+                  <AccordionTrigger className="text-left">
+                    How often is the data updated?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Update frequencies vary by data source: <strong>OpenAQ air quality</strong> updates weekly with 
+                    real-time measurements; <strong>World Bank socioeconomic indicators</strong> (GDP, population) update 
+                    annually; <strong>climate data</strong> from ERA5 updates monthly to quarterly as new reanalysis 
+                    becomes available. The CII scores are recalculated whenever underlying data refreshes. You can see 
+                    the last update timestamp for each region in the dashboard.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-4">
+                  <AccordionTrigger className="text-left">
+                    What AI models power the insights and analysis?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    We use <strong>Google Gemini 2.5 Flash and Pro models</strong> via the free-tier API for advanced 
+                    analytics. The AI performs five types of analysis: <strong>(1) Trend Prediction</strong> - forecasting 
+                    CII trajectories to 2030 using XGBoost-style modeling; <strong>(2) Anomaly Detection</strong> - 
+                    identifying unusual climate-poverty correlations; <strong>(3) Cluster Analysis</strong> - discovering 
+                    geographic vulnerability hotspots using DBSCAN-style algorithms; <strong>(4) Pattern Discovery</strong> - 
+                    finding hidden correlations between factors; <strong>(5) Intervention Recommendations</strong> - 
+                    suggesting evidence-based climate adaptation strategies. All AI outputs are clearly labeled and 
+                    should complement, not replace, human expertise.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-5">
+                  <AccordionTrigger className="text-left">
+                    Can I use this data for research or policy work?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Yes! The CII is designed as a research and decision-support tool for policymakers, researchers, 
+                    NGOs, and climate advocates. All underlying data sources (OpenAQ, World Bank, Natural Earth, ERA5) 
+                    are publicly available and properly attributed. When using CII data, please cite the relevant 
+                    original data sources and note that this is a composite index meant to identify patterns and 
+                    prioritize interventions. We recommend combining quantitative CII analysis with local community 
+                    knowledge, ground-truthing, and context-specific assessments for policy decisions.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-6">
+                  <AccordionTrigger className="text-left">
+                    Why doesn't my region appear in the database?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Regional coverage depends on data availability from our sources. Some regions may lack sufficient 
+                    air quality monitoring stations, updated socioeconomic data, or high-resolution climate observations. 
+                    We continuously expand coverage as new data becomes available. Currently, we prioritize regions with 
+                    complete datasets across all CII components. If your region is missing, it likely reflects gaps in 
+                    international monitoring infrastructure rather than lower climate risk. Check back regularly as we 
+                    add new regions with improved data coverage.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-7">
+                  <AccordionTrigger className="text-left">
+                    How can I download or export the data?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Currently, you can view detailed metrics and AI-generated insights for each region directly in the 
+                    dashboard. We're working on adding CSV/JSON export capabilities for bulk data downloads. For now, 
+                    you can access individual region data through the interactive map and comparison tools. If you need 
+                    bulk data access for research purposes, please contact us to discuss API access options.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-8">
+                  <AccordionTrigger className="text-left">
+                    Are there limitations or biases in the CII methodology?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Yes, like all composite indices, the CII has limitations: <strong>(1)</strong> Equal weighting 
+                    assumptions may not reflect local priorities; <strong>(2)</strong> Data availability varies by region, 
+                    potentially favoring well-monitored areas; <strong>(3)</strong> Aggregation can mask within-region 
+                    inequalities; <strong>(4)</strong> Historical data may not capture rapid recent changes; 
+                    <strong>(5)</strong> Cultural and political factors affecting vulnerability aren't quantified. 
+                    We address these through transparent methodology documentation, data quality indicators, and 
+                    recommending the CII as one tool among many for climate equity assessment. Always combine with 
+                    qualitative local knowledge.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </CardContent>
           </Card>
         </motion.div>
