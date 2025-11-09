@@ -3,10 +3,13 @@ import { ArrowRight, Globe, TrendingUp, MapPin, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Balatro from '@/components/Background/Balatro';
+import AnimatedBackground from '@/components/Background/AnimatedBackground';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted relative">
+      {/* Animated Background */}
+      <AnimatedBackground />
       {/* Hero Section */}
       <section className="relative overflow-hidden h-screen">
         {/* Balatro Background */}
