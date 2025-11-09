@@ -63,10 +63,16 @@ const Index = () => {
   const { bookmarks, toggleBookmark, isBookmarked } = useBookmarks();
   const { recentRegions, addRecentRegion } = useRecentRegions();
 
-// Load token from localStorage on mount
+// Load token from environment variable or localStorage on mount
 useEffect(() => {
+  const envToken = import.meta.env.VITE_MAPBOX_TOKEN;
   const savedToken = localStorage.getItem(MAPBOX_TOKEN_KEY);
-  if (savedToken) {
+  
+  if (envToken && envToken !== 'YOUR_MAPBOX_PUBLIC_TOKEN_HERE') {
+    setMapboxToken(envToken);
+    setIsTokenSet(true);
+    console.log('Loaded Mapbox token from environment variable');
+  } else if (savedToken) {
     setMapboxToken(savedToken);
     setIsTokenSet(true);
     console.log('Loaded Mapbox token from localStorage');
