@@ -51,6 +51,8 @@ export function DataEnrichment() {
     lastScaleAction: 'stable',
     scaleReason: 'Initial state'
   });
+  const [enrichingAll, setEnrichingAll] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState<'countries' | 'regions' | null>(null);
 
   const handleEnrichCountries = async (year: number) => {
     try {
@@ -460,6 +462,45 @@ export function DataEnrichment() {
     }
   };
 
+  const handleEnrichAll = async () => {
+    try {
+      setEnrichingAll(true);
+      setShouldStop(false);
+      
+      toast.info('Starting full data enrichment for 2024...');
+      
+      // Phase 1: Enrich Countries
+      setCurrentPhase('countries');
+      toast.info('Phase 1/2: Enriching countries...');
+      
+      await handleEnrichCountries(2024);
+      
+      if (shouldStop) {
+        toast.info('Enrichment stopped by user');
+        return;
+      }
+      
+      // Small delay between phases
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Phase 2: Enrich Regions
+      setCurrentPhase('regions');
+      toast.info('Phase 2/2: Enriching regions...');
+      
+      await handleEnrichRegions(2024);
+      
+      if (!shouldStop) {
+        toast.success('🎉 Full data enrichment complete! All countries and regions updated.');
+      }
+    } catch (error) {
+      console.error('Error in full enrichment:', error);
+      toast.error('Full enrichment encountered an error');
+    } finally {
+      setEnrichingAll(false);
+      setCurrentPhase(null);
+    }
+  };
+
   const calculateTimeRemaining = () => {
     if (!timeEstimate || !progress.total || progress.enriched === 0) return null;
     
@@ -497,6 +538,39 @@ export function DataEnrichment() {
       </p>
 
       <div className="space-y-4">
+        {/* Enrich All Button */}
+        <div className="pb-3 border-b">
+          <Button
+            size="default"
+            onClick={handleEnrichAll}
+            disabled={isEnriching || enrichingAll}
+            className="w-full"
+            variant="default"
+          >
+            {enrichingAll ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Enriching All Data{currentPhase ? ` (${currentPhase === 'countries' ? 'Countries' : 'Regions'})` : ''}...
+              </>
+            ) : (
+              <>
+                <Database className="h-4 w-4 mr-2" />
+                Enrich All Data (Countries + Regions)
+              </>
+            )}
+          </Button>
+          {enrichingAll && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="w-full mt-2"
+              onClick={() => setShouldStop(true)}
+            >
+              Stop All Enrichment
+            </Button>
+          )}
+        </div>
+
         {/* Auto-Resume Configuration */}
         <div className="space-y-3 pb-3 border-b">
           <div className="flex items-center justify-between">
@@ -550,6 +624,8 @@ export function DataEnrichment() {
           </div>
         </div>
 
+        <div className="text-xs text-muted-foreground mb-2">Or enrich individually:</div>
+
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">Countries (2024)</span>
@@ -557,9 +633,9 @@ export function DataEnrichment() {
               <Button
                 size="sm"
                 onClick={() => handleEnrichCountries(2024)}
-                disabled={isEnriching}
+                disabled={isEnriching || enrichingAll}
               >
-                {isEnriching ? (
+                {isEnriching && !enrichingAll ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     Enriching...
@@ -571,7 +647,7 @@ export function DataEnrichment() {
                   </>
                 )}
               </Button>
-              {isEnriching && (
+              {isEnriching && !enrichingAll && (
                 <Button
                   size="sm"
                   variant="destructive"
@@ -591,9 +667,9 @@ export function DataEnrichment() {
               <Button
                 size="sm"
                 onClick={() => handleEnrichRegions(2024)}
-                disabled={isEnriching}
+                disabled={isEnriching || enrichingAll}
               >
-                {isEnriching ? (
+                {isEnriching && !enrichingAll ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     Enriching...
@@ -605,7 +681,7 @@ export function DataEnrichment() {
                   </>
                 )}
               </Button>
-              {isEnriching && (
+              {isEnriching && !enrichingAll && (
                 <Button
                   size="sm"
                   variant="destructive"
@@ -618,7 +694,7 @@ export function DataEnrichment() {
           </div>
         </div>
 
-        {isEnriching && progress.total > 0 && (
+        {(isEnriching || enrichingAll) && progress.total > 0 && (
           <div className="space-y-2 pt-2 border-t">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Progress</span>
