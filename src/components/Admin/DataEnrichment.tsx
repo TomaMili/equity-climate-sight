@@ -63,6 +63,7 @@ export function DataEnrichment() {
   const [validationType, setValidationType] = useState<'all' | 'countries' | 'regions'>('all');
   const [logs, setLogs] = useState<Array<{ time: string; message: string; type: 'info' | 'success' | 'error' | 'warning' }>>([]);
   const [workerErrors, setWorkerErrors] = useState<Record<number, string[]>>({});
+  const [selectedYear, setSelectedYear] = useState(2025);
   const [resumeStatus, setResumeStatus] = useState<{
     countriesRemaining: number;
     regionsRemaining: number;
@@ -91,7 +92,7 @@ export function DataEnrichment() {
   const checkResumeStatus = async () => {
     setResumeStatus(prev => ({ ...prev, loading: true }));
     try {
-      const year = 2024;
+      const year = selectedYear;
       
       // Check countries
       const { count: countriesCount } = await supabase
@@ -121,10 +122,10 @@ export function DataEnrichment() {
     }
   };
 
-  // Check status on mount
+  // Check status on mount and when year changes
   useEffect(() => {
     checkResumeStatus();
-  }, []);
+  }, [selectedYear]);
 
   const handleResumeEnrichment = async () => {
     setShowValidation(false);
@@ -136,11 +137,11 @@ export function DataEnrichment() {
     } else if (resumeStatus.countriesRemaining > 0) {
       // Only countries need enrichment
       toast.info(`Resuming enrichment: ${resumeStatus.countriesRemaining} countries`);
-      await handleEnrichCountries(2024);
+      await handleEnrichCountries(selectedYear);
     } else if (resumeStatus.regionsRemaining > 0) {
       // Only regions need enrichment
       toast.info(`Resuming enrichment: ${resumeStatus.regionsRemaining} regions`);
-      await handleEnrichRegions(2024);
+      await handleEnrichRegions(selectedYear);
     }
     
     // Refresh status after enrichment
@@ -605,13 +606,13 @@ export function DataEnrichment() {
       setEnrichingAll(true);
       setShouldStop(false);
       
-      toast.info('Starting full data enrichment for 2024...');
+      toast.info(`Starting full data enrichment for ${selectedYear}...`);
       
       // Phase 1: Enrich Countries
       setCurrentPhase('countries');
       toast.info('Phase 1/2: Enriching countries...');
       
-      await handleEnrichCountries(2024);
+      await handleEnrichCountries(selectedYear);
       
       if (shouldStop) {
         toast.info('Enrichment stopped by user');
@@ -625,7 +626,7 @@ export function DataEnrichment() {
       setCurrentPhase('regions');
       toast.info('Phase 2/2: Enriching regions...');
       
-      await handleEnrichRegions(2024);
+      await handleEnrichRegions(selectedYear);
       
       if (!shouldStop) {
         toast.success('🎉 Full data enrichment complete! All countries and regions updated.');
@@ -673,8 +674,8 @@ export function DataEnrichment() {
           parallelWorkers={parallelWorkers}
           onProceed={() => {
             if (validationType === 'all') handleEnrichAll();
-            else if (validationType === 'countries') handleEnrichCountries(2024);
-            else if (validationType === 'regions') handleEnrichRegions(2024);
+            else if (validationType === 'countries') handleEnrichCountries(selectedYear);
+            else if (validationType === 'regions') handleEnrichRegions(selectedYear);
           }}
           onCancel={() => setShowValidation(false)}
         />
@@ -690,6 +691,23 @@ export function DataEnrichment() {
           </p>
 
       <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Year:</label>
+            <select 
+              value={selectedYear} 
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="px-3 py-1 border rounded-md bg-background"
+            >
+              <option value={2020}>2020</option>
+              <option value={2021}>2021</option>
+              <option value={2022}>2022</option>
+              <option value={2023}>2023</option>
+              <option value={2024}>2024</option>
+              <option value={2025}>2025</option>
+            </select>
+          </div>
+        </div>
         {/* Resume Enrichment Button - Shows when there's incomplete enrichment */}
         {!resumeStatus.loading && resumeStatus.total > 0 && !isEnriching && !enrichingAll && (
           <div className="pb-3 border-b">
@@ -804,7 +822,7 @@ export function DataEnrichment() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">Countries (2024)</span>
+            <span className="text-sm font-medium text-foreground">Countries ({selectedYear})</span>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -841,7 +859,7 @@ export function DataEnrichment() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">Regions (2024)</span>
+            <span className="text-sm font-medium text-foreground">Regions ({selectedYear})</span>
             <div className="flex gap-2">
               <Button
                 size="sm"

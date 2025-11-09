@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { parseMarkdownBold } from '@/lib/markdownUtils';
 
 interface MLInsightsProps {
   regionData: any;
@@ -96,6 +97,13 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
     return data || [];
   };
 
+  // Auto-load trends on mount
+  useEffect(() => {
+    if (!insights.trends && !loading.trends) {
+      generateInsight('trends', 'ml-predict-trends');
+    }
+  }, [regionData]);
+
   const handleTabChange = async (value: string) => {
     setActiveTab(value);
     
@@ -170,7 +178,10 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
               ) : insights.trends ? (
                 <div className="space-y-2">
                   <Badge variant="outline" className="mb-2">XGBoost Predictive Model</Badge>
-                  <div className="text-sm whitespace-pre-wrap">{insights.trends}</div>
+                  <div 
+                    className="text-sm whitespace-pre-wrap" 
+                    dangerouslySetInnerHTML={{ __html: parseMarkdownBold(insights.trends) }}
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -191,7 +202,10 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
               ) : insights.anomalies ? (
                 <div className="space-y-2">
                   <Badge variant="outline" className="mb-2">Anomaly Detection AI</Badge>
-                  <div className="text-sm whitespace-pre-wrap">{insights.anomalies}</div>
+                  <div 
+                    className="text-sm whitespace-pre-wrap" 
+                    dangerouslySetInnerHTML={{ __html: parseMarkdownBold(insights.anomalies) }}
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -212,7 +226,10 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
               ) : insights.clusters ? (
                 <div className="space-y-2">
                   <Badge variant="outline" className="mb-2">DBSCAN Clustering</Badge>
-                  <div className="text-sm whitespace-pre-wrap">{insights.clusters}</div>
+                  <div 
+                    className="text-sm whitespace-pre-wrap" 
+                    dangerouslySetInnerHTML={{ __html: parseMarkdownBold(insights.clusters) }}
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -233,7 +250,10 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
               ) : insights.patterns ? (
                 <div className="space-y-2">
                   <Badge variant="outline" className="mb-2">Pattern Recognition AI</Badge>
-                  <div className="text-sm whitespace-pre-wrap">{insights.patterns}</div>
+                  <div 
+                    className="text-sm whitespace-pre-wrap" 
+                    dangerouslySetInnerHTML={{ __html: parseMarkdownBold(insights.patterns) }}
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -254,7 +274,10 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
               ) : insights.recommendations ? (
                 <div className="space-y-2">
                   <Badge variant="outline" className="mb-2">Recommendation Engine</Badge>
-                  <div className="text-sm whitespace-pre-wrap">{insights.recommendations}</div>
+                  <div 
+                    className="text-sm whitespace-pre-wrap" 
+                    dangerouslySetInnerHTML={{ __html: parseMarkdownBold(insights.recommendations) }}
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">

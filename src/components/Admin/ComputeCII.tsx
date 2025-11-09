@@ -9,8 +9,9 @@ import { Calculator, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 export function ComputeCII() {
   const [isComputing, setIsComputing] = useState(false);
   const [progress, setProgress] = useState({ computed: 0, total: 0, skipped: 0 });
+  const [selectedYear, setSelectedYear] = useState(2025);
 
-  const handleComputeCII = async (year: number = 2024) => {
+  const handleComputeCII = async (year: number) => {
     try {
       setIsComputing(true);
       toast.info('Computing CII from real metrics...');
@@ -56,12 +57,28 @@ export function ComputeCII() {
       </p>
 
       <div className="space-y-4">
+        <div className="flex items-center gap-2 mb-4">
+          <label className="text-sm font-medium">Year:</label>
+          <select 
+            value={selectedYear} 
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-3 py-1 border rounded-md bg-background"
+          >
+            <option value={2020}>2020</option>
+            <option value={2021}>2021</option>
+            <option value={2022}>2022</option>
+            <option value={2023}>2023</option>
+            <option value={2024}>2024</option>
+            <option value={2025}>2025</option>
+          </select>
+        </div>
+
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">Compute CII (2024)</span>
+            <span className="text-sm font-medium text-foreground">Compute CII ({selectedYear})</span>
             <Button
               size="sm"
-              onClick={() => handleComputeCII(2024)}
+              onClick={() => handleComputeCII(selectedYear)}
               disabled={isComputing}
             >
               {isComputing ? (
