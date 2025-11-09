@@ -483,6 +483,52 @@ export function DataEnrichment() {
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2">
             <Button
+              onClick={async () => {
+                setShowValidation(false);
+                try {
+                  setLogs([]);
+                  addLog('Testing enrichment on 1 region batch...', 'info');
+                  toast.info('Testing GeoNames enrichment...');
+                  
+                  const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
+                    body: { year: selectedYear, region_type: 'region', worker_id: 0, offset: 0 }
+                  });
+                  
+                  if (error) {
+                    addLog(`❌ Test failed: ${error.message}`, 'error');
+                    toast.error(`Test failed: ${error.message}`);
+                  } else {
+                    addLog(`✓ Test complete: ${data.enriched} enriched, ${data.failed} failed`, 'success');
+                    addLog(`Check the logs above for GeoNames population data`, 'info');
+                    toast.success(`Test complete! ${data.enriched} regions enriched.`);
+                    
+                    // Query and show the enriched region
+                    const { data: regions } = await supabase
+                      .from('climate_inequality_regions')
+                      .select('region_code, region_name, population')
+                      .eq('data_year', selectedYear)
+                      .eq('region_type', 'region')
+                      .order('last_updated', { ascending: false })
+                      .limit(1);
+                    
+                    if (regions && regions[0]) {
+                      addLog(`Sample: ${regions[0].region_name} - Pop: ${regions[0].population}`, 'success');
+                    }
+                  }
+                } catch (err: any) {
+                  addLog(`❌ Test error: ${err.message}`, 'error');
+                  toast.error('Test failed');
+                }
+              }}
+              disabled={isEnriching}
+              variant="secondary"
+              size="lg"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Test Enrichment
+            </Button>
+            
+            <Button
               onClick={() => {
                 setValidationType('all');
                 setShowValidation(true);
