@@ -22,29 +22,40 @@ export function EnrichmentStats() {
     try {
       setLoading(true);
       
-      // Get counts for each data source
-      const sources = ['OpenAQ', 'World Bank', 'NASA POWER', 'UN Data'];
-      const sourceStats: SourceStats[] = [];
+      // Get total count for 2024
+      const { count: total } = await supabase
+        .from('climate_inequality_regions')
+        .select('*', { count: 'exact', head: true })
+        .eq('data_year', 2024);
 
-      for (const source of sources) {
-        const { count: total } = await supabase
-          .from('climate_inequality_regions')
-          .select('*', { count: 'exact', head: true })
-          .eq('data_year', 2024);
+      // Get count with Real Data (enriched)
+      const { count: withRealData } = await supabase
+        .from('climate_inequality_regions')
+        .select('*', { count: 'exact', head: true })
+        .eq('data_year', 2024)
+        .contains('data_sources', ['Natural Earth Real Data']);
 
-        const { count: withData } = await supabase
-          .from('climate_inequality_regions')
-          .select('*', { count: 'exact', head: true })
-          .eq('data_year', 2024)
-          .contains('data_sources', [source]);
+      // Get count with only Synthetic data (not enriched)
+      const { count: withSynthetic } = await supabase
+        .from('climate_inequality_regions')
+        .select('*', { count: 'exact', head: true })
+        .eq('data_year', 2024)
+        .contains('data_sources', ['Natural Earth Synthetic']);
 
-        sourceStats.push({
-          source,
+      const sourceStats: SourceStats[] = [
+        {
+          source: 'Real Data (Enriched)',
           total: total || 0,
-          withData: withData || 0,
-          percentage: total ? Math.round((withData || 0) / total * 100) : 0
-        });
-      }
+          withData: withRealData || 0,
+          percentage: total ? Math.round((withRealData || 0) / total * 100) : 0
+        },
+        {
+          source: 'Synthetic (Not Enriched)',
+          total: total || 0,
+          withData: withSynthetic || 0,
+          percentage: total ? Math.round((withSynthetic || 0) / total * 100) : 0
+        }
+      ];
 
       setStats(sourceStats);
     } catch (error) {
@@ -64,17 +75,11 @@ export function EnrichmentStats() {
   const handleRetrySource = async (source: string) => {
     setRetrying(source);
     try {
-      if (source === 'OpenAQ') {
-        const { error } = await supabase.functions.invoke('fetch-openaq-data');
-        if (error) throw error;
-        toast.success('OpenAQ data fetch initiated');
-      } else {
-        const { error } = await supabase.functions.invoke('enrich-with-real-data', {
-          body: { year: 2024, region_type: 'country' }
-        });
-        if (error) throw error;
-        toast.success(`${source} enrichment initiated`);
-      }
+      const { error } = await supabase.functions.invoke('enrich-with-real-data', {
+        body: { year: 2024, region_type: 'country' }
+      });
+      if (error) throw error;
+      toast.success('Data enrichment initiated');
       
       setTimeout(fetchStats, 2000);
     } catch (error: any) {
