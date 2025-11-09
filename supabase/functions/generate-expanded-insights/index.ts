@@ -93,7 +93,7 @@ Write in a professional, authoritative tone suitable for policymakers and stakeh
          regionData.air_quality_pm25 > 10 ? 'moderate' : 'good')
       : 'unknown';
 
-    const userPrompt = `Conduct a comprehensive, forward-looking climate inequality assessment for ${regionData.region_name || 'this region'}, ${regionData.country || 'Unknown'}:
+    const userPrompt = `Conduct a comprehensive, forward-looking climate inequality assessment for ${regionData.region_name || 'this location'}, ${regionData.country || 'Unknown'}${regionData.region_type === 'country' ? ' (country-level analysis)' : ' (regional analysis)'}:
 
 **CURRENT STATE (${regionData.data_year || 2024})**
 • Climate Inequality Index: ${(regionData.cii_score * 100).toFixed(1)}% (${ciiLevel} severity)
@@ -126,15 +126,15 @@ Analyze how climate inequality has evolved in ${regionData.country} over the pas
 Deep dive into the present state. What specific combination of factors creates the ${ciiLevel} climate inequality level? How do infrastructure gaps, socioeconomic conditions, and climate hazards interact? Which specific communities (coastal, urban poor, agricultural workers, etc.) face greatest exposure?
 
 **3. FUTURE PROJECTIONS (2030-2050)**
-Based on current trends and climate science, project likely scenarios for ${regionData.region_name}:
+Based on current trends and climate science, project likely scenarios for ${regionData.region_name}${regionData.region_type === 'country' ? ' (national level)' : ''}:
 - How might climate risks intensify (temperature, extreme weather, sea level)?
 - What economic and demographic shifts could worsen or improve inequality?
 - What's at stake if current trajectories continue?
 
 **4. COMPARATIVE ANALYSIS**
 How does ${regionData.region_name} compare to:
-- Regional peers in ${regionData.country}?
-- Similar regions globally in terms of development level?
+- ${regionData.region_type === 'country' ? 'Neighboring countries' : 'Regional peers in ' + regionData.country}?
+- Similar ${regionData.region_type === 'country' ? 'countries' : 'regions'} globally in terms of development level?
 - Best and worst-case examples?
 
 **5. STRATEGIC RECOMMENDATIONS**
@@ -147,7 +147,7 @@ Include estimated costs, implementation considerations, and expected impact.
 **6. EQUITY & JUSTICE CONSIDERATIONS**
 Which vulnerable populations require targeted support? How can interventions ensure equitable outcomes?
 
-Use clear section breaks. Be specific, evidence-based, and solution-oriented. Reference the region's specific context and capacity.`;
+Use clear section breaks. Be specific, evidence-based, and solution-oriented. Reference the ${regionData.region_type === 'country' ? "country's" : "region's"} specific context and capacity.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

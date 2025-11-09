@@ -74,7 +74,8 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
       // Region Name
       pdf.setFontSize(16);
       pdf.setTextColor(0, 0, 0);
-      pdf.text(`${regionData.region_name}, ${regionData.country}`, margin, yPosition);
+      const locationType = regionData.region_type === 'country' ? 'Country' : 'Region';
+      pdf.text(`${regionData.region_name}, ${regionData.country} (${locationType})`, margin, yPosition);
       yPosition += 10;
 
       // Divider
@@ -185,7 +186,7 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
                   Comprehensive Climate Equity Analysis
                 </DialogTitle>
                 <DialogDescription className="text-sm mt-1">
-                  {regionData.region_name}, {regionData.country} • {regionData.data_year || 2024}
+                  {regionData.region_name}, {regionData.country} • {regionData.region_type === 'country' ? 'Country' : 'Region'} • {regionData.data_year || 2024}
                 </DialogDescription>
               </div>
             </div>
@@ -318,7 +319,13 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
             {/* Data Sources */}
             <div className="pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">
-                <strong>Data Sources:</strong> {regionData.data_sources?.join(', ') || 'Multiple sources'}
+                <strong>Data Sources:</strong> {
+                  typeof regionData.data_sources === 'string' 
+                    ? regionData.data_sources 
+                    : Array.isArray(regionData.data_sources) 
+                      ? regionData.data_sources.join(', ') 
+                      : 'Multiple sources'
+                }
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 <strong>Last Updated:</strong> {regionData.last_updated ? new Date(regionData.last_updated).toLocaleDateString() : 'Recently'}
