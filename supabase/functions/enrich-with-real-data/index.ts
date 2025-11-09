@@ -4,9 +4,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const BATCH_SIZE = 20; // Process 20 regions at a time for faster enrichment
+const BATCH_SIZE = 6; // Schedule small batches to keep responses fast
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -46,76 +47,28 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Worker ${worker_id}] Processing ${regions.length} regions...`);
-    let enrichedCount = 0;
+    console.log(`[Worker ${worker_id}] Processing ${regions.length} regions (scheduled in background)...`);
+    let enrichedCount = regions.length; // scheduled items count
     let failedCount = 0;
 
-    for (const region of regions) {
-      try {
-        // Extract ISO2 code from region_code (e.g., "US-CA" -> "US")
-        const iso2 = region.region_code.split('-')[0];
-        
-        const realData: any = {
-          data_sources: ['Natural Earth', 'Real Data'],
-          last_updated: new Date().toISOString()
-        };
-
-        // Fetch World Bank data
-        const worldBank = await fetchWorldBankData(iso2, year);
-        if (worldBank.population) realData.population = worldBank.population;
-        if (worldBank.gdp_per_capita) realData.gdp_per_capita = worldBank.gdp_per_capita;
-        if (worldBank.urban_percent) realData.urban_population_percent = worldBank.urban_percent;
-
-        // Fetch UN data as backup
-        if (!realData.population) {
-          const unData = await fetchUNPopulationData(iso2, year);
-          if (unData.population) realData.population = unData.population;
+    // Background processing so the HTTP request returns fast and UI doesn't hang
+    const processBatch = async () => {
+      for (const region of regions) {
+        try {
+          await processRegion(supabase, region, year, worker_id);
+          // Small delay to respect API rate limits
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (error) {
+          console.error(`Error processing ${region.region_code}:`, error);
         }
-
-        // Fetch OpenAQ air quality
-        const airQuality = await fetchOpenAQData(iso2);
-        if (airQuality.pm25) realData.air_quality_pm25 = airQuality.pm25;
-        if (airQuality.no2) realData.air_quality_no2 = airQuality.no2;
-
-        // Fetch climate data
-        const climate = await fetchWorldBankClimate(iso2, year);
-        if (climate.precipitation) realData.precipitation_avg = climate.precipitation;
-
-        // Fetch NASA climate data as supplement
-        const nasaClimate = await fetchNASAClimateData(iso2, year);
-        if (nasaClimate.temperature && !realData.temperature_avg) {
-          realData.temperature_avg = nasaClimate.temperature;
-        }
-        if (nasaClimate.precipitation && !realData.precipitation_avg) {
-          realData.precipitation_avg = nasaClimate.precipitation;
-        }
-
-        // Update the region with real data
-        if (Object.keys(realData).length > 2) { // More than just sources and timestamp
-          const { error: updateError } = await supabase
-            .from('climate_inequality_regions')
-            .update(realData)
-            .eq('region_code', region.region_code)
-            .eq('data_year', year);
-
-          if (updateError) {
-            console.error(`[Worker ${worker_id}] Update failed for ${region.region_code}:`, updateError);
-            failedCount++;
-          } else {
-            enrichedCount++;
-            console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code}`);
-          }
-        } else {
-          console.log(`[Worker ${worker_id}] ⚠ No real data available for ${region.region_code}`);
-        }
-
-        // Small delay to respect API rate limits
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error(`Error processing ${region.region_code}:`, error);
-        failedCount++;
       }
-    }
+    };
+
+    // Do not await; continue response flow
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).EdgeRuntime?.waitUntil?.(processBatch());
+
+
 
     // Check if more regions need enrichment
     const { count } = await supabase
