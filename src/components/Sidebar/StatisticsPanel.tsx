@@ -70,29 +70,65 @@ export const StatisticsPanel = ({ viewMode, year, currentCountry }: StatisticsPa
       const { data: prevData } = await prevQuery;
 
       if (data && data.length > 0) {
-        const avgCII = data.reduce((sum, item) => sum + Number(item.cii_score), 0) / data.length;
-        const highRiskCount = data.filter(item => Number(item.cii_score) >= 0.7).length;
-        const criticalRegions = data.filter(item => Number(item.cii_score) >= 0.9).length;
+        const validData = data.filter(item => item.cii_score !== null && !isNaN(Number(item.cii_score)));
+        
+        if (validData.length === 0) {
+          setStats({
+            avgCII: 0,
+            highRiskCount: 0,
+            totalRegions: data.length,
+            criticalRegions: 0,
+          });
+          setLastUpdated(new Date());
+          return;
+        }
+
+        const avgCII = validData.reduce((sum, item) => sum + Number(item.cii_score), 0) / validData.length;
+        
+        // Use relative thresholds based on data distribution
+        const sortedScores = validData.map(item => Number(item.cii_score)).sort((a, b) => b - a);
+        const highRiskThreshold = sortedScores[Math.floor(sortedScores.length * 0.2)] || 0.6; // Top 20%
+        const criticalThreshold = sortedScores[Math.floor(sortedScores.length * 0.05)] || 0.75; // Top 5%
+        
+        const highRiskCount = validData.filter(item => Number(item.cii_score) >= highRiskThreshold).length;
+        const criticalRegions = validData.filter(item => Number(item.cii_score) >= criticalThreshold).length;
         
         setStats({
           avgCII,
           highRiskCount,
-          totalRegions: data.length,
+          totalRegions: validData.length,
           criticalRegions,
         });
 
         // Calculate previous year stats
         if (prevData && prevData.length > 0) {
-          const prevAvgCII = prevData.reduce((sum, item) => sum + Number(item.cii_score), 0) / prevData.length;
-          const prevHighRiskCount = prevData.filter(item => Number(item.cii_score) >= 0.7).length;
-          const prevCriticalRegions = prevData.filter(item => Number(item.cii_score) >= 0.9).length;
+          const validPrevData = prevData.filter(item => item.cii_score !== null && !isNaN(Number(item.cii_score)));
           
-          setPrevYearStats({
-            avgCII: prevAvgCII,
-            highRiskCount: prevHighRiskCount,
-            totalRegions: prevData.length,
-            criticalRegions: prevCriticalRegions,
-          });
+          if (validPrevData.length > 0) {
+            const prevAvgCII = validPrevData.reduce((sum, item) => sum + Number(item.cii_score), 0) / validPrevData.length;
+            
+            // Use same relative approach for previous year
+            const prevSortedScores = validPrevData.map(item => Number(item.cii_score)).sort((a, b) => b - a);
+            const prevHighRiskThreshold = prevSortedScores[Math.floor(prevSortedScores.length * 0.2)] || 0.6;
+            const prevCriticalThreshold = prevSortedScores[Math.floor(prevSortedScores.length * 0.05)] || 0.75;
+            
+            const prevHighRiskCount = validPrevData.filter(item => Number(item.cii_score) >= prevHighRiskThreshold).length;
+            const prevCriticalRegions = validPrevData.filter(item => Number(item.cii_score) >= prevCriticalThreshold).length;
+          
+            setPrevYearStats({
+              avgCII: prevAvgCII,
+              highRiskCount: prevHighRiskCount,
+              totalRegions: validPrevData.length,
+              criticalRegions: prevCriticalRegions,
+            });
+          } else {
+            setPrevYearStats({
+              avgCII: 0,
+              highRiskCount: 0,
+              totalRegions: 0,
+              criticalRegions: 0,
+            });
+          }
         } else {
           setPrevYearStats({
             avgCII: 0,
