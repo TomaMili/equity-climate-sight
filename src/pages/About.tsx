@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2, HelpCircle, Github, Linkedin, Mail } from 'lucide-react';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
@@ -352,6 +352,199 @@ export default function About() {
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Team & Contributors Section */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={fadeIn}
+          className="mt-12"
+        >
+          <Card className="border-border/70 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 px-6 py-5 border-b">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                <h2 className="text-2xl font-bold">Team & Contributors</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                The people and organizations making this project possible
+              </p>
+            </div>
+            <CardContent className="p-6 space-y-8">
+              {/* Core Team */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <div className="w-1 h-5 bg-primary rounded-full" />
+                  Core Team
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    {
+                      name: "Alex Chen",
+                      role: "Lead Developer",
+                      expertise: "Full-stack development, Data visualization",
+                      github: "#",
+                      linkedin: "#",
+                      email: "alex@example.com"
+                    },
+                    {
+                      name: "Dr. Sarah Martinez",
+                      role: "Climate Data Scientist",
+                      expertise: "Climate modeling, Statistical analysis",
+                      github: "#",
+                      linkedin: "#",
+                      email: "sarah@example.com"
+                    },
+                    {
+                      name: "Jordan Kim",
+                      role: "AI/ML Engineer",
+                      expertise: "Machine learning, Predictive modeling",
+                      github: "#",
+                      linkedin: "#",
+                      email: "jordan@example.com"
+                    }
+                  ].map((member, i) => (
+                    <Card key={i} className="group border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300 hover-scale">
+                      <CardContent className="p-4">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-3 mx-auto group-hover:scale-110 transition-transform">
+                          <span className="text-2xl font-bold text-primary">{member.name.charAt(0)}</span>
+                        </div>
+                        <h4 className="font-semibold text-center">{member.name}</h4>
+                        <p className="text-sm text-primary text-center mb-2">{member.role}</p>
+                        <p className="text-xs text-muted-foreground text-center mb-3">{member.expertise}</p>
+                        <div className="flex justify-center gap-2">
+                          <a 
+                            href={member.github} 
+                            className="w-8 h-8 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/40 flex items-center justify-center transition-all"
+                            aria-label="GitHub"
+                          >
+                            <Github className="w-4 h-4" />
+                          </a>
+                          <a 
+                            href={member.linkedin} 
+                            className="w-8 h-8 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/40 flex items-center justify-center transition-all"
+                            aria-label="LinkedIn"
+                          >
+                            <Linkedin className="w-4 h-4" />
+                          </a>
+                          <a 
+                            href={`mailto:${member.email}`} 
+                            className="w-8 h-8 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/40 flex items-center justify-center transition-all"
+                            aria-label="Email"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contributing Organizations */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <div className="w-1 h-5 bg-accent rounded-full" />
+                  Contributing Organizations
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    {
+                      name: "OpenAQ",
+                      contribution: "Real-time air quality monitoring data from 15,000+ stations globally",
+                      website: "https://openaq.org",
+                      logo: "🌍"
+                    },
+                    {
+                      name: "World Bank Open Data",
+                      contribution: "Socioeconomic indicators including GDP, population, and development metrics",
+                      website: "https://data.worldbank.org",
+                      logo: "🏛️"
+                    },
+                    {
+                      name: "Natural Earth",
+                      contribution: "High-resolution geographic boundary data and geospatial reference systems",
+                      website: "https://naturalearthdata.com",
+                      logo: "🗺️"
+                    },
+                    {
+                      name: "Google Gemini AI",
+                      contribution: "Free-tier API powering ML insights, predictions, and climate analysis",
+                      website: "https://ai.google.dev",
+                      logo: "🤖"
+                    }
+                  ].map((org, i) => (
+                    <Card key={i} className="border-dashed hover:border-primary/40 transition-all hover-scale">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center flex-shrink-0 text-2xl">
+                            {org.logo}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold mb-1">{org.name}</h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                              {org.contribution}
+                            </p>
+                            <a 
+                              href={org.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                            >
+                              Visit website →
+                            </a>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Acknowledgments */}
+              <div className="rounded-xl border bg-card/50 p-5">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  Acknowledgments
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  This project builds upon the work of countless climate scientists, data engineers, and open-source 
+                  contributors who have made their datasets and tools publicly available. Special thanks to the 
+                  climate research community, ERA5 reanalysis team, OpenStreetMap contributors, and the developers 
+                  of open-source libraries that power this platform. We are committed to transparent, accessible 
+                  climate data and invite collaboration from researchers, policymakers, and communities worldwide.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {['ERA5 Reanalysis', 'OpenStreetMap', 'React', 'Mapbox', 'Supabase', 'Lovable Cloud'].map((tech, i) => (
+                    <span 
+                      key={i}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Call to Collaborate */}
+              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+                <CardContent className="p-5 text-center">
+                  <h3 className="text-lg font-semibold mb-2">Want to Contribute?</h3>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-2xl mx-auto">
+                    We welcome contributions from climate scientists, data engineers, designers, and researchers. 
+                    Whether you have new data sources, improved methodologies, or want to help expand regional 
+                    coverage, we'd love to hear from you.
+                  </p>
+                  <Button variant="outline" className="hover:border-primary/60">
+                    <Mail className="w-4 h-4 mr-2" />
+                    Get in Touch
+                  </Button>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </motion.div>
