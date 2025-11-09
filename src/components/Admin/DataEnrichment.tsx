@@ -22,6 +22,16 @@ interface WorkerState {
   active: boolean;
   enriched: number;
   offset: number;
+  failures: number;
+  lastSuccess: boolean;
+}
+
+interface ScalingState {
+  currentWorkers: number;
+  successRate: number;
+  rateLimitDetected: boolean;
+  lastScaleAction: 'up' | 'down' | 'stable';
+  scaleReason: string;
 }
 
 export function DataEnrichment() {
@@ -34,6 +44,13 @@ export function DataEnrichment() {
   const [speedData, setSpeedData] = useState<SpeedDataPoint[]>([]);
   const [workers, setWorkers] = useState<WorkerState[]>([]);
   const [parallelWorkers, setParallelWorkers] = useState(5); // Number of parallel workers
+  const [scalingState, setScalingState] = useState<ScalingState>({
+    currentWorkers: 5,
+    successRate: 100,
+    rateLimitDetected: false,
+    lastScaleAction: 'stable',
+    scaleReason: 'Initial state'
+  });
 
   const handleEnrichCountries = async (year: number) => {
     try {
@@ -146,30 +163,34 @@ export function DataEnrichment() {
       setTimeEstimate({ startTime: now, itemsProcessed: 0, lastCheckTime: now, lastCheckItems: 0 });
       setSpeedData([]);
       
-      // Initialize workers
-      const initialWorkers: WorkerState[] = Array.from({ length: parallelWorkers }, (_, i) => ({
+      // Initialize workers with dynamic scaling
+      let currentWorkerCount = parallelWorkers;
+      const initialWorkers: WorkerState[] = Array.from({ length: currentWorkerCount }, (_, i) => ({
         id: i,
         active: true,
         enriched: 0,
-        offset: i * 20 // Each worker starts at a different offset
+        offset: i * 20,
+        failures: 0,
+        lastSuccess: true
       }));
       setWorkers(initialWorkers);
       
-      toast.info(`Starting parallel enrichment with ${parallelWorkers} workers for regions (${year})...`);
+      toast.info(`Starting parallel enrichment with ${currentWorkerCount} workers (auto-scaling enabled)...`);
       
       let totalEnriched = 0;
       let totalFailed = 0;
       let iteration = 0;
-      const maxIterations = 200; // Safety limit per worker
+      const maxIterations = 200;
+      let consecutiveSuccesses = 0;
+      let consecutiveFailures = 0;
 
-      // Run workers in parallel
+      // Run workers in parallel with dynamic scaling
       while (!shouldStop && iteration < maxIterations) {
         iteration++;
         
         // Launch all active workers in parallel
-        const workerPromises = initialWorkers
-          .filter(w => w.active)
-          .map(async (worker) => {
+        const activeWorkers = initialWorkers.filter(w => w.active);
+        const workerPromises = activeWorkers.map(async (worker) => {
             try {
               const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
                 body: { 
@@ -182,7 +203,20 @@ export function DataEnrichment() {
 
               if (error) {
                 console.error(`Worker ${worker.id} error:`, error);
-                return { worker_id: worker.id, enriched: 0, failed: 0, complete: true, error: true };
+                
+                // Check for rate limiting
+                const isRateLimit = error.message?.includes('429') || 
+                                   error.message?.includes('rate limit') ||
+                                   error.message?.includes('too many requests');
+                
+                return { 
+                  worker_id: worker.id, 
+                  enriched: 0, 
+                  failed: 0, 
+                  complete: true, 
+                  error: true,
+                  rateLimited: isRateLimit
+                };
               }
 
               return {
@@ -190,45 +224,159 @@ export function DataEnrichment() {
                 enriched: data?.enriched || 0,
                 failed: data?.failed || 0,
                 complete: data?.complete || false,
-                remaining: data?.remaining || 0
+                remaining: data?.remaining || 0,
+                error: false,
+                rateLimited: false
               };
-            } catch (err) {
+            } catch (err: any) {
               console.error(`Worker ${worker.id} exception:`, err);
-              return { worker_id: worker.id, enriched: 0, failed: 0, complete: true, error: true };
+              
+              // Check for timeout or rate limit
+              const isRateLimit = err.message?.includes('429') || 
+                                 err.message?.includes('rate limit') ||
+                                 err.message?.includes('timeout');
+              
+              return { 
+                worker_id: worker.id, 
+                enriched: 0, 
+                failed: 0, 
+                complete: true, 
+                error: true,
+                rateLimited: isRateLimit
+              };
             }
           });
 
         // Wait for all workers to complete
         const results = await Promise.all(workerPromises);
         
-        // Aggregate results
+        // Aggregate results and track failures
         let batchEnriched = 0;
         let batchFailed = 0;
         let allComplete = true;
+        let rateLimitDetected = false;
+        let successfulWorkers = 0;
         
         results.forEach((result) => {
           batchEnriched += result.enriched;
           batchFailed += result.failed;
+          
+          if (result.rateLimited) {
+            rateLimitDetected = true;
+          }
+          
+          if (!result.error && result.enriched > 0) {
+            successfulWorkers++;
+          }
           
           if (!result.complete && !result.error) {
             allComplete = false;
             // Update worker offset for next iteration
             const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
             if (workerIndex !== -1) {
-              initialWorkers[workerIndex].offset += parallelWorkers * 20; // Jump ahead by total worker batch size
+              initialWorkers[workerIndex].offset += currentWorkerCount * 20;
               initialWorkers[workerIndex].enriched += result.enriched;
+              initialWorkers[workerIndex].failures = result.error ? initialWorkers[workerIndex].failures + 1 : 0;
+              initialWorkers[workerIndex].lastSuccess = !result.error;
             }
           } else {
             // Mark worker as inactive
             const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
             if (workerIndex !== -1) {
               initialWorkers[workerIndex].active = false;
+              if (result.error) {
+                initialWorkers[workerIndex].failures++;
+              }
             }
           }
         });
 
         totalEnriched += batchEnriched;
         totalFailed += batchFailed;
+
+        // Calculate success rate
+        const successRate = activeWorkers.length > 0 
+          ? (successfulWorkers / activeWorkers.length) * 100 
+          : 0;
+
+        // Dynamic scaling logic
+        let scaleAction: 'up' | 'down' | 'stable' = 'stable';
+        let scaleReason = '';
+        
+        if (rateLimitDetected) {
+          // Scale down immediately on rate limit
+          if (currentWorkerCount > 1) {
+            const newCount = Math.max(1, Math.floor(currentWorkerCount * 0.5));
+            scaleAction = 'down';
+            scaleReason = `Rate limit detected - scaling down to ${newCount} workers`;
+            
+            // Deactivate excess workers
+            for (let i = newCount; i < initialWorkers.length; i++) {
+              initialWorkers[i].active = false;
+            }
+            currentWorkerCount = newCount;
+            consecutiveFailures++;
+            consecutiveSuccesses = 0;
+            
+            toast.warning(scaleReason);
+          }
+        } else if (successRate < 50 && currentWorkerCount > 1) {
+          // Scale down on low success rate
+          consecutiveFailures++;
+          consecutiveSuccesses = 0;
+          
+          if (consecutiveFailures >= 2) {
+            const newCount = Math.max(1, currentWorkerCount - 1);
+            scaleAction = 'down';
+            scaleReason = `Low success rate (${Math.round(successRate)}%) - scaling down to ${newCount} workers`;
+            
+            initialWorkers[currentWorkerCount - 1].active = false;
+            currentWorkerCount = newCount;
+            consecutiveFailures = 0;
+            
+            toast.info(scaleReason);
+          }
+        } else if (successRate >= 90 && currentWorkerCount < 10) {
+          // Scale up on high success rate
+          consecutiveSuccesses++;
+          consecutiveFailures = 0;
+          
+          if (consecutiveSuccesses >= 3) {
+            const newCount = Math.min(10, currentWorkerCount + 1);
+            scaleAction = 'up';
+            scaleReason = `High success rate (${Math.round(successRate)}%) - scaling up to ${newCount} workers`;
+            
+            // Add new worker
+            if (newCount > initialWorkers.length) {
+              initialWorkers.push({
+                id: initialWorkers.length,
+                active: true,
+                enriched: 0,
+                offset: initialWorkers.length * 20,
+                failures: 0,
+                lastSuccess: true
+              });
+            } else {
+              initialWorkers[newCount - 1].active = true;
+            }
+            currentWorkerCount = newCount;
+            consecutiveSuccesses = 0;
+            
+            toast.success(scaleReason);
+          }
+        } else {
+          consecutiveSuccesses = Math.min(consecutiveSuccesses + 1, 2);
+          consecutiveFailures = 0;
+        }
+
+        // Update scaling state
+        setScalingState({
+          currentWorkers: currentWorkerCount,
+          successRate: Math.round(successRate),
+          rateLimitDetected,
+          lastScaleAction: scaleAction,
+          scaleReason: scaleReason || `Stable at ${currentWorkerCount} workers (${Math.round(successRate)}% success)`
+        });
 
         // Get total remaining count
         const { count } = await supabase
@@ -259,7 +407,6 @@ export function DataEnrichment() {
             const itemsPerMinute = itemsSinceLastCheck / timeSinceLastCheck;
             const elapsedMinutes = (now - prev.startTime) / 1000 / 60;
             
-            // Track per-worker speeds
             const workerSpeeds: any = {
               time: `${Math.floor(elapsedMinutes)}m`,
               itemsPerMinute: Math.round(itemsPerMinute * 10) / 10
@@ -287,7 +434,7 @@ export function DataEnrichment() {
           break;
         }
 
-        console.log(`Iteration ${iteration}: ${batchEnriched} enriched this round, ${remaining} remaining...`);
+        console.log(`Iteration ${iteration}: ${batchEnriched} enriched, ${currentWorkerCount} workers active, ${Math.round(successRate)}% success, ${remaining} remaining`);
 
         if (!autoResume) {
           toast.info(`Batch complete. ${remaining} regions remaining. Click again to continue.`);
@@ -499,13 +646,25 @@ export function DataEnrichment() {
 
             {speedData.length > 1 && (
               <div className="pt-2">
-                <div className="text-xs text-muted-foreground mb-2">
-                  Enrichment Speed ({parallelWorkers} workers)
-                  {workers.length > 0 && (
-                    <span className="ml-2">
-                      Active: {workers.filter(w => w.active).length}
+                <div className="space-y-1 mb-2">
+                  <div className="text-xs text-muted-foreground">
+                    Enrichment Speed (Auto-scaling)
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`font-medium ${
+                      scalingState.lastScaleAction === 'up' ? 'text-green-600' :
+                      scalingState.lastScaleAction === 'down' ? 'text-orange-600' :
+                      'text-foreground'
+                    }`}>
+                      {scalingState.currentWorkers} workers • {scalingState.successRate}% success
                     </span>
-                  )}
+                    {scalingState.rateLimitDetected && (
+                      <span className="text-orange-600 text-[10px]">⚠ Rate limit</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {scalingState.scaleReason}
+                  </div>
                 </div>
                 <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={speedData}>
