@@ -11,7 +11,7 @@ import {
   Layers,
   GitCompare,
   Clock,
-  CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,31 +23,21 @@ const fadeIn = {
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5 }
-  }
+    transition: { duration: 0.5 },
+  },
 };
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted relative">
-      <section className="relative overflow-hidden h-screen w-full">
+      <section className=" overflow-hidden h-screen w-full">
         <div className="absolute inset-0 pointer-events-none opacity-60">
-          <Aurora
-            colorStops={["#047857", "#022c22", "#047857"]}
-            blend={0.4}
-            amplitude={1.2}
-            speed={0.4}
-          />
+          <Aurora colorStops={["#047857", "#022c22", "#047857"]} blend={0.4} amplitude={1.2} speed={0.4} />
         </div>
 
         <div className="relative z-10 w-full h-full flex items-center justify-center px-4">
           <div className="text-center space-y-8 max-w-5xl">
-            <motion.div
-              initial="hidden"
-              animate="show"
-              variants={fadeIn}
-              className="flex flex-col items-center gap-6"
-            >
+            <motion.div initial="hidden" animate="show" variants={fadeIn} className="flex flex-col items-center gap-6">
               <img
                 src={logo}
                 alt="AI Equity Mapper"
@@ -61,8 +51,8 @@ export default function Home() {
               variants={fadeIn}
               className="text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow-md font-normal"
             >
-              Visualizing the intersection of climate risk, infrastructure access, and socioeconomic factors
-              across regions worldwide.
+              Visualizing the intersection of climate risk, infrastructure access, and socioeconomic factors across
+              regions worldwide.
             </motion.p>
 
             {/* Metrics Chips */}
@@ -171,12 +161,22 @@ export default function Home() {
                 badgeBg: "bg-sidebar-ring",
               },
             ].map(({ title, desc, icon: Icon, bg, badgeBg }, i) => (
-              <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
+              <motion.div
+                key={title}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={fadeIn}
+              >
                 <div className="group relative h-full cursor-default">
-                  <div className={`absolute -inset-0.5 bg-gradient-to-r ${bg} rounded-xl opacity-0 group-hover:opacity-100 blur transition duration-500`} />
+                  <div
+                    className={`absolute -inset-0.5 bg-gradient-to-r ${bg} rounded-xl opacity-0 group-hover:opacity-100 blur transition duration-500`}
+                  />
                   <Card className="relative border-2 hover:border-primary transition-all duration-300 bg-card h-full">
                     <CardContent className="p-6 space-y-4">
-                      <div className={`w-12 h-12 rounded-lg ${badgeBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                      <div
+                        className={`w-12 h-12 rounded-lg ${badgeBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
+                      >
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       <h3 className="text-xl font-semibold">{title}</h3>
@@ -194,9 +194,7 @@ export default function Home() {
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-14">
             <h2 className="text-4xl font-semibold mb-4">How It Works</h2>
-            <p className="text-lg text-muted-foreground">
-              From raw data streams to an equity-focused composite index
-            </p>
+            <p className="text-lg text-muted-foreground">From raw data streams to an equity-focused composite index</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
@@ -217,7 +215,13 @@ export default function Home() {
                 icon: GitCompare,
               },
             ].map(({ title, desc, icon: Icon }, i) => (
-              <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
+              <motion.div
+                key={title}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={fadeIn}
+              >
                 <Card className="h-full pb-4 border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-3">
@@ -255,9 +259,9 @@ export default function Home() {
                 <CardContent className="space-y-4">
                   <div className="rounded-md border bg-muted/40 p-4">
                     <p className="text-sm leading-6 text-foreground/90">
-                      “Southern coastal regions show elevated <strong>heat exposure</strong> and <strong>PM2.5</strong> spikes,
-                      while <strong>infrastructure access</strong> remains below national median. Prioritize cooling centers,
-                      tree canopy expansion, and last-mile internet upgrades.”
+                      “Southern coastal regions show elevated <strong>heat exposure</strong> and <strong>PM2.5</strong>{" "}
+                      spikes, while <strong>infrastructure access</strong> remains below national median. Prioritize
+                      cooling centers, tree canopy expansion, and last-mile internet upgrades.”
                     </p>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
