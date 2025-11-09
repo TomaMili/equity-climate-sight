@@ -12,8 +12,8 @@ serve(async (req) => {
 
   try {
     const { allRegionsData, year } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
+    if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
     console.log(`Finding vulnerability hotspots for ${allRegionsData?.length || 0} regions in ${year}`);
 
@@ -51,18 +51,17 @@ Using DBSCAN-style clustering logic:
 
 Focus on actionable geographic clusters with similar vulnerability profiles.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: "You are an expert in spatial clustering and vulnerability hotspot detection using DBSCAN algorithms." },
-          { role: "user", content: prompt }
-        ],
+        contents: [{
+          parts: [{
+            text: `You are an expert in spatial clustering and vulnerability hotspot detection using DBSCAN algorithms.\n\n${prompt}`
+          }]
+        }]
       }),
     });
 
@@ -88,7 +87,7 @@ Focus on actionable geographic clusters with similar vulnerability profiles.`;
     }
 
     const data = await response.json();
-    const clusters = data.choices[0].message.content;
+    const clusters = data.candidates[0].content.parts[0].text;
 
     console.log('Successfully identified vulnerability clusters');
 

@@ -12,8 +12,8 @@ serve(async (req) => {
 
   try {
     const { regionData } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
+    if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
     console.log('Generating predictive trends for region:', regionData.region_name);
 
@@ -38,18 +38,17 @@ Based on current trends in climate change, infrastructure development, and socio
 
 Format as: Year | Predicted CII | Key Changes | Confidence`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are an expert climate vulnerability analyst using XGBoost-style predictive modeling." },
-          { role: "user", content: prompt }
-        ],
+        contents: [{
+          parts: [{
+            text: `You are an expert climate vulnerability analyst using XGBoost-style predictive modeling.\n\n${prompt}`
+          }]
+        }]
       }),
     });
 
@@ -75,7 +74,7 @@ Format as: Year | Predicted CII | Key Changes | Confidence`;
     }
 
     const data = await response.json();
-    const prediction = data.choices[0].message.content;
+    const prediction = data.candidates[0].content.parts[0].text;
 
     console.log('Successfully generated predictive trends');
 
