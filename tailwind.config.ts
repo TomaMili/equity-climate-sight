@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Roboto', 'system-ui', 'sans-serif'],
+        sans: ['League Spartan', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
