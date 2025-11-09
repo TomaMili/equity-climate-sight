@@ -212,26 +212,43 @@ function computeCII(region: any): number | null {
 /* ---- Climate ---- */
 function computeClimateRisk(region: any): number | null {
   const f: number[] = [];
+  
+  // Temperature risk: more aggressive scoring
   if (isNum(region.temperature_avg)) {
     const t = +region.temperature_avg;
     let r = 0;
-    if (t < 10) r = Math.min(1, (10 - t) / 18);
-    else if (t > 20) r = Math.min(1, (t - 20) / 18);
-    f.push(clamp01(r * 1.4));
+    if (t < 5) r = 0.9;
+    else if (t < 10) r = lerp(0.6, 0.9, (10 - t) / 5);
+    else if (t < 15) r = lerp(0.2, 0.6, (15 - t) / 5);
+    else if (t < 20) r = 0.2;
+    else if (t < 25) r = lerp(0.2, 0.6, (t - 20) / 5);
+    else if (t < 30) r = lerp(0.6, 0.9, (t - 25) / 5);
+    else r = 0.95;
+    f.push(r);
   }
-  if (isNum(region.drought_index)) f.push(clamp01(region.drought_index) * 1.3);
-  if (isNum(region.flood_risk_score)) f.push(clamp01(region.flood_risk_score) * 1.25);
+  
+  // Drought and flood: direct scores with amplification
+  if (isNum(region.drought_index)) f.push(Math.min(1, clamp01(region.drought_index) * 1.5));
+  if (isNum(region.flood_risk_score)) f.push(Math.min(1, clamp01(region.flood_risk_score) * 1.4));
+  
+  // Precipitation risk: more sensitive
   if (isNum(region.precipitation_avg)) {
     const p = +region.precipitation_avg;
     let r = 0;
-    if (p < 400) r = lerp(0.8, 1.0, (400 - p) / 400);
-    else if (p > 3000) r = lerp(0.7, 1.0, Math.min(1, (p - 3000) / 2000));
-    else if (p < 800) r = lerp(0.0, 0.3, (800 - p) / 400);
-    else if (p > 2000) r = lerp(0.0, 0.3, (p - 2000) / 1000);
+    if (p < 250) r = 0.95;
+    else if (p < 500) r = lerp(0.7, 0.95, (500 - p) / 250);
+    else if (p < 800) r = lerp(0.4, 0.7, (800 - p) / 300);
+    else if (p < 1500) r = lerp(0.1, 0.4, Math.abs(p - 1100) / 400);
+    else if (p < 2500) r = lerp(0.3, 0.5, (p - 1500) / 1000);
+    else if (p < 3500) r = lerp(0.5, 0.8, (p - 2500) / 1000);
+    else r = 0.9;
     f.push(clamp01(r));
   }
+  
   if (isNum(region.climate_risk_score)) f.push(clamp01(region.climate_risk_score));
   if (!f.length) return estimateClimateRiskByRegion(region);
+  
+  console.log(`Climate risk for ${region.region_code}: components=${JSON.stringify(f)}, avg=${mean(f)}`);
   return clamp01(mean(f));
 }
 
@@ -312,28 +329,37 @@ function estimateClimateRiskByRegion(region: any): number {
 /* ---- Infra ---- */
 function computeInfrastructureGap(region: any): number | null {
   const f: number[] = [];
-  if (isNum(region.infrastructure_score)) f.push(1 - clamp01(region.infrastructure_score));
+  
+  // Infrastructure score: invert it (higher infra score = lower gap)
+  if (isNum(region.infrastructure_score)) {
+    const infraGap = 1 - clamp01(region.infrastructure_score);
+    f.push(infraGap * 1.3); // Amplify differences
+  }
 
-  if (isNum(region.internet_speed_download) || isNum(region.internet_speed_upload)) {
+  // Internet speed: more aggressive scoring
+  if (isNum(region.internet_speed_download)) {
     const d = Math.max(+region.internet_speed_download || 0, 0);
-    const u = Math.max(+region.internet_speed_upload || 0, 0);
-    const idx = (mbps: number) => {
-      if (mbps <= 10) return 0.95;
-      if (mbps <= 50) return lerp(0.95, 0.75, (mbps - 10) / 40);
-      if (mbps <= 100) return lerp(0.75, 0.5, (mbps - 50) / 50);
-      if (mbps <= 250) return lerp(0.5, 0.25, (mbps - 100) / 150);
-      return 0.1;
-    };
-    const gap = clamp01(0.7 * idx(d) + 0.3 * idx(u));
+    let gap = 0;
+    if (d <= 0) gap = 1.0;
+    else if (d <= 5) gap = 0.95;
+    else if (d <= 15) gap = lerp(0.85, 0.95, (15 - d) / 10);
+    else if (d <= 50) gap = lerp(0.6, 0.85, (50 - d) / 35);
+    else if (d <= 100) gap = lerp(0.35, 0.6, (100 - d) / 50);
+    else if (d <= 200) gap = lerp(0.15, 0.35, (200 - d) / 100);
+    else gap = 0.1;
     f.push(gap);
   }
 
+  // Urbanization: inverse relationship with infrastructure gap
   if (isNum(region.urban_population_percent)) {
     const u = clamp01(+region.urban_population_percent / 100);
-    f.push(lerp(0.8, 0.1, u));
+    const urbanGap = lerp(0.85, 0.05, u); // More urban = less gap
+    f.push(urbanGap);
   }
 
   if (!f.length) return estimateInfrastructureGapByRegion(region);
+  
+  console.log(`Infra gap for ${region.region_code}: components=${JSON.stringify(f)}, avg=${mean(f)}`);
   return mean(f);
 }
 
@@ -408,23 +434,37 @@ function estimateInfrastructureGapByRegion(region: any): number {
 /* ---- Socio ---- */
 function computeSocioeconomicVulnerability(region: any): number | null {
   const f: number[] = [];
-  if (isNum(region.socioeconomic_score)) f.push(clamp01(region.socioeconomic_score));
+  
+  // Direct socioeconomic score
+  if (isNum(region.socioeconomic_score)) f.push(clamp01(region.socioeconomic_score) * 1.2);
+  
+  // GDP per capita: stronger inverse relationship
   if (isNum(region.gdp_per_capita)) {
     const g = +region.gdp_per_capita;
     let v: number;
-    if (g < 2000) v = 0.95;
-    else if (g < 10000) v = lerp(0.95, 0.7, (g - 2000) / 8000);
-    else if (g < 20000) v = lerp(0.7, 0.45, (g - 10000) / 10000);
-    else if (g < 40000) v = lerp(0.45, 0.15, (g - 20000) / 20000);
-    else v = 0.05;
+    if (g < 1000) v = 0.98;
+    else if (g < 3000) v = lerp(0.9, 0.98, (3000 - g) / 2000);
+    else if (g < 8000) v = lerp(0.7, 0.9, (8000 - g) / 5000);
+    else if (g < 15000) v = lerp(0.45, 0.7, (15000 - g) / 7000);
+    else if (g < 30000) v = lerp(0.2, 0.45, (30000 - g) / 15000);
+    else if (g < 50000) v = lerp(0.05, 0.2, (50000 - g) / 20000);
+    else v = 0.02;
     f.push(v);
   }
+  
+  // Urbanization: balanced vulnerability curve
   if (isNum(region.urban_population_percent)) {
     const u = clamp01(+region.urban_population_percent / 100);
-    const uV = 0.6 * (1 - Math.exp(-4 * Math.pow(u - 0.7, 2))) + 0.1;
+    // Peak vulnerability at extremes (very low or very high urbanization)
+    const uV = u < 0.3 ? lerp(0.7, 0.4, u / 0.3) :
+               u < 0.6 ? lerp(0.4, 0.3, (u - 0.3) / 0.3) :
+               lerp(0.3, 0.5, (u - 0.6) / 0.4);
     f.push(clamp01(uV));
   }
+  
   if (!f.length) return estimateSocioeconomicVulnByRegion(region);
+  
+  console.log(`Socioeconomic vuln for ${region.region_code}: components=${JSON.stringify(f)}, avg=${mean(f)}`);
   return clamp01(mean(f));
 }
 
@@ -512,21 +552,36 @@ function estimateSocioeconomicVulnByRegion(region: any): number {
 /* ---- Air ---- */
 function computeAirQualityScore(region: any): number | null {
   const f: number[] = [];
+  
+  // PM2.5: WHO guidelines-based scoring (more aggressive)
   if (isNum(region.air_quality_pm25)) {
     const pm = +region.air_quality_pm25;
     let r: number;
-    if (pm < 5) r = 0.05;
-    else if (pm < 15) r = lerp(0.05, 0.3, (pm - 5) / 10);
-    else if (pm < 35) r = lerp(0.3, 0.55, (pm - 15) / 20);
-    else if (pm < 55) r = lerp(0.55, 0.8, (pm - 35) / 20);
-    else r = Math.min(1, 0.8 + (pm - 55) / 80);
+    if (pm < 5) r = 0.02; // WHO target
+    else if (pm < 10) r = lerp(0.02, 0.2, (pm - 5) / 5);
+    else if (pm < 15) r = lerp(0.2, 0.4, (pm - 10) / 5); // WHO interim target 4
+    else if (pm < 25) r = lerp(0.4, 0.6, (pm - 15) / 10); // Moderate
+    else if (pm < 35) r = lerp(0.6, 0.75, (pm - 25) / 10); // Unhealthy for sensitive
+    else if (pm < 50) r = lerp(0.75, 0.88, (pm - 35) / 15); // Unhealthy
+    else if (pm < 75) r = lerp(0.88, 0.95, (pm - 50) / 25); // Very unhealthy
+    else r = Math.min(1, 0.95 + (pm - 75) / 100); // Hazardous
     f.push(clamp01(r));
   }
+  
+  // NO2: stricter thresholds
   if (isNum(region.air_quality_no2)) {
     const n = +region.air_quality_no2;
-    f.push(clamp01((n - 5) / 35));
+    let r: number;
+    if (n < 5) r = 0.05;
+    else if (n < 15) r = lerp(0.05, 0.35, (n - 5) / 10);
+    else if (n < 30) r = lerp(0.35, 0.7, (n - 15) / 15);
+    else r = Math.min(1, 0.7 + (n - 30) / 40);
+    f.push(clamp01(r));
   }
+  
   if (!f.length) return estimateAirQualityByRegion(region);
+  
+  console.log(`Air quality for ${region.region_code}: components=${JSON.stringify(f)}, avg=${mean(f)}`);
   return clamp01(mean(f));
 }
 

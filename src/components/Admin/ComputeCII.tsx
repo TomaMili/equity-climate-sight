@@ -16,23 +16,58 @@ export function ComputeCII() {
       setIsComputing(true);
       toast.info('Computing CII from real metrics...');
       
-      const { data, error } = await supabase.functions.invoke('compute-cii', {
-        body: { year }
-      });
+      // Process regions in batches
+      let offset = 0;
+      let hasMore = true;
+      let totalComputed = 0;
+      let totalSkipped = 0;
+      let grandTotal = 0;
 
-      if (error) {
-        console.error('CII computation failed:', error);
-        toast.error('CII computation failed. Please try again.');
-        return;
+      while (hasMore) {
+        const { data, error } = await supabase.functions.invoke('compute-cii', {
+          body: { year, stage: 'regions', offset, limit: 200 }
+        });
+
+        if (error) {
+          console.error('CII computation failed:', error);
+          toast.error('CII computation failed. Please try again.');
+          return;
+        }
+
+        totalComputed += data?.computed || 0;
+        totalSkipped += data?.skipped || 0;
+        grandTotal = data?.total || 0;
+        hasMore = data?.has_more || false;
+        offset = data?.next_offset || 0;
+
+        setProgress({
+          computed: totalComputed,
+          total: grandTotal,
+          skipped: totalSkipped
+        });
       }
 
-      setProgress({
-        computed: data?.computed || 0,
-        total: data?.total || 0,
-        skipped: data?.skipped || 0
-      });
+      toast.info('Computing country averages...');
+      
+      // Now process countries
+      offset = 0;
+      hasMore = true;
 
-      toast.success(`CII computed for ${data?.computed || 0} regions!`);
+      while (hasMore) {
+        const { data, error } = await supabase.functions.invoke('compute-cii', {
+          body: { year, stage: 'countries', offset, limit: 50 }
+        });
+
+        if (error) {
+          console.error('Country averaging failed:', error);
+          break;
+        }
+
+        hasMore = data?.has_more || false;
+        offset = data?.next_offset || 0;
+      }
+
+      toast.success(`CII computed for ${totalComputed} regions and averaged for countries!`);
     } catch (error) {
       console.error('CII computation error:', error);
       toast.error('Failed to compute CII. Please try again.');
