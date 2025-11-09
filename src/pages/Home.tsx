@@ -3,39 +3,29 @@ import { ArrowRight, Globe, TrendingUp, MapPin, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Aurora from "@/components/Background/Aurora";
-import AnimatedBackground from "@/components/Background/AnimatedBackground";
+import logo from "@/assets/ai-equity-mapper-logo.png";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted relative">
-      {/* Animated Background */}
-      <AnimatedBackground />
       {/* Hero Section */}
-      <section className="relative overflow-hidden h-screen">
+      <section className="relative overflow-hidden h-screen w-full">
         {/* Aurora Background */}
         <div className="absolute inset-0 pointer-events-none opacity-60">
           <Aurora colorStops={["#1a704b", "#4A9EFF", "#de2d26"]} blend={0.6} amplitude={1.2} speed={0.4} />
         </div>
 
         {/* Content Overlay */}
-        <div className="relative z-10 container mx-auto px-4 h-full flex items-center pointer-events-none">
-          <div className="max-w-4xl mx-auto text-center space-y-8 pointer-events-auto">
-            <div className="flex flex-col items-center gap-2">
+        <div className="relative z-10 w-full h-full flex items-center justify-center px-4">
+          <div className="text-center space-y-8">
+            <div className="flex flex-col items-center gap-6">
               <img
-                src="/logo/ai-equity-mapper.png" // promijeni putanju po potrebi
+                src={logo}
                 alt="AI Equity Mapper"
-                className="h-16 w-auto drop-shadow-[0_6px_18px_rgba(0,0,0,.35)]"
+                className="w-full max-w-2xl h-auto drop-shadow-[0_6px_18px_rgba(0,0,0,.35)]"
               />
-              <div className="text-sm font-semibold tracking-widest text-white/80">AI Equity Mapper</div>
             </div>
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-foreground drop-shadow-lg">
-              Climate Inequality
-              <span className="block bg-gradient-to-r from-cii-2 via-cii-5 to-cii-9 bg-clip-text text-transparent">
-                Index Dashboard
-              </span>
-            </h1>
-
-            <p className="text-xl md:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
+            <p className="text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow-md">
               Visualizing the intersection of climate risk, infrastructure access, and socioeconomic factors across
               regions worldwide.
             </p>
