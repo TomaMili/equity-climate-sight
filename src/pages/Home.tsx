@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted relative">
       <section className="relative overflow-hidden h-screen w-full">
-        <div className=" inset-0 pointer-events-none opacity-60">
+        <div className="absolute inset-0 pointer-events-none opacity-60">
           <Aurora colorStops={["#047857", "#022c22", "#047857"]} blend={0.4} amplitude={1.2} speed={0.4} />
         </div>
 
