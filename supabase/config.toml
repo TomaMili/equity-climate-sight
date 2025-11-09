@@ -29,3 +29,18 @@ verify_jwt = false
 
 [functions.update-real-boundaries]
 verify_jwt = false
+
+[functions.ml-predict-trends]
+verify_jwt = false
+
+[functions.ml-detect-anomalies]
+verify_jwt = false
+
+[functions.ml-find-clusters]
+verify_jwt = false
+
+[functions.ml-find-patterns]
+verify_jwt = false
+
+[functions.ml-recommend-interventions]
+verify_jwt = false

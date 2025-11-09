@@ -6,9 +6,11 @@ import { RegionsList } from '@/components/Sidebar/RegionsList';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
 import { CriticalRegions } from '@/components/Sidebar/CriticalRegions';
 import { AnalyticsDashboard } from '@/components/Analytics/AnalyticsDashboard';
+import { MLInsights } from '@/components/Analysis/MLInsights';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { SearchFilters, FilterState } from '@/components/Search/SearchFilters';
+import { LocationSearch } from '@/components/Search/LocationSearch';
 
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -42,7 +44,7 @@ const Index = () => {
   const [isTokenSet, setIsTokenSet] = useState(false);
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [year, setYear] = useState<number>(2024);
+  const [year, setYear] = useState<number>(2025);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
@@ -448,6 +450,16 @@ useEffect(() => {
                         </select>
                       </div>
 
+                      {/* Location Search */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Find Location</label>
+                        <LocationSearch 
+                          year={year} 
+                          currentCountry={currentCountry}
+                          onLocationSelect={handleRegionClick} 
+                        />
+                      </div>
+
                       {/* Action Buttons */}
                       <div className="flex gap-2">
                         <Button
@@ -509,15 +521,22 @@ useEffect(() => {
 
                 {/* Region Details - Prominent Display */}
                 {!compareMode && selectedRegion && (
-                  <ErrorBoundary title="Region Details Error">
-                    <RegionDetails 
-                      data={selectedRegion} 
-                      aiInsight={aiInsight}
-                      isLoadingInsight={isLoadingInsight}
-                      isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
-                      onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
-                    />
-                  </ErrorBoundary>
+                  <>
+                    <ErrorBoundary title="Region Details Error">
+                      <RegionDetails 
+                        data={selectedRegion} 
+                        aiInsight={aiInsight}
+                        isLoadingInsight={isLoadingInsight}
+                        isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
+                        onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
+                      />
+                    </ErrorBoundary>
+
+                    {/* ML-Powered Insights */}
+                    <ErrorBoundary title="ML Insights Error">
+                      <MLInsights regionData={selectedRegion} year={year} />
+                    </ErrorBoundary>
+                  </>
                 )}
 
                 {/* Regions List - Show when country selected but no specific region */}
