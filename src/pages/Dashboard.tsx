@@ -17,9 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Settings, BarChart3 } from 'lucide-react';
+import { ChevronDown, Settings, BarChart3, GitCompare } from 'lucide-react';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useRecentRegions } from '@/hooks/useRecentRegions';
+import RegionComparison from '@/components/Comparison/RegionComparison';
 
 // LocalStorage key for Mapbox token
 const MAPBOX_TOKEN_KEY = 'ai-equity-mapper-mapbox-token';
@@ -45,6 +46,8 @@ const Index = () => {
     dataQuality: 'all'
   });
   const [filteredCount, setFilteredCount] = useState(0);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareRegions, setCompareRegions] = useState<string[]>([]);
   
   const { toast } = useToast();
   const { bookmarks, toggleBookmark, isBookmarked } = useBookmarks();
@@ -145,6 +148,31 @@ useEffect(() => {
   };
 
   const handleRegionClick = async (data: any) => {
+    // If in compare mode, toggle region in comparison
+    if (compareMode) {
+      const regionId = data.id;
+      setCompareRegions(prev => {
+        if (prev.includes(regionId)) {
+          return prev.filter(id => id !== regionId);
+        } else if (prev.length < 4) {
+          toast({
+            title: 'Region Added',
+            description: `${data.region_name} added to comparison (${prev.length + 1}/4)`,
+          });
+          return [...prev, regionId];
+        } else {
+          toast({
+            title: 'Maximum Reached',
+            description: 'You can compare up to 4 regions at once',
+            variant: 'destructive',
+          });
+          return prev;
+        }
+      });
+      return;
+    }
+
+    // Normal mode - show region details
     setSelectedRegion(data);
     setSelectedH3Index(data.region_code);
     setAiInsight(null);
@@ -171,6 +199,15 @@ useEffect(() => {
     } finally {
       setIsLoadingInsight(false);
     }
+  };
+
+  const handleRemoveCompareRegion = (regionId: string) => {
+    setCompareRegions(prev => prev.filter(id => id !== regionId));
+  };
+
+  const handleCloseComparison = () => {
+    setCompareMode(false);
+    setCompareRegions([]);
   };
 
   const handleBookmarkClick = async (regionCode: string) => {
@@ -316,9 +353,38 @@ useEffect(() => {
                   />
                 </ErrorBoundary>
 
-                <ErrorBoundary title="Statistics Loading Error">
-                  <StatisticsPanel viewMode={viewMode} year={year} />
-                </ErrorBoundary>
+                {/* Compare Button */}
+                <Button
+                  variant={compareMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setCompareMode(!compareMode);
+                    if (compareMode) {
+                      setCompareRegions([]);
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <GitCompare className="h-4 w-4 mr-2" />
+                  {compareMode ? `Compare Mode (${compareRegions.length}/4)` : 'Compare Regions'}
+                </Button>
+
+                {/* Show comparison or regular content */}
+                {compareMode && compareRegions.length > 0 ? (
+                  <ErrorBoundary title="Comparison Error">
+                    <RegionComparison
+                      regionIds={compareRegions}
+                      onRemoveRegion={handleRemoveCompareRegion}
+                      onClose={handleCloseComparison}
+                    />
+                  </ErrorBoundary>
+                ) : !compareMode ? (
+                  <>
+                    <ErrorBoundary title="Statistics Loading Error">
+                      <StatisticsPanel viewMode={viewMode} year={year} />
+                    </ErrorBoundary>
+                  </>
+                ) : null}
 
                 {/* Analytics Toggle */}
                 <Collapsible open={showAnalytics} onOpenChange={setShowAnalytics}>
@@ -338,15 +404,17 @@ useEffect(() => {
                   </CollapsibleContent>
                 </Collapsible>
 
-                <ErrorBoundary title="Region Details Error">
-                  <RegionDetails 
-                    data={selectedRegion} 
-                    aiInsight={aiInsight}
-                    isLoadingInsight={isLoadingInsight}
-                    isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
-                    onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
-                  />
-                </ErrorBoundary>
+                {!compareMode && (
+                  <ErrorBoundary title="Region Details Error">
+                    <RegionDetails 
+                      data={selectedRegion} 
+                      aiInsight={aiInsight}
+                      isLoadingInsight={isLoadingInsight}
+                      isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
+                      onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
+                    />
+                  </ErrorBoundary>
+                )}
               </>
             )}
 
@@ -383,6 +451,11 @@ useEffect(() => {
 
         {/* Map Area */}
         <div className="flex-1 relative">
+          {compareMode && (
+            <div className="absolute top-4 left-4 z-10 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium shadow-lg">
+              Click regions to add them to comparison ({compareRegions.length}/4)
+            </div>
+          )}
           <CompactInitProgress />
           <ErrorBoundary title="Map Visualization Error">
             <MapContainer
