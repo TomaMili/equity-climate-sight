@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Globe, TrendingUp, MapPin, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import Balatro from '@/components/Background/Balatro';
+import Aurora from '@/components/Background/Aurora';
 import AnimatedBackground from '@/components/Background/AnimatedBackground';
 
 export default function Home() {
@@ -12,17 +12,13 @@ export default function Home() {
       <AnimatedBackground />
       {/* Hero Section */}
       <section className="relative overflow-hidden h-screen">
-        {/* Balatro Background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <Balatro
-            isRotate={false}
-            mouseInteraction={true}
-            pixelFilter={700}
-            color1="#1a704b"
-            color2="#162325"
-            color3="#000000"
-            contrast={3.5}
-            lighting={0.4}
+        {/* Aurora Background */}
+        <div className="absolute inset-0 pointer-events-none opacity-60">
+          <Aurora
+            colorStops={["#1a704b", "#4A9EFF", "#de2d26"]}
+            blend={0.6}
+            amplitude={1.2}
+            speed={0.4}
           />
         </div>
         
@@ -46,21 +42,24 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              <Button asChild size="lg" className="group relative text-lg px-8 h-14 overflow-hidden">
+              <Button asChild size="lg" className="group relative text-lg px-10 h-16 overflow-hidden bg-gradient-to-r from-primary to-accent border-0 shadow-[0_0_30px_rgba(74,158,255,0.3)] hover:shadow-[0_0_50px_rgba(74,158,255,0.5)] transition-all duration-500">
                 <Link to="/dashboard">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] group-hover:bg-[position:100%_0] transition-all duration-500" />
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl bg-primary/50" />
-                  <span className="relative z-10 flex items-center">
+                  <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/20 to-primary/0 animate-[shimmer_2s_infinite]" />
+                  </div>
+                  <span className="relative z-10 flex items-center font-bold tracking-wide">
                     Explore Interactive Map
-                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-all duration-300" />
                   </span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="group relative text-lg px-8 h-14 bg-background/80 backdrop-blur-sm border-2 overflow-hidden">
+              <Button asChild variant="outline" size="lg" className="group relative text-lg px-10 h-16 bg-background/60 backdrop-blur-md border-2 border-primary/30 overflow-hidden hover:border-primary hover:bg-primary/5 transition-all duration-300 shadow-[0_0_20px_rgba(74,158,255,0.1)] hover:shadow-[0_0_40px_rgba(74,158,255,0.3)]">
                 <Link to="/methodology">
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-primary/10 to-accent/10" />
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl bg-primary/30" />
-                  <span className="relative z-10">Learn Methodology</span>
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 animate-[shimmer_2s_infinite]" />
+                  </div>
+                  <span className="relative z-10 font-semibold tracking-wide group-hover:text-primary transition-colors">Learn Methodology</span>
                 </Link>
               </Button>
             </div>
@@ -156,13 +155,15 @@ export default function Home() {
             <p className="text-xl text-muted-foreground">
               Dive into the interactive map to discover climate inequality patterns across 43 regions in 20 countries.
             </p>
-            <Button asChild size="lg" className="group relative text-lg px-8 h-14 overflow-hidden">
+            <Button asChild size="lg" className="group relative text-lg px-10 h-16 overflow-hidden bg-gradient-to-r from-primary to-accent border-0 shadow-[0_0_30px_rgba(74,158,255,0.3)] hover:shadow-[0_0_50px_rgba(74,158,255,0.5)] transition-all duration-500">
               <Link to="/dashboard">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] group-hover:bg-[position:100%_0] transition-all duration-500" />
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl bg-primary/50" />
-                <span className="relative z-10 flex items-center">
+                <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/20 to-primary/0 animate-[shimmer_2s_infinite]" />
+                </div>
+                <span className="relative z-10 flex items-center font-bold tracking-wide">
                   Start Exploring
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-all duration-300" />
                 </span>
               </Link>
             </Button>
