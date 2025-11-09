@@ -20,11 +20,14 @@ export default function Home() {
         {/* Content Overlay */}
         <div className="relative z-10 container mx-auto px-4 h-full flex items-center pointer-events-none">
           <div className="max-w-4xl mx-auto text-center space-y-8 pointer-events-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/20 text-primary text-sm font-medium">
-              <Globe className="w-4 h-4" />
-              Mapping Climate Inequality Worldwide
+            <div className="flex flex-col items-center gap-2">
+              <img
+                src="/logo/ai-equity-mapper.png" // promijeni putanju po potrebi
+                alt="AI Equity Mapper"
+                className="h-16 w-auto drop-shadow-[0_6px_18px_rgba(0,0,0,.35)]"
+              />
+              <div className="text-sm font-semibold tracking-widest text-white/80">AI Equity Mapper</div>
             </div>
-
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-foreground drop-shadow-lg">
               Climate Inequality
               <span className="block bg-gradient-to-r from-cii-2 via-cii-5 to-cii-9 bg-clip-text text-transparent">
