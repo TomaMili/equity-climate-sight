@@ -12,14 +12,13 @@ interface MapContainerProps {
   mapboxToken: string;
   onTokenError?: () => void;
   onDataLoaded?: () => void;
-  viewMode?: 'countries' | 'regions';
   year?: number;
   filters?: FilterState;
   onFilteredCountChange?: (count: number) => void;
   currentCountry?: string | null;
 }
 
-export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded, viewMode = 'regions', year = 2024, filters, onFilteredCountChange, currentCountry = null }: MapContainerProps) => {
+export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded, year = 2024, filters, onFilteredCountChange, currentCountry = null }: MapContainerProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -141,96 +140,102 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       setIsLoaded(true);
       setMapError(null); // Clear any previous errors
       
-      // Add source for regions
-      if (map.current && regionsData) {
-        map.current.addSource('regions', {
-          type: 'geojson',
-          data: regionsData
-        });
+        // Add source for all data
+        if (map.current && regionsData) {
+          map.current.addSource('regions', {
+            type: 'geojson',
+            data: regionsData
+          });
 
-        // Countries fill (below)
-        map.current.addLayer({
-          id: 'country-fill',
-          type: 'fill',
-          source: 'regions',
-          filter: ['==', ['get', 'region_type'], 'country'],
-          paint: {
-            'fill-color': [
-              'interpolate',
-              ['linear'],
-              ['get', 'cii_score'],
-              0, '#08519c',
-              0.2, '#3182bd',
-              0.3, '#6baed6',
-              0.4, '#bdd7e7',
-              0.5, '#eff3ff',
-              0.6, '#fee5d9',
-              0.7, '#fcae91',
-              0.8, '#fb6a4a',
-              0.9, '#de2d26',
-              1, '#a50f15'
-            ],
-            'fill-opacity': 0.6
-          }
-        });
+          // Countries fill - always visible
+          map.current.addLayer({
+            id: 'country-fill',
+            type: 'fill',
+            source: 'regions',
+            filter: ['==', ['get', 'region_type'], 'country'],
+            paint: {
+              'fill-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'cii_score'],
+                0, '#08519c',
+                0.2, '#3182bd',
+                0.3, '#6baed6',
+                0.4, '#bdd7e7',
+                0.5, '#eff3ff',
+                0.6, '#fee5d9',
+                0.7, '#fcae91',
+                0.8, '#fb6a4a',
+                0.9, '#de2d26',
+                1, '#a50f15'
+              ],
+              'fill-opacity': 0.7
+            }
+          });
 
-        map.current.addLayer({
-          id: 'country-outline',
-          type: 'line',
-          source: 'regions',
-          filter: ['==', ['get', 'region_type'], 'country'],
-          paint: {
-            'line-color': '#2b2b2b',
-            'line-width': 1
-          }
-        });
+          map.current.addLayer({
+            id: 'country-outline',
+            type: 'line',
+            source: 'regions',
+            filter: ['==', ['get', 'region_type'], 'country'],
+            paint: {
+              'line-color': '#2b2b2b',
+              'line-width': 1.5
+            }
+          });
 
-        // Regions fill (above)
-        map.current.addLayer({
-          id: 'region-fill',
-          type: 'fill',
-          source: 'regions',
-          filter: ['!=', ['get', 'region_type'], 'country'],
-          paint: {
-            'fill-color': [
-              'interpolate',
-              ['linear'],
-              ['get', 'cii_score'],
-              0, '#08519c',
-              0.2, '#3182bd',
-              0.3, '#6baed6',
-              0.4, '#bdd7e7',
-              0.5, '#eff3ff',
-              0.6, '#fee5d9',
-              0.7, '#fcae91',
-              0.8, '#fb6a4a',
-              0.9, '#de2d26',
-              1, '#a50f15'
-            ],
-            'fill-opacity': 0.8
-          }
-        });
+          // Regions fill - only visible when drilling into a country
+          map.current.addLayer({
+            id: 'region-fill',
+            type: 'fill',
+            source: 'regions',
+            filter: ['!=', ['get', 'region_type'], 'country'],
+            paint: {
+              'fill-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'cii_score'],
+                0, '#08519c',
+                0.2, '#3182bd',
+                0.3, '#6baed6',
+                0.4, '#bdd7e7',
+                0.5, '#eff3ff',
+                0.6, '#fee5d9',
+                0.7, '#fcae91',
+                0.8, '#fb6a4a',
+                0.9, '#de2d26',
+                1, '#a50f15'
+              ],
+              'fill-opacity': 0.85
+            },
+            layout: {
+              'visibility': 'none' // Start hidden
+            }
+          });
 
-        map.current.addLayer({
-          id: 'region-outline',
-          type: 'line',
-          source: 'regions',
-          filter: ['!=', ['get', 'region_type'], 'country'],
-          paint: {
-            'line-color': [
-              'case',
-              ['==', ['get', 'region_code'], selectedRegion || ''],
-              '#ffffff',
-              '#333333'
-            ],
-            'line-width': [
-              'case',
-              ['==', ['get', 'region_code'], selectedRegion || ''],
-              3,
-              1
-            ]
-          }
-        });
+          map.current.addLayer({
+            id: 'region-outline',
+            type: 'line',
+            source: 'regions',
+            filter: ['!=', ['get', 'region_type'], 'country'],
+            paint: {
+              'line-color': [
+                'case',
+                ['==', ['get', 'region_code'], selectedRegion || ''],
+                '#ffffff',
+                '#444444'
+              ],
+              'line-width': [
+                'case',
+                ['==', ['get', 'region_code'], selectedRegion || ''],
+                3,
+                1
+              ]
+            },
+            layout: {
+              'visibility': 'none' // Start hidden
+            }
+          });
 
         // Click handlers
         map.current.on('click', 'region-fill', (e) => {
@@ -313,18 +318,6 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             popup.remove();
           }
         });
-
-        // Apply initial visibility based on viewMode
-        const setVisibility = (mode: 'countries' | 'regions') => {
-          if (!map.current) return;
-          const regionVis = mode === 'regions' ? 'visible' : 'none';
-          const countryVis = mode === 'countries' ? 'visible' : 'none';
-          map.current.setLayoutProperty('region-fill', 'visibility', regionVis);
-          map.current.setLayoutProperty('region-outline', 'visibility', regionVis);
-          map.current.setLayoutProperty('country-fill', 'visibility', countryVis);
-          map.current.setLayoutProperty('country-outline', 'visibility', countryVis);
-        };
-        setVisibility(viewMode);
 
         // Notify parent and mark map ready
         onDataLoaded && onDataLoaded();
@@ -413,16 +406,18 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     }
   }, [regionsData, isLoaded, filters, currentCountry]);
 
-  // Update layer visibility when viewMode changes
+  // Update region layer visibility when drilling into a country
   useEffect(() => {
     if (!map.current || !isLoaded || !map.current.isStyleLoaded()) return;
-    const regionVis = viewMode === 'regions' ? 'visible' : 'none';
-    const countryVis = viewMode === 'countries' ? 'visible' : 'none';
-    if (map.current.getLayer('region-fill')) map.current.setLayoutProperty('region-fill', 'visibility', regionVis);
-    if (map.current.getLayer('region-outline')) map.current.setLayoutProperty('region-outline', 'visibility', regionVis);
-    if (map.current.getLayer('country-fill')) map.current.setLayoutProperty('country-fill', 'visibility', countryVis);
-    if (map.current.getLayer('country-outline')) map.current.setLayoutProperty('country-outline', 'visibility', countryVis);
-  }, [viewMode, isLoaded]);
+    
+    const regionVis = currentCountry ? 'visible' : 'none';
+    if (map.current.getLayer('region-fill')) {
+      map.current.setLayoutProperty('region-fill', 'visibility', regionVis);
+    }
+    if (map.current.getLayer('region-outline')) {
+      map.current.setLayoutProperty('region-outline', 'visibility', regionVis);
+    }
+  }, [currentCountry, isLoaded]);
 
   // Update selected region outline
   useEffect(() => {

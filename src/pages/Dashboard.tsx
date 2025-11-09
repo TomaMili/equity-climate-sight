@@ -39,7 +39,6 @@ const Index = () => {
   const [isTokenSet, setIsTokenSet] = useState(false);
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [viewMode, setViewMode] = useState<'countries' | 'regions'>('countries');
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -153,10 +152,11 @@ useEffect(() => {
   };
 
   const handleRegionClick = async (data: any) => {
-    // If clicking a country and not in drill-down mode, drill down to show its regions
-    if (data.region_type === 'country' && !currentCountry && !compareMode) {
+    // If clicking a country, drill down to show its regions
+    if (data.region_type === 'country' && !compareMode) {
       setCurrentCountry(data.region_name);
-      setViewMode('regions');
+      setSelectedRegion(null);
+      setAiInsight(null);
       toast({
         title: 'Viewing Regions',
         description: `Showing regions in ${data.region_name}`,
@@ -373,157 +373,147 @@ useEffect(() => {
             ) : (
               <>
                 {/* Breadcrumb Navigation */}
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink
-                        onClick={() => {
-                          setCurrentCountry(null);
-                          setViewMode('countries');
-                          setSelectedRegion(null);
-                        }}
-                        className="flex items-center gap-1 cursor-pointer"
-                      >
-                        <Home className="h-3 w-3" />
-                        All Countries
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    {currentCountry && (
-                      <>
-                        <BreadcrumbSeparator>
-                          <ChevronRight className="h-4 w-4" />
-                        </BreadcrumbSeparator>
-                        <BreadcrumbItem>
-                          <BreadcrumbPage className="font-medium">
-                            {currentCountry} Regions
-                          </BreadcrumbPage>
-                        </BreadcrumbItem>
-                      </>
-                    )}
-                  </BreadcrumbList>
-                </Breadcrumb>
+                {currentCountry && (
+                  <Breadcrumb className="mb-4">
+                    <BreadcrumbList>
+                      <BreadcrumbItem>
+                        <BreadcrumbLink
+                          onClick={() => {
+                            setCurrentCountry(null);
+                            setSelectedRegion(null);
+                            setAiInsight(null);
+                          }}
+                          className="flex items-center gap-1 cursor-pointer"
+                        >
+                          <Home className="h-3 w-3" />
+                          All Countries
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator>
+                        <ChevronRight className="h-4 w-4" />
+                      </BreadcrumbSeparator>
+                      <BreadcrumbItem>
+                        <BreadcrumbPage className="font-medium">
+                          {currentCountry}
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                )}
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="sm" 
-                      variant={viewMode === 'regions' && !currentCountry ? 'default' : 'outline'} 
+                {/* Year Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Data Year</label>
+                  <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm">
+                    {[2020,2021,2022,2023,2024,2025].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Navigation Section */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Navigation</h3>
+                  <div className="space-y-2">
+                    <Button
+                      variant={compareMode ? "default" : "outline"}
+                      size="sm"
                       onClick={() => {
-                        setViewMode('regions');
-                        setCurrentCountry(null);
+                        setCompareMode(!compareMode);
+                        if (compareMode) {
+                          setCompareRegions([]);
+                        }
                       }}
-                      disabled={!!currentCountry}
+                      className="w-full justify-start"
                     >
-                      Regions
+                      <GitCompare className="h-4 w-4 mr-2" />
+                      {compareMode ? `Compare Mode (${compareRegions.length}/4)` : 'Compare Regions'}
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant={viewMode === 'countries' && !currentCountry ? 'default' : 'outline'} 
-                      onClick={() => {
-                        setViewMode('countries');
-                        setCurrentCountry(null);
-                      }}
-                      disabled={!!currentCountry}
-                    >
-                      Countries
-                    </Button>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Year</label>
-                    <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-full mt-1 bg-background border border-border rounded px-2 py-1 text-sm">
-                      {[2020,2021,2022,2023,2024,2025].map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
+                    
+                    <Collapsible open={showAnalytics} onOpenChange={setShowAnalytics}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full justify-between">
+                          <span className="flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4" />
+                            Analytics
+                          </span>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${showAnalytics ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2">
+                        <ErrorBoundary title="Analytics Error">
+                          <AnalyticsDashboard 
+                            viewMode={currentCountry ? 'regions' : 'countries'}
+                            year={year} 
+                            currentCountry={currentCountry}
+                          />
+                        </ErrorBoundary>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </div>
                 </div>
 
-                {/* Search and Filters */}
-                <ErrorBoundary title="Search Error">
-                  <SearchFilters
-                    onFilterChange={setFilters}
-                    onBookmarkClick={handleBookmarkClick}
-                    onRecentClick={handleRecentClick}
-                    bookmarks={bookmarks}
-                    recentRegions={recentRegions}
-                    totalResults={filteredCount}
-                    currentCountry={currentCountry}
-                  />
-                </ErrorBoundary>
-
-                {/* Compare Button */}
-                <Button
-                  variant={compareMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCompareMode(!compareMode);
-                    if (compareMode) {
-                      setCompareRegions([]);
-                    }
-                  }}
-                  className="w-full"
-                >
-                  <GitCompare className="h-4 w-4 mr-2" />
-                  {compareMode ? `Compare Mode (${compareRegions.length}/4)` : 'Compare Regions'}
-                </Button>
-
-                {/* Show comparison or regular content */}
-                {compareMode && compareRegions.length > 0 ? (
-                  <ErrorBoundary title="Comparison Error">
-                    <RegionComparison
-                      regionIds={compareRegions}
-                      onRemoveRegion={handleRemoveCompareRegion}
-                      onClose={handleCloseComparison}
+                {/* Search and Filters Section */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search & Filter</h3>
+                  <ErrorBoundary title="Search Error">
+                    <SearchFilters
+                      onFilterChange={setFilters}
+                      onBookmarkClick={handleBookmarkClick}
+                      onRecentClick={handleRecentClick}
+                      bookmarks={bookmarks}
+                      recentRegions={recentRegions}
+                      totalResults={filteredCount}
+                      currentCountry={currentCountry}
                     />
                   </ErrorBoundary>
-                ) : !compareMode ? (
-                  <>
+                </div>
+
+                {/* Statistics Section */}
+                {!compareMode && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Statistics</h3>
                     <ErrorBoundary title="Statistics Loading Error">
                       <StatisticsPanel 
-                        viewMode={viewMode} 
+                        viewMode={currentCountry ? 'regions' : 'countries'}
                         year={year} 
                         currentCountry={currentCountry}
                       />
                     </ErrorBoundary>
-                  </>
-                ) : null}
+                  </div>
+                )}
 
-                {/* Analytics Toggle */}
-                <Collapsible open={showAnalytics} onOpenChange={setShowAnalytics}>
-                  <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center justify-between w-full p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium text-foreground">Advanced Analytics</span>
-                      </div>
-                      <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showAnalytics ? 'rotate-180' : ''}`} />
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-4">
-                    <ErrorBoundary title="Analytics Error">
-                      <AnalyticsDashboard 
-                        viewMode={viewMode} 
-                        year={year} 
-                        currentCountry={currentCountry}
+                {/* Comparison Section */}
+                {compareMode && compareRegions.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Comparison</h3>
+                    <ErrorBoundary title="Comparison Error">
+                      <RegionComparison
+                        regionIds={compareRegions}
+                        onRemoveRegion={handleRemoveCompareRegion}
+                        onClose={handleCloseComparison}
                       />
                     </ErrorBoundary>
-                  </CollapsibleContent>
-                </Collapsible>
+                  </div>
+                )}
 
-                {!compareMode && (
-                  <ErrorBoundary title="Region Details Error">
-                    <RegionDetails 
-                      data={selectedRegion} 
-                      aiInsight={aiInsight}
-                      isLoadingInsight={isLoadingInsight}
-                      isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
-                      onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
-                    />
-                  </ErrorBoundary>
+                {/* Region Details Section */}
+                {!compareMode && selectedRegion && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Region Details</h3>
+                    <ErrorBoundary title="Region Details Error">
+                      <RegionDetails 
+                        data={selectedRegion} 
+                        aiInsight={aiInsight}
+                        isLoadingInsight={isLoadingInsight}
+                        isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
+                        onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
+                      />
+                    </ErrorBoundary>
+                  </div>
                 )}
               </>
             )}
-
 
             <div className="pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">
@@ -551,7 +541,6 @@ useEffect(() => {
               mapboxToken={mapboxToken}
               onTokenError={handleTokenError}
               onDataLoaded={handleMapDataLoaded}
-              viewMode={viewMode}
               year={year}
               filters={filters}
               onFilteredCountChange={setFilteredCount}
