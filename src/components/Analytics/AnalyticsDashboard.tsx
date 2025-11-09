@@ -10,11 +10,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface AnalyticsDashboardProps {
   viewMode: 'countries' | 'regions';
   year: number;
+  currentCountry?: string | null;
 }
 
 const COLORS = ['#08519c', '#3182bd', '#6baed6', '#bdd7e7', '#fb6a4a', '#de2d26', '#a50f15'];
 
-export const AnalyticsDashboard = ({ viewMode, year }: AnalyticsDashboardProps) => {
+export const AnalyticsDashboard = ({ viewMode, year, currentCountry }: AnalyticsDashboardProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [countryAggregates, setCountryAggregates] = useState<any[]>([]);
   const [topRegions, setTopRegions] = useState<any[]>([]);
@@ -25,17 +26,24 @@ export const AnalyticsDashboard = ({ viewMode, year }: AnalyticsDashboardProps) 
 
   useEffect(() => {
     loadAnalytics();
-  }, [viewMode, year]);
+  }, [viewMode, year, currentCountry]);
 
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
       // Fetch all region data
-      const { data: regions, error } = await supabase
+      let query = supabase
         .from('climate_inequality_regions')
         .select('*')
         .eq('data_year', year)
         .eq('region_type', viewMode === 'countries' ? 'country' : 'region');
+
+      // Filter by current country if drilling down
+      if (currentCountry) {
+        query = query.eq('country', currentCountry);
+      }
+
+      const { data: regions, error } = await query;
 
       if (error) throw error;
       if (!regions || regions.length === 0) {
@@ -191,10 +199,10 @@ export const AnalyticsDashboard = ({ viewMode, year }: AnalyticsDashboardProps) 
 
       {/* Tabs for different analytics views */}
       <Tabs defaultValue="distribution" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-muted">
+        <TabsList className={`grid w-full ${viewMode === 'regions' && !currentCountry ? 'grid-cols-3' : 'grid-cols-2'} bg-muted`}>
           <TabsTrigger value="distribution">Distribution</TabsTrigger>
           <TabsTrigger value="rankings">Rankings</TabsTrigger>
-          {viewMode === 'regions' && <TabsTrigger value="countries">By Country</TabsTrigger>}
+          {viewMode === 'regions' && !currentCountry && <TabsTrigger value="countries">By Country</TabsTrigger>}
         </TabsList>
 
         {/* CII Distribution Tab */}
@@ -323,8 +331,8 @@ export const AnalyticsDashboard = ({ viewMode, year }: AnalyticsDashboardProps) 
           </Card>
         </TabsContent>
 
-        {/* Country Aggregates Tab (only for regions view) */}
-        {viewMode === 'regions' && (
+      {/* Country Aggregates Tab (only for regions view without country drill-down) */}
+        {viewMode === 'regions' && !currentCountry && (
           <TabsContent value="countries" className="space-y-4">
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">

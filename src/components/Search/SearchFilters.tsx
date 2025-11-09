@@ -22,6 +22,7 @@ interface SearchFiltersProps {
   bookmarks: string[];
   recentRegions: Array<{ code: string; name: string; country: string }>;
   totalResults: number;
+  currentCountry?: string | null;
 }
 
 export const SearchFilters = ({
@@ -30,7 +31,8 @@ export const SearchFilters = ({
   onRecentClick,
   bookmarks,
   recentRegions,
-  totalResults
+  totalResults,
+  currentCountry
 }: SearchFiltersProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
@@ -50,11 +52,18 @@ export const SearchFilters = ({
       }
 
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('climate_inequality_regions')
           .select('region_code, region_name, country')
           .in('region_code', bookmarks)
           .limit(10);
+
+        // Filter by current country if drilling down
+        if (currentCountry) {
+          query = query.eq('country', currentCountry);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         setBookmarkedRegions(data || []);
@@ -64,7 +73,7 @@ export const SearchFilters = ({
     };
 
     loadBookmarkedRegions();
-  }, [bookmarks]);
+  }, [bookmarks, currentCountry]);
 
   const updateFilter = (key: keyof FilterState, value: any) => {
     const newFilters = { ...filters, [key]: value };
@@ -197,7 +206,7 @@ export const SearchFilters = ({
 
       {/* Results Count */}
       <div className="text-sm text-muted-foreground text-center py-1">
-        {totalResults.toLocaleString()} regions found
+        {totalResults.toLocaleString()} {currentCountry ? `regions in ${currentCountry}` : 'regions'} found
       </div>
 
       {/* Bookmarks Section */}

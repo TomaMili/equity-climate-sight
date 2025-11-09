@@ -7,9 +7,10 @@ import { RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 interface StatisticsPanelProps {
   viewMode: 'countries' | 'regions';
   year: number;
+  currentCountry?: string | null;
 }
 
-export const StatisticsPanel = ({ viewMode, year }: StatisticsPanelProps) => {
+export const StatisticsPanel = ({ viewMode, year, currentCountry }: StatisticsPanelProps) => {
   const [stats, setStats] = useState({
     avgCII: 0,
     highRiskCount: 0,
@@ -32,7 +33,7 @@ export const StatisticsPanel = ({ viewMode, year }: StatisticsPanelProps) => {
       // Load current year stats
       let query = supabase
         .from('climate_inequality_regions')
-        .select('cii_score')
+        .select('cii_score, country')
         .eq('data_year', year);
 
       if (viewMode === 'countries') {
@@ -41,19 +42,29 @@ export const StatisticsPanel = ({ viewMode, year }: StatisticsPanelProps) => {
         query = query.eq('region_type', 'region');
       }
 
+      // Filter by current country if drilling down
+      if (currentCountry) {
+        query = query.eq('country', currentCountry);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
 
       // Load previous year stats for comparison
       let prevQuery = supabase
         .from('climate_inequality_regions')
-        .select('cii_score')
+        .select('cii_score, country')
         .eq('data_year', year - 1);
 
       if (viewMode === 'countries') {
         prevQuery = prevQuery.eq('region_type', 'country');
       } else {
         prevQuery = prevQuery.eq('region_type', 'region');
+      }
+
+      // Filter by current country if drilling down
+      if (currentCountry) {
+        prevQuery = prevQuery.eq('country', currentCountry);
       }
 
       const { data: prevData } = await prevQuery;
@@ -116,7 +127,7 @@ export const StatisticsPanel = ({ viewMode, year }: StatisticsPanelProps) => {
 
   useEffect(() => {
     loadStats();
-  }, [viewMode, year]);
+  }, [viewMode, year, currentCountry]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -141,7 +152,9 @@ export const StatisticsPanel = ({ viewMode, year }: StatisticsPanelProps) => {
     );
   };
 
-  const displayMode = viewMode === 'countries' ? 'Countries' : 'Regions';
+  const displayMode = currentCountry 
+    ? `${currentCountry} Regions` 
+    : viewMode === 'countries' ? 'Countries' : 'Regions';
 
   return (
     <Card className="p-6">
@@ -185,7 +198,7 @@ export const StatisticsPanel = ({ viewMode, year }: StatisticsPanelProps) => {
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Total {displayMode}</p>
+            <p className="text-xs text-muted-foreground">Total {currentCountry ? 'Regions' : displayMode}</p>
             <div className="flex items-baseline">
               <p className="text-2xl font-bold text-foreground">{stats.totalRegions}</p>
               {renderChangeIndicator(stats.totalRegions, prevYearStats.totalRegions)}

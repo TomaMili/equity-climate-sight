@@ -39,7 +39,7 @@ const Index = () => {
   const [isTokenSet, setIsTokenSet] = useState(false);
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [viewMode, setViewMode] = useState<'countries' | 'regions'>('regions');
+  const [viewMode, setViewMode] = useState<'countries' | 'regions'>('countries');
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -425,6 +425,7 @@ useEffect(() => {
                     bookmarks={bookmarks}
                     recentRegions={recentRegions}
                     totalResults={filteredCount}
+                    currentCountry={currentCountry}
                   />
                 </ErrorBoundary>
 
@@ -456,7 +457,11 @@ useEffect(() => {
                 ) : !compareMode ? (
                   <>
                     <ErrorBoundary title="Statistics Loading Error">
-                      <StatisticsPanel viewMode={viewMode} year={year} />
+                      <StatisticsPanel 
+                        viewMode={viewMode} 
+                        year={year} 
+                        currentCountry={currentCountry}
+                      />
                     </ErrorBoundary>
                   </>
                 ) : null}
@@ -474,7 +479,11 @@ useEffect(() => {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-4">
                     <ErrorBoundary title="Analytics Error">
-                      <AnalyticsDashboard viewMode={viewMode} year={year} />
+                      <AnalyticsDashboard 
+                        viewMode={viewMode} 
+                        year={year} 
+                        currentCountry={currentCountry}
+                      />
                     </ErrorBoundary>
                   </CollapsibleContent>
                 </Collapsible>
