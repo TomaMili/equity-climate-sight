@@ -9,6 +9,7 @@ import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { SearchFilters, FilterState } from '@/components/Search/SearchFilters';
 
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
@@ -188,12 +189,63 @@ useEffect(() => {
       return;
     }
 
-    // Normal mode - open region in new tab
-    const regionUrl = `/region/${data.region_code}`;
-    window.open(regionUrl, '_blank');
-    
-    // Also add to recent regions
+    // Normal mode - show region details in sidebar
+    setSelectedRegion(data);
+    setSelectedH3Index(data.region_code);
+    setAiInsight(null);
+    setIsLoadingInsight(true);
+
+    // Add to recent regions
     addRecentRegion(data.region_code, data.region_name, data.country);
+
+    try {
+      // Sanitize data before sending to edge function
+      const sanitizeNumber = (value: any) => {
+        if (value === null || value === undefined) return null;
+        const num = Number(value);
+        return isNaN(num) ? null : num;
+      };
+
+      const regionDataForInsight = {
+        ...data,
+        // Ensure numeric fields are properly formatted
+        population: sanitizeNumber(data.population),
+        cii_score: sanitizeNumber(data.cii_score) ?? 0,
+        climate_risk_score: sanitizeNumber(data.climate_risk_score),
+        infrastructure_score: sanitizeNumber(data.infrastructure_score),
+        socioeconomic_score: sanitizeNumber(data.socioeconomic_score),
+        air_quality_pm25: sanitizeNumber(data.air_quality_pm25),
+        air_quality_no2: sanitizeNumber(data.air_quality_no2),
+        internet_speed_download: sanitizeNumber(data.internet_speed_download),
+        internet_speed_upload: sanitizeNumber(data.internet_speed_upload),
+        temperature_avg: sanitizeNumber(data.temperature_avg),
+        precipitation_avg: sanitizeNumber(data.precipitation_avg),
+        drought_index: sanitizeNumber(data.drought_index),
+        flood_risk_score: sanitizeNumber(data.flood_risk_score),
+        gdp_per_capita: sanitizeNumber(data.gdp_per_capita),
+        urban_population_percent: sanitizeNumber(data.urban_population_percent),
+        data_sources: typeof data.data_sources === 'string' 
+          ? JSON.parse(data.data_sources)
+          : data.data_sources
+      };
+
+      const { data: insightData, error } = await supabase.functions.invoke('generate-insights', {
+        body: { regionData: regionDataForInsight }
+      });
+
+      if (error) throw error;
+
+      setAiInsight(insightData?.insight || null);
+    } catch (error: any) {
+      console.error('Error generating AI insight:', error);
+      toast({
+        title: 'AI Insight Error',
+        description: error.message || 'Failed to generate AI insight',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingInsight(false);
+    }
   };
 
   const handleRemoveCompareRegion = (regionId: string) => {
@@ -309,162 +361,168 @@ useEffect(() => {
       <div className="flex h-full w-full bg-background">
         {/* Sidebar */}
         <div className="w-96 bg-card border-r border-border overflow-y-auto">
-          <div className="p-6 space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground mb-1">AI Equity Mapper</h1>
-              <p className="text-sm text-muted-foreground">
-                Team NOPE - hAIckathon 2025
-              </p>
+          <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="pb-2 border-b border-border">
+              <h1 className="text-xl font-bold text-foreground">AI Equity Mapper</h1>
+              <p className="text-xs text-muted-foreground">Team NOPE - hAIckathon 2025</p>
             </div>
 
             {!isMapLoaded || isInitializing ? (
               <SidebarSkeleton />
             ) : (
               <>
-                {/* Breadcrumb Navigation */}
-                {currentCountry && (
-                  <Breadcrumb className="mb-4">
-                    <BreadcrumbList>
-                      <BreadcrumbItem>
-                        <BreadcrumbLink
-                          onClick={() => {
-                            setCurrentCountry(null);
-                            setSelectedRegion(null);
-                            setAiInsight(null);
-                          }}
-                          className="flex items-center gap-1 cursor-pointer"
-                        >
-                          <Home className="h-3 w-3" />
-                          All Countries
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator>
-                        <ChevronRight className="h-4 w-4" />
-                      </BreadcrumbSeparator>
-                      <BreadcrumbItem>
-                        <BreadcrumbPage className="font-medium">
-                          {currentCountry}
-                        </BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                )}
-
-                {/* Year Selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Data Year</label>
-                  <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm">
-                    {[2020,2021,2022,2023,2024,2025].map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Navigation Section */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Navigation</h3>
-                  <div className="space-y-2">
-                    <Button
-                      variant={compareMode ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        setCompareMode(!compareMode);
-                        if (compareMode) {
-                          setCompareRegions([]);
-                        }
-                      }}
-                      className="w-full justify-start"
-                    >
-                      <GitCompare className="h-4 w-4 mr-2" />
-                      {compareMode ? `Compare Mode (${compareRegions.length}/4)` : 'Compare Regions'}
-                    </Button>
+                {/* Compact Navigation Bar */}
+                <Collapsible defaultOpen={!selectedRegion}>
+                  <Card className="p-3">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent mb-2">
+                        <h3 className="text-sm font-semibold text-foreground">Navigation & Controls</h3>
+                        <ChevronDown className="h-4 w-4 transition-transform" />
+                      </Button>
+                    </CollapsibleTrigger>
                     
-                    <Collapsible open={showAnalytics} onOpenChange={setShowAnalytics}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full justify-between">
-                          <span className="flex items-center gap-2">
-                            <BarChart3 className="w-4 h-4" />
-                            Analytics
-                          </span>
-                          <ChevronDown className={`w-4 h-4 transition-transform ${showAnalytics ? 'rotate-180' : ''}`} />
+                    <CollapsibleContent className="space-y-3">
+                      {/* Breadcrumb Navigation */}
+                      {currentCountry && (
+                        <Breadcrumb>
+                          <BreadcrumbList>
+                            <BreadcrumbItem>
+                              <BreadcrumbLink
+                                onClick={() => {
+                                  setCurrentCountry(null);
+                                  setSelectedRegion(null);
+                                  setAiInsight(null);
+                                }}
+                                className="flex items-center gap-1 cursor-pointer text-xs"
+                              >
+                                <Home className="h-3 w-3" />
+                                All Countries
+                              </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator>
+                              <ChevronRight className="h-3 w-3" />
+                            </BreadcrumbSeparator>
+                            <BreadcrumbItem>
+                              <BreadcrumbPage className="font-medium text-xs">
+                                {currentCountry}
+                              </BreadcrumbPage>
+                            </BreadcrumbItem>
+                          </BreadcrumbList>
+                        </Breadcrumb>
+                      )}
+
+                      {/* Year Selector */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Year</label>
+                        <select 
+                          value={year} 
+                          onChange={(e) => setYear(parseInt(e.target.value))} 
+                          className="w-full mt-1 bg-background border border-border rounded px-2 py-1 text-xs"
+                        >
+                          {[2020,2021,2022,2023,2024,2025].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant={compareMode ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setCompareMode(!compareMode);
+                            if (compareMode) {
+                              setCompareRegions([]);
+                            }
+                          }}
+                          className="flex-1 text-xs h-8"
+                        >
+                          <GitCompare className="h-3 w-3 mr-1" />
+                          {compareMode ? `Compare (${compareRegions.length}/4)` : 'Compare'}
                         </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="mt-2">
-                        <ErrorBoundary title="Analytics Error">
-                          <AnalyticsDashboard 
-                            viewMode={currentCountry ? 'regions' : 'countries'}
-                            year={year} 
+                        
+                        <Collapsible open={showAnalytics} onOpenChange={setShowAnalytics}>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1 text-xs h-8">
+                              <BarChart3 className="w-3 h-3 mr-1" />
+                              Analytics
+                            </Button>
+                          </CollapsibleTrigger>
+                        </Collapsible>
+                      </div>
+
+                      {/* Analytics Content */}
+                      {showAnalytics && (
+                        <div className="pt-2 border-t border-border">
+                          <ErrorBoundary title="Analytics Error">
+                            <AnalyticsDashboard 
+                              viewMode={currentCountry ? 'regions' : 'countries'}
+                              year={year} 
+                              currentCountry={currentCountry}
+                            />
+                          </ErrorBoundary>
+                        </div>
+                      )}
+
+                      {/* Search and Filters */}
+                      <div className="pt-2 border-t border-border">
+                        <label className="text-xs font-medium text-muted-foreground mb-2 block">Search & Filter</label>
+                        <ErrorBoundary title="Search Error">
+                          <SearchFilters
+                            onFilterChange={setFilters}
+                            onBookmarkClick={handleBookmarkClick}
+                            onRecentClick={handleRecentClick}
+                            bookmarks={bookmarks}
+                            recentRegions={recentRegions}
+                            totalResults={filteredCount}
                             currentCountry={currentCountry}
                           />
                         </ErrorBoundary>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </div>
-                </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
 
-                {/* Search and Filters Section */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search & Filter</h3>
-                  <ErrorBoundary title="Search Error">
-                    <SearchFilters
-                      onFilterChange={setFilters}
-                      onBookmarkClick={handleBookmarkClick}
-                      onRecentClick={handleRecentClick}
-                      bookmarks={bookmarks}
-                      recentRegions={recentRegions}
-                      totalResults={filteredCount}
-                      currentCountry={currentCountry}
+                {/* Region Details - Prominent Display */}
+                {!compareMode && selectedRegion && (
+                  <ErrorBoundary title="Region Details Error">
+                    <RegionDetails 
+                      data={selectedRegion} 
+                      aiInsight={aiInsight}
+                      isLoadingInsight={isLoadingInsight}
+                      isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
+                      onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
                     />
                   </ErrorBoundary>
-                </div>
-
-                {/* Statistics Section */}
-                {!compareMode && (
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Statistics</h3>
-                    <ErrorBoundary title="Statistics Loading Error">
-                      <StatisticsPanel 
-                        viewMode={currentCountry ? 'regions' : 'countries'}
-                        year={year} 
-                        currentCountry={currentCountry}
-                      />
-                    </ErrorBoundary>
-                  </div>
                 )}
 
                 {/* Comparison Section */}
                 {compareMode && compareRegions.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Comparison</h3>
-                    <ErrorBoundary title="Comparison Error">
-                      <RegionComparison
-                        regionIds={compareRegions}
-                        onRemoveRegion={handleRemoveCompareRegion}
-                        onClose={handleCloseComparison}
-                      />
-                    </ErrorBoundary>
-                  </div>
+                  <ErrorBoundary title="Comparison Error">
+                    <RegionComparison
+                      regionIds={compareRegions}
+                      onRemoveRegion={handleRemoveCompareRegion}
+                      onClose={handleCloseComparison}
+                    />
+                  </ErrorBoundary>
                 )}
 
-                {/* Region Details Section */}
-                {!compareMode && selectedRegion && (
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Region Details</h3>
-                    <ErrorBoundary title="Region Details Error">
-                      <RegionDetails 
-                        data={selectedRegion} 
-                        aiInsight={aiInsight}
-                        isLoadingInsight={isLoadingInsight}
-                        isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
-                        onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
-                      />
-                    </ErrorBoundary>
-                  </div>
+                {/* Statistics Section - Only when no region selected */}
+                {!compareMode && !selectedRegion && (
+                  <ErrorBoundary title="Statistics Loading Error">
+                    <StatisticsPanel 
+                      viewMode={currentCountry ? 'regions' : 'countries'}
+                      year={year} 
+                      currentCountry={currentCountry}
+                    />
+                  </ErrorBoundary>
                 )}
               </>
             )}
 
-            <div className="pt-4 border-t border-border">
+            <div className="pt-3 border-t border-border">
               <p className="text-xs text-muted-foreground">
                 Data sources: OpenAQ, ERA5, Ookla, World Bank (ASDI)
               </p>

@@ -8,7 +8,6 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
-import RegionDetail from "./pages/RegionDetail";
 import About from "./pages/About";
 import Methodology from "./pages/Methodology";
 import Admin from "./pages/Admin";
@@ -37,7 +36,6 @@ const App = () => (
                   <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/region/:regionCode" element={<RegionDetail />} />
               <Route path="/about" element={<About />} />
               <Route path="/methodology" element={<Methodology />} />
               <Route path="/admin" element={<Admin />} />
