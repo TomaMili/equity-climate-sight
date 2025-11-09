@@ -188,63 +188,12 @@ useEffect(() => {
       return;
     }
 
-    // Normal mode - show region details
-    setSelectedRegion(data);
-    setSelectedH3Index(data.region_code);
-    setAiInsight(null);
-    setIsLoadingInsight(true);
-
-    // Add to recent regions
+    // Normal mode - open region in new tab
+    const regionUrl = `/region/${data.region_code}`;
+    window.open(regionUrl, '_blank');
+    
+    // Also add to recent regions
     addRecentRegion(data.region_code, data.region_name, data.country);
-
-    try {
-      // Sanitize data before sending to edge function
-      const sanitizeNumber = (value: any) => {
-        if (value === null || value === undefined) return null;
-        const num = Number(value);
-        return isNaN(num) ? null : num;
-      };
-
-      const regionDataForInsight = {
-        ...data,
-        // Ensure numeric fields are properly formatted
-        population: sanitizeNumber(data.population),
-        cii_score: sanitizeNumber(data.cii_score) ?? 0,
-        climate_risk_score: sanitizeNumber(data.climate_risk_score),
-        infrastructure_score: sanitizeNumber(data.infrastructure_score),
-        socioeconomic_score: sanitizeNumber(data.socioeconomic_score),
-        air_quality_pm25: sanitizeNumber(data.air_quality_pm25),
-        air_quality_no2: sanitizeNumber(data.air_quality_no2),
-        internet_speed_download: sanitizeNumber(data.internet_speed_download),
-        internet_speed_upload: sanitizeNumber(data.internet_speed_upload),
-        temperature_avg: sanitizeNumber(data.temperature_avg),
-        precipitation_avg: sanitizeNumber(data.precipitation_avg),
-        drought_index: sanitizeNumber(data.drought_index),
-        flood_risk_score: sanitizeNumber(data.flood_risk_score),
-        gdp_per_capita: sanitizeNumber(data.gdp_per_capita),
-        urban_population_percent: sanitizeNumber(data.urban_population_percent),
-        data_sources: typeof data.data_sources === 'string' 
-          ? JSON.parse(data.data_sources)
-          : data.data_sources
-      };
-
-      const { data: insightData, error } = await supabase.functions.invoke('generate-insights', {
-        body: { regionData: regionDataForInsight }
-      });
-
-      if (error) throw error;
-
-      setAiInsight(insightData?.insight || null);
-    } catch (error: any) {
-      console.error('Error generating AI insight:', error);
-      toast({
-        title: 'AI Insight Error',
-        description: error.message || 'Failed to generate AI insight',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoadingInsight(false);
-    }
   };
 
   const handleRemoveCompareRegion = (regionId: string) => {
