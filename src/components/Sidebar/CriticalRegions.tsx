@@ -18,7 +18,7 @@ interface CriticalRegion {
 
 interface CriticalRegionsProps {
   year: number;
-  onRegionClick?: (regionCode: string) => void;
+  onRegionClick?: (data: any) => void;
 }
 
 export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
@@ -58,15 +58,35 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
   }, [year]);
 
   const getSeverityColor = (score: number): string => {
-    if (score >= 0.7) return 'bg-destructive text-destructive-foreground';
-    if (score >= 0.5) return 'bg-orange-500 text-white';
-    return 'bg-yellow-500 text-black';
+    if (score >= 0.8) return 'bg-destructive text-destructive-foreground';
+    if (score >= 0.6) return 'bg-orange-500 text-white';
+    if (score >= 0.5) return 'bg-yellow-500 text-black';
+    return 'bg-blue-500 text-white';
   };
 
   const getSeverityLabel = (score: number): string => {
-    if (score >= 0.7) return 'Kritično';
-    if (score >= 0.5) return 'Visoko';
-    return 'Umjereno';
+    if (score >= 0.8) return 'Critical';
+    if (score >= 0.6) return 'High';
+    if (score >= 0.5) return 'Neutral';
+    return 'Low';
+  };
+
+  const handleRegionClick = async (regionCode: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('climate_inequality_regions')
+        .select('*')
+        .eq('region_code', regionCode)
+        .eq('data_year', year)
+        .single();
+
+      if (error) throw error;
+      if (data && onRegionClick) {
+        onRegionClick(data);
+      }
+    } catch (error) {
+      console.error('Error loading region:', error);
+    }
   };
 
   if (loading) {
@@ -75,11 +95,11 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Najkritičniji regioni
+            Critical Regions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Učitavanje...</p>
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </CardContent>
       </Card>
     );
@@ -90,10 +110,10 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-destructive" />
-          Najkritičniji regioni ({year})
+          Critical Regions ({year})
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Top 10 regiona sa najvišim Climate Inequality Index
+          Top 10 regions with highest Climate Inequality Index
         </p>
       </CardHeader>
       <CardContent>
@@ -103,7 +123,7 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
               <div
                 key={region.region_code}
                 className="p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => onRegionClick?.(region.region_code)}
+                onClick={() => handleRegionClick(region.region_code)}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
@@ -129,25 +149,25 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
                   {region.cii_climate_risk_component !== null && (
                     <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t">
                       <div className="text-xs">
-                        <span className="text-muted-foreground block">Klimatski rizik:</span>
+                        <span className="text-muted-foreground block">Climate Risk:</span>
                         <span className="font-mono text-xs">
                           {(region.cii_climate_risk_component * 100).toFixed(0)}%
                         </span>
                       </div>
                       <div className="text-xs">
-                        <span className="text-muted-foreground block">Infrastruktura:</span>
+                        <span className="text-muted-foreground block">Infrastructure:</span>
                         <span className="font-mono text-xs">
                           {((region.cii_infrastructure_gap_component || 0) * 100).toFixed(0)}%
                         </span>
                       </div>
                       <div className="text-xs">
-                        <span className="text-muted-foreground block">Socioekonomija:</span>
+                        <span className="text-muted-foreground block">Socioeconomic:</span>
                         <span className="font-mono text-xs">
                           {((region.cii_socioeconomic_vuln_component || 0) * 100).toFixed(0)}%
                         </span>
                       </div>
                       <div className="text-xs">
-                        <span className="text-muted-foreground block">Kvaliteta zraka:</span>
+                        <span className="text-muted-foreground block">Air Quality:</span>
                         <span className="font-mono text-xs">
                           {((region.cii_air_quality_component || 0) * 100).toFixed(0)}%
                         </span>
@@ -159,7 +179,7 @@ export function CriticalRegions({ year, onRegionClick }: CriticalRegionsProps) {
                 {region.cii_climate_risk_component === null && (
                   <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                     <TrendingUp className="h-3 w-3" />
-                    <span>Komponente u procesu izračunavanja</span>
+                    <span>Components being computed</span>
                   </div>
                 )}
               </div>
