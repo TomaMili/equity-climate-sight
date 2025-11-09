@@ -50,8 +50,8 @@ Real structure aligned with ASDI datasets:
 
 1. **Clone the repository**
 ```bash
-git clone <YOUR_GIT_URL>
-cd <YOUR_PROJECT_NAME>
+git clone https://github.com/YOUR_USERNAME/ai-equity-mapper.git
+cd ai-equity-mapper
 ```
 
 2. **Install dependencies**
@@ -59,20 +59,59 @@ cd <YOUR_PROJECT_NAME>
 npm install
 ```
 
-3. **Get a Mapbox token**
+3. **Configure environment variables**
+
+Create a `.env` file in the root directory (or update the existing one):
+
+```env
+VITE_MAPBOX_TOKEN=your_mapbox_public_token_here
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+VITE_SUPABASE_PROJECT_ID=your_project_id
+```
+
+**Get a Mapbox token:**
 - Visit [mapbox.com](https://mapbox.com)
 - Create a free account
 - Copy your **public token** (starts with `pk.`)
+- Add it to `.env` as `VITE_MAPBOX_TOKEN`
 
 4. **Start the development server**
 ```bash
 npm run dev
 ```
 
-5. **Launch the app**
-- Open in your browser
-- Paste your Mapbox public token
-- Click "Launch Map"
+5. **Open the app**
+- Navigate to `http://localhost:5173`
+- The map should load automatically with your configured token
+
+## 🚀 Deployment
+
+### Deploy to Lovable Cloud
+
+The app is configured for one-click deployment on Lovable Cloud:
+
+1. Push your code to GitHub
+2. Connect your repository to Lovable
+3. Add your `VITE_MAPBOX_TOKEN` in the environment variables
+4. Click "Publish" to deploy
+
+### Deploy to Other Platforms
+
+The app can be deployed to any static hosting platform (Vercel, Netlify, AWS Amplify):
+
+1. **Build the app**
+```bash
+npm run build
+```
+
+2. **Set environment variables** on your hosting platform:
+   - `VITE_MAPBOX_TOKEN`
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - `VITE_SUPABASE_PROJECT_ID`
+
+3. **Deploy the `dist` folder** to your hosting platform
 
 ## 🗺️ How to Use
 
