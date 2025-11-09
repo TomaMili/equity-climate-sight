@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Database, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { EnrichmentValidation } from './EnrichmentValidation';
 
 interface SpeedDataPoint {
   time: string;
@@ -53,8 +54,11 @@ export function DataEnrichment() {
   });
   const [enrichingAll, setEnrichingAll] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<'countries' | 'regions' | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
+  const [validationType, setValidationType] = useState<'all' | 'countries' | 'regions'>('all');
 
   const handleEnrichCountries = async (year: number) => {
+    setShowValidation(false);
     try {
       setIsEnriching(true);
       setShouldStop(false);
@@ -158,6 +162,7 @@ export function DataEnrichment() {
   };
 
   const handleEnrichRegions = async (year: number) => {
+    setShowValidation(false);
     try {
       setIsEnriching(true);
       setShouldStop(false);
@@ -463,6 +468,7 @@ export function DataEnrichment() {
   };
 
   const handleEnrichAll = async () => {
+    setShowValidation(false);
     try {
       setEnrichingAll(true);
       setShouldStop(false);
@@ -528,21 +534,37 @@ export function DataEnrichment() {
 
   return (
     <Card className="p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Database className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold text-foreground">Real Data Integration</h3>
-      </div>
+      {showValidation ? (
+        <EnrichmentValidation
+          enrichmentType={validationType}
+          parallelWorkers={parallelWorkers}
+          onProceed={() => {
+            if (validationType === 'all') handleEnrichAll();
+            else if (validationType === 'countries') handleEnrichCountries(2024);
+            else if (validationType === 'regions') handleEnrichRegions(2024);
+          }}
+          onCancel={() => setShowValidation(false)}
+        />
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <Database className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">Real Data Integration</h3>
+          </div>
 
-      <p className="text-sm text-muted-foreground mb-4">
-        Replace synthetic data with real measurements from OpenAQ, World Bank, and other public APIs.
-      </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Replace synthetic data with real measurements from OpenAQ, World Bank, and other public APIs.
+          </p>
 
       <div className="space-y-4">
         {/* Enrich All Button */}
         <div className="pb-3 border-b">
           <Button
             size="default"
-            onClick={handleEnrichAll}
+            onClick={() => {
+              setValidationType('all');
+              setShowValidation(true);
+            }}
             disabled={isEnriching || enrichingAll}
             className="w-full"
             variant="default"
@@ -632,7 +654,10 @@ export function DataEnrichment() {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={() => handleEnrichCountries(2024)}
+                onClick={() => {
+                  setValidationType('countries');
+                  setShowValidation(true);
+                }}
                 disabled={isEnriching || enrichingAll}
               >
                 {isEnriching && !enrichingAll ? (
@@ -666,7 +691,10 @@ export function DataEnrichment() {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={() => handleEnrichRegions(2024)}
+                onClick={() => {
+                  setValidationType('regions');
+                  setShowValidation(true);
+                }}
                 disabled={isEnriching || enrichingAll}
               >
                 {isEnriching && !enrichingAll ? (
@@ -788,6 +816,8 @@ export function DataEnrichment() {
           </ul>
         </div>
       </div>
+        </>
+      )}
     </Card>
   );
 }
