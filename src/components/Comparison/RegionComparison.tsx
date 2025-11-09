@@ -13,6 +13,7 @@ interface Region {
   id: string;
   region_name: string;
   country: string;
+  region_type: string;
   cii_score: number;
   cii_climate_risk_component: number | null;
   cii_infrastructure_gap_component: number | null;
@@ -250,10 +251,12 @@ const RegionComparison = ({ regionIds, onRemoveRegion, onClose }: RegionComparis
                       <span className="text-muted-foreground">CII Score:</span>
                       <span className="font-medium">{(region.cii_score * 100).toFixed(1)}%</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Population:</span>
-                      <span className="font-medium">{region.population?.toLocaleString() || 'N/A'}</span>
-                    </div>
+                    {region.region_type === 'country' && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Population:</span>
+                        <span className="font-medium">{region.population?.toLocaleString() || 'N/A'}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">GDP/capita:</span>
                       <span className="font-medium">${region.gdp_per_capita?.toFixed(0) || 'N/A'}</span>

@@ -123,7 +123,7 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
         `Climate Risk: ${regionData.climate_risk_score ? (regionData.climate_risk_score * 100).toFixed(1) + '%' : 'N/A'}`,
         `Infrastructure Gap: ${regionData.infrastructure_score ? (regionData.infrastructure_score * 100).toFixed(1) + '%' : 'N/A'}`,
         `Socioeconomic Vulnerability: ${regionData.socioeconomic_score ? (regionData.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}`,
-        `Population: ${regionData.population?.toLocaleString() || 'N/A'}`,
+        ...(regionData.region_type === 'country' ? [`Population: ${regionData.population?.toLocaleString() || 'N/A'}`] : []),
         `GDP per Capita: $${regionData.gdp_per_capita?.toLocaleString() || 'N/A'}`,
       ];
 
@@ -245,19 +245,21 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
         <ScrollArea className="flex-1 px-6 py-4" style={{ maxHeight: 'calc(90vh - 140px)' }}>
           <div className="space-y-6">
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+            <div className={`grid ${regionData.region_type === 'country' ? 'grid-cols-3' : 'grid-cols-2'} gap-4 p-4 bg-muted/30 rounded-lg`}>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">CII Score</p>
                 <p className="text-2xl font-bold text-foreground">
                   {(regionData.cii_score * 100).toFixed(1)}%
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Population</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {regionData.population?.toLocaleString() || 'N/A'}
-                </p>
-              </div>
+              {regionData.region_type === 'country' && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Population</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {regionData.population?.toLocaleString() || 'N/A'}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-muted-foreground mb-1">GDP per Capita</p>
                 <p className="text-2xl font-bold text-foreground">
