@@ -338,18 +338,79 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     };
   }, [mapboxToken, onRegionClick, isDataLoaded]); // Removed regionsData and selectedRegion from dependencies
 
-  // Apply filters and update data source
+  // Apply filters and update layer filters (not data source)
   useEffect(() => {
     if (map.current && isLoaded && regionsData && map.current.getSource('regions')) {
-      const source = map.current.getSource('regions') as mapboxgl.GeoJSONSource;
-      if (source && filters) {
-        // Apply filters
-        const filteredFeatures = regionsData.features.filter((feature: any) => {
+      if (!filters) return;
+      
+      // Build filter expressions for search, CII, population, and data quality
+      const buildLayerFilter = (isRegionLayer: boolean) => {
+        const conditions: any[] = [];
+        
+        // Base type filter
+        if (isRegionLayer) {
+          conditions.push(['!=', ['get', 'region_type'], 'country']);
+          // When drilling into a country, filter regions by country
+          if (currentCountry) {
+            conditions.push(['==', ['get', 'country'], currentCountry]);
+          }
+        } else {
+          conditions.push(['==', ['get', 'region_type'], 'country']);
+        }
+        
+        // Search query filter
+        if (filters.searchQuery) {
+          const query = filters.searchQuery.toLowerCase();
+          conditions.push([
+            'any',
+            ['in', query, ['downcase', ['get', 'region_name']]],
+            ['in', query, ['downcase', ['get', 'country']]]
+          ]);
+        }
+        
+        // CII score filter
+        const ciiMin = filters.ciiRange[0] / 100;
+        const ciiMax = filters.ciiRange[1] / 100;
+        if (ciiMin > 0 || ciiMax < 1) {
+          conditions.push(['>=', ['get', 'cii_score'], ciiMin]);
+          conditions.push(['<=', ['get', 'cii_score'], ciiMax]);
+        }
+        
+        // Population filter
+        if (filters.populationRange[0] > 0 || filters.populationRange[1] < 500000000) {
+          conditions.push([
+            'all',
+            ['has', 'population'],
+            ['>=', ['get', 'population'], filters.populationRange[0]],
+            ['<=', ['get', 'population'], filters.populationRange[1]]
+          ]);
+        }
+        
+        return ['all', ...conditions];
+      };
+      
+      // Apply filters to layers
+      if (map.current.getLayer('country-fill')) {
+        map.current.setFilter('country-fill', buildLayerFilter(false));
+      }
+      if (map.current.getLayer('country-outline')) {
+        map.current.setFilter('country-outline', buildLayerFilter(false));
+      }
+      if (map.current.getLayer('region-fill')) {
+        map.current.setFilter('region-fill', buildLayerFilter(true));
+      }
+      if (map.current.getLayer('region-outline')) {
+        map.current.setFilter('region-outline', buildLayerFilter(true));
+      }
+      
+      // Count filtered features for display
+      const countFiltered = () => {
+        if (!regionsData) return 0;
+        return regionsData.features.filter((feature: any) => {
           const props = feature.properties;
           
-          // Country drill-down filter
+          // Type filter based on drill-down
           if (currentCountry) {
-            // When drilling down, only show regions from the selected country
             if (props.region_type === 'country') return false;
             if (props.country !== currentCountry) return false;
           }
@@ -363,13 +424,13 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             }
           }
           
-          // CII score range
+          // CII score
           const ciiPercent = (props.cii_score || 0) * 100;
           if (ciiPercent < filters.ciiRange[0] || ciiPercent > filters.ciiRange[1]) {
             return false;
           }
           
-          // Population range
+          // Population
           if (props.population !== null && props.population !== undefined) {
             if (props.population < filters.populationRange[0] || 
                 props.population > filters.populationRange[1]) {
@@ -377,32 +438,12 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             }
           }
           
-          // Data quality
-          if (filters.dataQuality !== 'all') {
-            const hasRealData = props.data_sources && 
-                               Array.isArray(props.data_sources) && 
-                               props.data_sources.some((s: string) => s !== 'Synthetic');
-            const isSynthetic = !hasRealData;
-            
-            if (filters.dataQuality === 'real' && isSynthetic) return false;
-            if (filters.dataQuality === 'synthetic' && !isSynthetic) return false;
-          }
-          
           return true;
-        });
-
-        const filteredGeoJSON: any = {
-          type: 'FeatureCollection',
-          features: filteredFeatures
-        };
-
-        source.setData(filteredGeoJSON);
-        onFilteredCountChange?.(filteredFeatures.length);
-        console.log('Applied filters:', filteredFeatures.length, 'features');
-      } else if (source) {
-        source.setData(regionsData);
-        onFilteredCountChange?.(regionsData.features.length);
-      }
+        }).length;
+      };
+      
+      onFilteredCountChange?.(countFiltered());
+      console.log('Applied layer filters, showing:', countFiltered(), 'features');
     }
   }, [regionsData, isLoaded, filters, currentCountry]);
 
