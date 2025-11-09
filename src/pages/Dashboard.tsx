@@ -154,7 +154,7 @@ useEffect(() => {
   const handleRegionClick = async (data: any) => {
     // If clicking a country, drill down to show its regions
     if (data.region_type === 'country' && !compareMode) {
-      setCurrentCountry(data.region_name);
+      setCurrentCountry(data.country);
       setSelectedRegion(null);
       setAiInsight(null);
       toast({

@@ -350,9 +350,10 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         // Base type filter
         if (isRegionLayer) {
           conditions.push(['!=', ['get', 'region_type'], 'country']);
-          // When drilling into a country, filter regions by country
+          // When drilling into a country, filter regions by country (case-insensitive)
           if (currentCountry) {
-            conditions.push(['==', ['get', 'country'], currentCountry]);
+            const cc = currentCountry.toLowerCase();
+            conditions.push(['==', ['downcase', ['get', 'country']], cc]);
           }
         } else {
           conditions.push(['==', ['get', 'region_type'], 'country']);
