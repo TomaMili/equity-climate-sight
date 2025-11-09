@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 5; // Process 5 regions at a time to avoid timeouts
+const BATCH_SIZE = 20; // Process 20 regions at a time for faster enrichment
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
