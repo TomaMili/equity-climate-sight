@@ -18,7 +18,7 @@ export default function Home() {
         </div>
 
         {/* Content Overlay */}
-        <div className="relative z-10 h-full flex items-center justify-center px-8 sm:px-16 lg:px-32 pointer-events-none">
+        <div className="relative z-10 container mx-auto px-4 h-full flex items-center pointer-events-none">
           <div className="max-w-4xl mx-auto text-center space-y-8 pointer-events-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/20 text-primary text-sm font-medium">
               <Globe className="w-4 h-4" />
