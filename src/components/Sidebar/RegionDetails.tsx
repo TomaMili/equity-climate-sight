@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Bookmark, Sparkles, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Loader2, Bookmark, Sparkles, TrendingUp, AlertTriangle, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import CIIBreakdown from './CIIBreakdown';
+import { ExpandedAnalysis } from '@/components/Analysis/ExpandedAnalysis';
 
 interface RegionDetailsProps {
   data: any | null;
@@ -15,6 +17,8 @@ interface RegionDetailsProps {
 }
 
 export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked = false, onToggleBookmark }: RegionDetailsProps) => {
+  const [showExpandedAnalysis, setShowExpandedAnalysis] = useState(false);
+
   if (!data) {
     return (
       <Card className="p-6">
@@ -77,10 +81,21 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
           ) : aiInsight ? (
             <div className="space-y-4">
               <div className="prose prose-sm max-w-none">
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                <p className="text-sm text-foreground leading-relaxed line-clamp-6">
                   {aiInsight}
                 </p>
               </div>
+              
+              {/* Expand Button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full gap-2"
+                onClick={() => setShowExpandedAnalysis(true)}
+              >
+                <Maximize2 className="h-4 w-4" />
+                View Detailed Analysis & Export PDF
+              </Button>
               
               {/* Key Indicators */}
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
@@ -224,6 +239,14 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
         infrastructureGap={data.cii_infrastructure_gap_component}
         socioeconomicVuln={data.cii_socioeconomic_vuln_component}
         airQuality={data.cii_air_quality_component}
+      />
+
+      {/* Expanded Analysis Modal */}
+      <ExpandedAnalysis
+        open={showExpandedAnalysis}
+        onOpenChange={setShowExpandedAnalysis}
+        regionData={data}
+        basicInsight={aiInsight || ''}
       />
     </div>
   );

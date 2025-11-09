@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.generate-insights]
 verify_jwt = false
 
+[functions.generate-expanded-insights]
+verify_jwt = false
+
 [functions.compare-regions]
 verify_jwt = false
 
