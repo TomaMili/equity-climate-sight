@@ -190,7 +190,7 @@ async function fetchParameterDataV3(
   };
 
   const url = new URL('https://api.openaq.org/v3/latest');
-  url.searchParams.set('countries_id', code);
+  url.searchParams.set('country', code);
   url.searchParams.set('parameters_id', parameterMap[parameterId].toString());
   url.searchParams.set('limit', '1000');
 

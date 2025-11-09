@@ -231,7 +231,7 @@ async function fetchOpenAQData(iso2: string) {
 
   const fetchParameter = async (parameterId: number) => {
     const url = new URL('https://api.openaq.org/v3/latest');
-    url.searchParams.set('countries_id', iso2);
+    url.searchParams.set('country', iso2);
     url.searchParams.set('parameters_id', parameterId.toString());
     url.searchParams.set('limit', '1000');
 
