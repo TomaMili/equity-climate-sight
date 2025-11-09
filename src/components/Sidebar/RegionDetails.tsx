@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Bookmark, Sparkles, TrendingUp, AlertTriangle, Maximize2 } from 'lucide-react';
+import { Loader2, Bookmark, Sparkles, TrendingUp, AlertTriangle, Maximize2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import CIIBreakdown from './CIIBreakdown';
 import { ExpandedAnalysis } from '@/components/Analysis/ExpandedAnalysis';
 
@@ -18,6 +19,7 @@ interface RegionDetailsProps {
 
 export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked = false, onToggleBookmark }: RegionDetailsProps) => {
   const [showExpandedAnalysis, setShowExpandedAnalysis] = useState(false);
+  const [showAllStats, setShowAllStats] = useState(true); // Start open by default
 
   if (!data) {
     return (
@@ -41,103 +43,7 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
 
   return (
     <div className="space-y-4">
-      {/* AI Analysis - Featured First for Prominence */}
-      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-background shadow-lg">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Sparkles className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  AI Climate Equity Analysis
-                  {!isLoadingInsight && aiInsight && (
-                    <Badge variant="secondary" className="text-xs">
-                      Powered by Gemini 2.5
-                    </Badge>
-                  )}
-                </CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  Expert assessment of climate vulnerability
-                </CardDescription>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isLoadingInsight ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                <span>Analyzing regional climate inequality factors...</span>
-              </div>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-4/5" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          ) : aiInsight ? (
-            <div className="space-y-4">
-              <div className="prose prose-sm max-w-none">
-                <p className="text-sm text-foreground leading-relaxed line-clamp-6">
-                  {aiInsight}
-                </p>
-              </div>
-              
-              {/* Expand Button */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full gap-2"
-                onClick={() => setShowExpandedAnalysis(true)}
-              >
-                <Maximize2 className="h-4 w-4" />
-                View Detailed Analysis & Export PDF
-              </Button>
-              
-              {/* Key Indicators */}
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-                {data.cii_score >= 0.7 && (
-                  <Badge variant="destructive" className="gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Critical Risk
-                  </Badge>
-                )}
-                {data.air_quality_pm25 && data.air_quality_pm25 > 35 && (
-                  <Badge variant="destructive" className="gap-1">
-                    Hazardous Air Quality
-                  </Badge>
-                )}
-                {data.flood_risk_score && data.flood_risk_score > 0.7 && (
-                  <Badge variant="destructive" className="gap-1">
-                    High Flood Risk
-                  </Badge>
-                )}
-                {data.gdp_per_capita && data.gdp_per_capita < 5000 && (
-                  <Badge variant="outline" className="gap-1">
-                    Low-Income Region
-                  </Badge>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2">
-                <TrendingUp className="h-3 w-3" />
-                <span>Analysis based on {data.data_year || 2024} data from multiple sources</span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-              <p className="text-sm text-muted-foreground">No AI analysis available</p>
-              <p className="text-xs text-muted-foreground mt-1">Select a region to generate insights</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Region Overview */}
+      {/* Region Header */}
       <Card className="p-6">
         <div className="flex items-start justify-between gap-2 mb-4">
           <div className="flex-1">
@@ -160,80 +66,207 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
           )}
         </div>
         
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm text-muted-foreground">CII Score:</span>
-          <span className="text-2xl font-bold text-foreground">{data.cii_score.toFixed(2)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Climate Inequality Index:</span>
+          <span className="text-2xl font-bold text-foreground">{(data.cii_score * 100).toFixed(1)}%</span>
           <Badge variant={ciiLevel.variant}>{ciiLevel.label}</Badge>
         </div>
-
-        <Separator className="my-4" />
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Climate Risk</p>
-            <p className="text-lg font-semibold text-foreground">
-              {data.climate_risk_score?.toFixed(2) || 'N/A'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Infrastructure</p>
-            <p className="text-lg font-semibold text-foreground">
-              {data.infrastructure_score?.toFixed(2) || 'N/A'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Socioeconomic</p>
-            <p className="text-lg font-semibold text-foreground">
-              {data.socioeconomic_score?.toFixed(2) || 'N/A'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Population</p>
-            <p className="text-lg font-semibold text-foreground">
-              {data.population?.toLocaleString() || 'N/A'}
-            </p>
-          </div>
-        </div>
-
-        {(data.air_quality_pm25 || data.internet_connectivity_mbps) && (
-          <>
-            <Separator className="my-4" />
-          <div className="space-y-2">
-            {data.air_quality_pm25 && (
-              <div className="flex justify-between">
-                <span className="text-xs text-muted-foreground">Air Quality (PM2.5)</span>
-                <span className="text-sm font-medium text-foreground">{data.air_quality_pm25} µg/m³</span>
-              </div>
-            )}
-            {data.air_quality_no2 && (
-              <div className="flex justify-between">
-                <span className="text-xs text-muted-foreground">NO₂ Levels</span>
-                <span className="text-sm font-medium text-foreground">{data.air_quality_no2} µg/m³</span>
-              </div>
-            )}
-            {data.internet_speed_download && (
-              <div className="flex justify-between">
-                <span className="text-xs text-muted-foreground">Internet (Down)</span>
-                <span className="text-sm font-medium text-foreground">{data.internet_speed_download} Mbps</span>
-              </div>
-            )}
-            {data.temperature_avg && (
-              <div className="flex justify-between">
-                <span className="text-xs text-muted-foreground">Avg Temperature</span>
-                <span className="text-sm font-medium text-foreground">{data.temperature_avg}°C</span>
-              </div>
-            )}
-            {data.drought_index && (
-              <div className="flex justify-between">
-                <span className="text-xs text-muted-foreground">Drought Index</span>
-                <span className="text-sm font-medium text-foreground">{data.drought_index}</span>
-              </div>
-            )}
-          </div>
-          </>
-        )}
       </Card>
 
+      {/* AI Insight - Prominent Display */}
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-background shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-primary/20">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-semibold">AI Climate Analysis</CardTitle>
+              <CardDescription className="text-xs">Expert assessment powered by Gemini 2.5</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoadingInsight ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                <span>Analyzing climate data...</span>
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+          ) : aiInsight ? (
+            <div className="space-y-3">
+              <p className="text-sm text-foreground leading-relaxed">
+                {aiInsight}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full gap-2"
+                onClick={() => setShowExpandedAnalysis(true)}
+              >
+                <Maximize2 className="h-4 w-4" />
+                View Detailed Analysis & Export
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-2">No AI analysis available</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* All Statistics - Collapsible */}
+      <Collapsible open={showAllStats} onOpenChange={setShowAllStats}>
+        <Card className="p-6">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+              <h3 className="text-lg font-semibold text-foreground">All Statistics</h3>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showAllStats ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          
+          {/* Key Stats Always Visible */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Climate Risk</p>
+              <p className="text-lg font-semibold text-foreground">
+                {data.climate_risk_score ? (data.climate_risk_score * 100).toFixed(1) + '%' : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Infrastructure</p>
+              <p className="text-lg font-semibold text-foreground">
+                {data.infrastructure_score ? (data.infrastructure_score * 100).toFixed(1) + '%' : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Socioeconomic</p>
+              <p className="text-lg font-semibold text-foreground">
+                {data.socioeconomic_score ? (data.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Population</p>
+              <p className="text-lg font-semibold text-foreground">
+                {data.population?.toLocaleString() || 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          <CollapsibleContent className="mt-4 space-y-4">
+            <Separator />
+            
+            {/* Environmental Data */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Environmental</h4>
+              <div className="space-y-2">
+                {data.air_quality_pm25 && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">PM2.5 Air Quality</span>
+                    <span className="text-sm font-medium text-foreground">{data.air_quality_pm25} µg/m³</span>
+                  </div>
+                )}
+                {data.air_quality_no2 && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">NO₂ Levels</span>
+                    <span className="text-sm font-medium text-foreground">{data.air_quality_no2} µg/m³</span>
+                  </div>
+                )}
+                {data.temperature_avg && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Average Temperature</span>
+                    <span className="text-sm font-medium text-foreground">{data.temperature_avg.toFixed(1)}°C</span>
+                  </div>
+                )}
+                {data.precipitation_avg && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Annual Precipitation</span>
+                    <span className="text-sm font-medium text-foreground">{data.precipitation_avg.toFixed(0)} mm</span>
+                  </div>
+                )}
+                {data.drought_index != null && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Drought Index</span>
+                    <span className="text-sm font-medium text-foreground">{data.drought_index.toFixed(2)}</span>
+                  </div>
+                )}
+                {data.flood_risk_score != null && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Flood Risk Score</span>
+                    <span className="text-sm font-medium text-foreground">{(data.flood_risk_score * 100).toFixed(1)}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Economic Data */}
+            {(data.gdp_per_capita || data.urban_population_percent) && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Economic & Social</h4>
+                  <div className="space-y-2">
+                    {data.gdp_per_capita && (
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">GDP per Capita</span>
+                        <span className="text-sm font-medium text-foreground">${data.gdp_per_capita.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {data.urban_population_percent != null && (
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Urban Population</span>
+                        <span className="text-sm font-medium text-foreground">{data.urban_population_percent.toFixed(1)}%</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Infrastructure Data */}
+            {(data.internet_speed_download || data.internet_speed_upload) && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Infrastructure</h4>
+                  <div className="space-y-2">
+                    {data.internet_speed_download && (
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Internet Download</span>
+                        <span className="text-sm font-medium text-foreground">{data.internet_speed_download} Mbps</span>
+                      </div>
+                    )}
+                    {data.internet_speed_upload && (
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Internet Upload</span>
+                        <span className="text-sm font-medium text-foreground">{data.internet_speed_upload} Mbps</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Data Sources */}
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Data Sources</h4>
+              <div className="flex flex-wrap gap-1">
+                {(Array.isArray(data.data_sources) ? data.data_sources : []).map((source: string, idx: number) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {source}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* CII Breakdown in Collapsible */}
       <CIIBreakdown 
         climateRisk={data.cii_climate_risk_component}
         infrastructureGap={data.cii_infrastructure_gap_component}

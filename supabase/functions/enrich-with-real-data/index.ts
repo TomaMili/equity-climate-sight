@@ -26,7 +26,7 @@ serve(async (req) => {
     // Get regions that need enrichment (those with synthetic data)
     const { data: regions, error: fetchError } = await supabase
       .from('climate_inequality_regions')
-      .select('region_code, country, data_year')
+      .select('region_code, country, data_year, region_type')
       .eq('region_type', region_type)
       .eq('data_year', year)
       .contains('data_sources', ['Synthetic'])
@@ -107,7 +107,7 @@ serve(async (req) => {
 
 async function processRegion(
   supabase: any,
-  region: { region_code: string; country: string; data_year: number },
+  region: { region_code: string; country: string; data_year: number; region_type: string },
   year: number,
   worker_id: number
 ) {
@@ -119,16 +119,22 @@ async function processRegion(
     last_updated: new Date().toISOString()
   };
 
-  // Fetch World Bank data
-  const worldBank = await fetchWorldBankData(iso2, year);
-  if (worldBank.population) realData.population = worldBank.population;
-  if (worldBank.gdp_per_capita) realData.gdp_per_capita = worldBank.gdp_per_capita;
-  if (worldBank.urban_percent) realData.urban_population_percent = worldBank.urban_percent;
+  // Only fetch population data for countries, not regions
+  // Regions don't have population data at the regional level from World Bank/UN APIs
+  const isCountry = region.region_type === 'country';
 
-  // Fetch UN data as backup
-  if (!realData.population) {
-    const unData = await fetchUNPopulationData(iso2, year);
-    if (unData.population) realData.population = unData.population;
+  // Fetch World Bank data (only population for countries)
+  if (isCountry) {
+    const worldBank = await fetchWorldBankData(iso2, year);
+    if (worldBank.population) realData.population = worldBank.population;
+    if (worldBank.gdp_per_capita) realData.gdp_per_capita = worldBank.gdp_per_capita;
+    if (worldBank.urban_percent) realData.urban_population_percent = worldBank.urban_percent;
+
+    // Fetch UN data as backup
+    if (!realData.population) {
+      const unData = await fetchUNPopulationData(iso2, year);
+      if (unData.population) realData.population = unData.population;
+    }
   }
 
   // Fetch OpenAQ air quality
