@@ -76,8 +76,7 @@ export function EnrichmentValidation({
         .from('climate_inequality_regions')
         .select('*', { count: 'exact', head: true })
         .eq('region_type', 'country')
-        .eq('data_year', year)
-        .contains('data_sources', ['Synthetic']);
+        .eq('data_year', year);
 
       result.countriesNeedingEnrichment = countriesCount || 0;
 
@@ -86,8 +85,7 @@ export function EnrichmentValidation({
         .from('climate_inequality_regions')
         .select('*', { count: 'exact', head: true })
         .eq('region_type', 'region')
-        .eq('data_year', year)
-        .contains('data_sources', ['Synthetic']);
+        .eq('data_year', year);
 
       result.regionsNeedingEnrichment = regionsCount || 0;
 
@@ -128,7 +126,7 @@ export function EnrichmentValidation({
       }
 
       if (result.countriesNeedingEnrichment === 0 && result.regionsNeedingEnrichment === 0) {
-        result.warnings.push(`All data is already enriched for ${year}`);
+        result.warnings.push(`No data available for ${year}`);
       }
 
       setValidation(result);
