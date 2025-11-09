@@ -32,7 +32,7 @@ const App = () => (
                     <h1 className="text-sm font-semibold text-foreground">Climate Inequality Index</h1>
                   </div>
                 </header>
-                <main className="flex-1 overflow-auto">
+                <main className="flex-1 overflow-auto w-full">
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/dashboard" element={<Dashboard />} />
