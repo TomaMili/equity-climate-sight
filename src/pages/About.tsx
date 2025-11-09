@@ -45,7 +45,7 @@ export default function About() {
       <div className="container mx-auto px-4 pb-16 max-w-4xl">
         {/* Header */}
         <motion.div initial="hidden" animate="show" variants={fadeIn} className="space-y-4">
-          <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+          <h1 className="text-5xl font-semibold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
             About the Project
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground">
@@ -467,7 +467,7 @@ export default function About() {
                   <div className="w-1 h-5 bg-primary rounded-full" />
                   Core Team
                 </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
                   {[
                     {
                       name: "Toma Milićević",
