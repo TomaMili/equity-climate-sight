@@ -6,11 +6,11 @@ import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2 } from 'lucide-
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
-  show: (i = 0) => ({
+  show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, delay: 0.08 * i, ease: 'easeOut' }
-  })
+    transition: { duration: 0.5 }
+  }
 };
 
 export default function About() {
@@ -79,7 +79,6 @@ export default function About() {
             whileInView="show"
             viewport={{ once: true, amount: 0.2 }}
             variants={fadeIn}
-            custom={1}
           >
             <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
               <CardHeader className="pb-2">
@@ -120,7 +119,6 @@ export default function About() {
             whileInView="show"
             viewport={{ once: true, amount: 0.2 }}
             variants={fadeIn}
-            custom={2}
           >
             <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
               <CardHeader className="pb-2">
@@ -164,7 +162,6 @@ export default function About() {
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeIn}
-          custom={3}
           className="mt-12"
         >
           <Card className="overflow-hidden border-border/70">
@@ -222,7 +219,6 @@ export default function About() {
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeIn}
-          custom={4}
           className="flex flex-col sm:flex-row gap-3 pt-10"
         >
           <Button asChild className="h-11 text-[15px] shadow-md hover:shadow-lg transition-all">

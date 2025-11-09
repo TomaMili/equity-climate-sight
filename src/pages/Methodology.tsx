@@ -16,11 +16,11 @@ import {
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
-  show: (i = 0) => ({
+  show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.45, delay: 0.08 * i, ease: 'easeOut' }
-  })
+    transition: { duration: 0.45 }
+  }
 };
 
 export default function Methodology() {
@@ -123,7 +123,6 @@ export default function Methodology() {
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeIn}
-          custom={1}
           className="mt-8 grid gap-6"
         >
           <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
@@ -178,7 +177,6 @@ export default function Methodology() {
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeIn}
-          custom={2}
           className="mt-8"
         >
           <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300 overflow-hidden">
@@ -236,7 +234,6 @@ export default function Methodology() {
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeIn}
-          custom={3}
           className="mt-8"
         >
           <Card className="border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
@@ -287,7 +284,6 @@ export default function Methodology() {
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeIn}
-          custom={4}
           className="flex flex-col sm:flex-row gap-3 pt-10"
         >
           <Button asChild className="h-11 text-[15px] shadow-md hover:shadow-lg transition-all">

@@ -20,11 +20,11 @@ import logo from "@/assets/ai-equity-mapper-logo2.png";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
-  show: (i = 0) => ({
+  show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, delay: 0.08 * i, ease: "easeOut" },
-  }),
+    transition: { duration: 0.5 }
+  }
 };
 
 export default function Home() {
@@ -59,7 +59,6 @@ export default function Home() {
               initial="hidden"
               animate="show"
               variants={fadeIn}
-              custom={1}
               className="text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow-md font-normal"
             >
               Visualizing the intersection of climate risk, infrastructure access, and socioeconomic factors
@@ -71,7 +70,6 @@ export default function Home() {
               initial="hidden"
               animate="show"
               variants={fadeIn}
-              custom={2}
               className="flex flex-wrap items-center justify-center gap-3"
             >
               {[
@@ -95,7 +93,6 @@ export default function Home() {
               initial="hidden"
               animate="show"
               variants={fadeIn}
-              custom={3}
               className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2"
             >
               <Button
@@ -174,7 +171,7 @@ export default function Home() {
                 badgeBg: "bg-sidebar-ring",
               },
             ].map(({ title, desc, icon: Icon, bg, badgeBg }, i) => (
-              <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn} custom={i}>
+              <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
                 <div className="group relative h-full cursor-default">
                   <div className={`absolute -inset-0.5 bg-gradient-to-r ${bg} rounded-xl opacity-0 group-hover:opacity-100 blur transition duration-500`} />
                   <Card className="relative border-2 hover:border-primary transition-all duration-300 bg-card h-full">
@@ -220,7 +217,7 @@ export default function Home() {
                 icon: GitCompare,
               },
             ].map(({ title, desc, icon: Icon }, i) => (
-              <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn} custom={i}>
+              <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
                 <Card className="h-full pb-4 border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-3">
@@ -293,7 +290,7 @@ export default function Home() {
             </motion.div>
 
             {/* Quick Stats */}
-            <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn} custom={1}>
+            <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn}>
               <Card className="h-full border-border/70">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-xl">Platform Snapshot</CardTitle>
