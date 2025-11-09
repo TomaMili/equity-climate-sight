@@ -27,6 +27,12 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
 
+  // Keep latest onRegionClick without re-running map init effect
+  const onRegionClickRef = useRef(onRegionClick);
+  useEffect(() => {
+    onRegionClickRef.current = onRegionClick;
+  }, [onRegionClick]);
+
   // Load region data from backend FIRST, before map initialization
   useEffect(() => {
     const loadRegionData = async () => {
@@ -245,12 +251,12 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         // Click handlers
         map.current.on('click', 'region-fill', (e) => {
           if (e.features && e.features[0]) {
-            onRegionClick(e.features[0].properties);
+            onRegionClickRef.current?.(e.features[0].properties);
           }
         });
         map.current.on('click', 'country-fill', (e) => {
           if (e.features && e.features[0]) {
-            onRegionClick(e.features[0].properties);
+            onRegionClickRef.current?.(e.features[0].properties);
           }
         });
 
@@ -341,7 +347,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         console.error('Error cleaning up map:', error);
       }
     };
-  }, [mapboxToken, onRegionClick, isDataLoaded]); // Removed regionsData and selectedRegion from dependencies
+  }, [mapboxToken, isDataLoaded]); // Removed onRegionClick from dependencies to avoid re-initialization
 
   // Build and update the dynamic 'country-regions' source when drilling down
   useEffect(() => {
