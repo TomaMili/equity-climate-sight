@@ -33,6 +33,11 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
   useEffect(() => {
     onRegionClickRef.current = onRegionClick;
   }, [onRegionClick]);
+  // Keep latest currentCountry without re-running map init effect
+  const currentCountryRef = useRef<string | null>(currentCountry);
+  useEffect(() => {
+    currentCountryRef.current = currentCountry;
+  }, [currentCountry]);
 
   // Load region data from backend FIRST, before map initialization
   useEffect(() => {
@@ -250,12 +255,14 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
           });
 
         // Click handlers
-        map.current.on('click', 'region-fill', (e) => {
-          if (e.features && e.features[0]) {
-            onRegionClickRef.current?.(e.features[0].properties);
-          }
-        });
+      map.current.on('click', 'region-fill', (e) => {
+        if (!currentCountryRef.current) return;
+        if (e.features && e.features[0]) {
+          onRegionClickRef.current?.(e.features[0].properties);
+        }
+      });
         map.current.on('click', 'country-fill', (e) => {
+          if (currentCountryRef.current) return;
           if (e.features && e.features[0]) {
             onRegionClickRef.current?.(e.features[0].properties);
           }
@@ -305,12 +312,13 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         });
 
         // Add hover tooltips for countries
-        map.current.on('mouseenter', 'country-fill', (e) => {
+       map.current.on('mouseenter', 'country-fill', (e) => {
+          if (currentCountryRef.current) return; // disable country hover in region view
           if (!map.current || !e.features || !e.features[0]) return;
-          
+
           const feature = e.features[0];
           const { region_name, cii_score } = feature.properties;
-          
+
           popup
             .setLngLat(e.lngLat)
             .setHTML(`
@@ -325,11 +333,13 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
         });
 
         map.current.on('mouseleave', 'country-fill', () => {
+          if (currentCountryRef.current) return; // nothing to do if suppressed
           if (map.current) {
             map.current.getCanvas().style.cursor = '';
             popup.remove();
           }
         });
+
 
         // Notify parent and mark map ready
         onDataLoaded && onDataLoaded();
@@ -523,7 +533,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div className=" w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
       
       {/* Exit Drill-Down Button */}
@@ -553,7 +563,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       )}
       
       {/* Show loading skeleton while map is initializing */}
-      {!isMapReady && !mapError && <MapLoadingSkeleton />}
+      {/* {!isMapReady && !mapError && <MapLoadingSkeleton />} */}
       
       {/* Show loading overlay for data */}
       {!isDataLoaded && !mapError && <MapLoadingOverlay />}
