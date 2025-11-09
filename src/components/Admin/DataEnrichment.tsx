@@ -688,8 +688,45 @@ export function DataEnrichment() {
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Replace synthetic data with real measurements from OpenAQ, World Bank, and other public APIs.
+            Replace synthetic data with real measurements from World Bank, OpenAQ, NASA, and other public APIs. 
+            The enrichment process fetches actual data for each region and removes the "Synthetic" marker.
           </p>
+
+          {/* Status Card */}
+          {!resumeStatus.loading && (
+            <div className="mb-4 p-3 rounded-lg bg-muted/50 border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold">Enrichment Status ({selectedYear})</h4>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={checkResumeStatus}
+                  disabled={resumeStatus.loading}
+                >
+                  <RefreshCw className={`h-3 w-3 ${resumeStatus.loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Countries: </span>
+                  <span className={resumeStatus.countriesRemaining > 0 ? 'text-amber-600 font-medium' : 'text-green-600 font-medium'}>
+                    {resumeStatus.countriesRemaining > 0 ? `${resumeStatus.countriesRemaining} need enrichment` : 'All enriched ✓'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Regions: </span>
+                  <span className={resumeStatus.regionsRemaining > 0 ? 'text-amber-600 font-medium' : 'text-green-600 font-medium'}>
+                    {resumeStatus.regionsRemaining > 0 ? `${resumeStatus.regionsRemaining} need enrichment` : 'All enriched ✓'}
+                  </span>
+                </div>
+              </div>
+              {resumeStatus.total === 0 && (
+                <div className="mt-2 text-xs text-green-600 font-medium">
+                  🎉 All data for {selectedYear} has been enriched!
+                </div>
+              )}
+            </div>
+          )}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-4">

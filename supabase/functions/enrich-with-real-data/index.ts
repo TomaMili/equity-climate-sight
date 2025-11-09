@@ -79,31 +79,24 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Worker ${worker_id}] Processing ${regions.length} regions (scheduled in background)...`);
-    let enrichedCount = regions.length; // scheduled items count
+    console.log(`[Worker ${worker_id}] Processing ${regions.length} regions synchronously...`);
+    let enrichedCount = 0;
     let failedCount = 0;
 
-    // Background processing so the HTTP request returns fast and UI doesn't hang
-    const processBatch = async () => {
-      for (const region of regions) {
-        try {
-          await processRegion(supabase, region, year, worker_id);
-          // Small delay to respect API rate limits
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } catch (error) {
-          console.error(`Error processing ${region.region_code}:`, error);
-        }
+    // Process regions synchronously to ensure accurate count tracking
+    for (const region of regions) {
+      try {
+        await processRegion(supabase, region, year, worker_id);
+        enrichedCount++;
+        // Small delay to respect API rate limits
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`Error processing ${region.region_code}:`, error);
+        failedCount++;
       }
-    };
+    }
 
-    // Do not await; continue response flow
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).EdgeRuntime?.waitUntil?.(processBatch());
-
-    // Add small delay to allow some processing to start before returning
-    await new Promise(resolve => setTimeout(resolve, 150));
-
-    // Check if more regions need enrichment
+    // Check if more regions need enrichment AFTER processing current batch
     const { count } = await supabase
       .from('climate_inequality_regions')
       .select('region_code', { count: 'exact', head: true })
@@ -201,8 +194,17 @@ async function processRegion(
   if (internet.download) realData.internet_speed_download = internet.download;
   if (internet.upload) realData.internet_speed_upload = internet.upload;
 
-  // ALWAYS update to remove from synthetic queue, even if minimal data
-  // This prevents regions from getting stuck in the enrichment loop
+  // CRITICAL: Always update to remove from synthetic queue, even if minimal data
+  // Filter out "Synthetic" from data_sources to mark as attempted
+  const currentSources = Array.isArray(realData.data_sources) ? realData.data_sources : [];
+  realData.data_sources = currentSources.filter((s: string) => s !== 'Synthetic');
+  
+  // If no real sources were added, at least mark it as attempted
+  if (realData.data_sources.length === 0 || 
+      (realData.data_sources.length === 1 && realData.data_sources[0] === 'Natural Earth')) {
+    realData.data_sources = ['Natural Earth', 'Attempted'];
+  }
+
   const { error: updateError } = await supabase
     .from('climate_inequality_regions')
     .update(realData)
@@ -216,7 +218,7 @@ async function processRegion(
   
   const dataCount = Object.keys(realData).length - 2; // Exclude sources and timestamp
   if (dataCount > 0) {
-    console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code} with ${dataCount} fields`);
+    console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code} with ${dataCount} fields from ${realData.data_sources.join(', ')}`);
   } else {
     console.log(`[Worker ${worker_id}] ⚠ No external data found for ${region.region_code}, marked as attempted`);
   }
