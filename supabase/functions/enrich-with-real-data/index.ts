@@ -60,7 +60,7 @@ serve(async (req) => {
     // Get regions to enrich - all regions for the year
     const { data: regions, error: fetchError } = await supabase
       .from('climate_inequality_regions')
-      .select('region_code, country, data_year, region_type, enrichment_attempts, next_retry_at, population')
+      .select('region_code, region_name, country, data_year, region_type, enrichment_attempts, next_retry_at, population')
       .eq('region_type', region_type)
       .eq('data_year', year)
       .range(offset, offset + BATCH_SIZE - 1); // Use offset for parallel workers
@@ -162,7 +162,7 @@ async function handleEnrichmentFailure(
 
 async function processRegion(
   supabase: any,
-  region: { region_code: string; country: string; data_year: number; region_type: string; enrichment_attempts?: number; population?: number },
+  region: { region_code: string; region_name: string; country: string; data_year: number; region_type: string; enrichment_attempts?: number; population?: number },
   year: number,
   worker_id: number
 ): Promise<boolean> {
@@ -192,7 +192,7 @@ async function processRegion(
 
   // Fetch GeoNames population for regions only - only update if we get valid data
   if (!isCountry) {
-    const geoNamesData = await fetchGeoNamesPopulation(region.region_code, iso2);
+    const geoNamesData = await fetchGeoNamesPopulation(region.region_code, iso2, region.region_name);
     if (geoNamesData.population) {
       // Validate population is positive and reasonable (between 1 and 2 billion)
       const pop = geoNamesData.population;
@@ -446,7 +446,7 @@ async function fetchUNPopulationData(iso2: string, year: number) {
   return result;
 }
 
-async function fetchGeoNamesPopulation(regionCode: string, iso2: string) {
+async function fetchGeoNamesPopulation(regionCode: string, iso2: string, regionName?: string) {
   const result: { population?: number } = {};
   const username = Deno.env.get('GEONAMES_USERNAME');
   
@@ -455,46 +455,60 @@ async function fetchGeoNamesPopulation(regionCode: string, iso2: string) {
     return result;
   }
 
-  // Extract the admin code from region_code (e.g., "HR-ZG" -> "ZG", "HR-SM" -> "SM")
   const adminCode = regionCode.split('-').slice(1).join('-');
-  
-  try {
-    // Search for administrative divisions using the admin code
+
+  const trySearch = async (params: Record<string, string>) => {
     const url = new URL('http://api.geonames.org/searchJSON');
-    url.searchParams.set('country', iso2);
-    url.searchParams.set('featureClass', 'A'); // Administrative divisions
-    url.searchParams.set('adminCode1', adminCode); // Search by admin code
-    url.searchParams.set('maxRows', '5');
-    url.searchParams.set('style', 'full'); // Get full details including population
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    url.searchParams.set('maxRows', '10');
+    url.searchParams.set('style', 'full');
     url.searchParams.set('username', username);
-    
-    console.log(`Searching GeoNames for admin code: ${adminCode} in ${iso2}`);
-    
+
     const resp = await fetchWithRetry(url.toString());
-    if (!resp) return result;
-    
+    if (!resp) return null;
     const data = await resp.json();
-    
-    // GeoNames returns geonames array with results
-    if (data.geonames && Array.isArray(data.geonames) && data.geonames.length > 0) {
-      // Find the best match - prefer ADM1 (first-level division) with population
-      const adm1 = data.geonames.find((g: any) => g.fcode === 'ADM1' && g.population);
-      const match = adm1 || data.geonames.find((g: any) => g.population);
-      
-      if (match && match.population) {
-        const population = parseInt(match.population);
-        // Additional validation: ensure population is a valid positive number
-        if (!isNaN(population) && population > 0 && population < 2_000_000_000) {
-          result.population = population;
-          console.log(`✓ Found population for ${adminCode}: ${result.population} (${match.name}, ${match.fcode})`);
-        } else {
-          console.warn(`⚠ Invalid population value for ${adminCode}: ${match.population} (parsed: ${population})`);
-        }
-      } else {
-        console.log(`⚠ No population data in GeoNames for ${adminCode}`);
-      }
+    return Array.isArray(data?.geonames) ? data.geonames : null;
+  };
+
+  const pickPopulation = (rows: any[] | null) => {
+    if (!rows || rows.length === 0) return undefined;
+    // Prefer ADM1 records with population
+    const adm1 = rows.find((g: any) => (g.fcode === 'ADM1' || g.fcode?.startsWith('ADM')) && Number(g.population) > 0);
+    const anyWithPop = adm1 || rows.find((g: any) => Number(g.population) > 0);
+    const pop = anyWithPop ? Number(anyWithPop.population) : undefined;
+    return pop && pop > 0 && pop < 2_000_000_000 ? Math.round(pop) : undefined;
+  };
+
+  try {
+    console.log(`GeoNames lookup for ${regionCode} (${regionName || 'unknown name'}) in ${iso2}`);
+
+    // 1) Exact admin code + ADM1
+    let rows = await trySearch({ country: iso2, featureCode: 'ADM1', adminCode1: adminCode });
+    let pop = pickPopulation(rows);
+
+    // 2) Fallback by exact name equals (ADM1)
+    if (!pop && regionName) {
+      rows = await trySearch({ country: iso2, featureCode: 'ADM1', name_equals: regionName });
+      pop = pickPopulation(rows);
+    }
+
+    // 3) Fuzzy search by name (ADM1)
+    if (!pop && regionName) {
+      rows = await trySearch({ country: iso2, featureCode: 'ADM1', q: regionName });
+      pop = pickPopulation(rows);
+    }
+
+    // 4) Broader fallback: featureClass=A if ADM1 didn't return population
+    if (!pop) {
+      rows = await trySearch({ country: iso2, featureClass: 'A', adminCode1: adminCode });
+      pop = pickPopulation(rows);
+    }
+
+    if (pop) {
+      result.population = pop;
+      console.log(`✓ GeoNames population for ${regionCode}: ${pop}`);
     } else {
-      console.log(`⚠ No GeoNames results for admin code ${adminCode} in ${iso2}`);
+      console.log(`⚠ GeoNames did not return population for ${regionCode}`);
     }
   } catch (e) {
     console.error(`Failed to fetch GeoNames data for ${regionCode}:`, e);
