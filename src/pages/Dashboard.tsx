@@ -167,6 +167,23 @@ useEffect(() => {
       return;
     }
 
+    // If clicking a sub-region, drill down to its country first
+    if (data.region_type !== 'country' && data.country && currentCountry?.toLowerCase() !== data.country.toLowerCase() && !compareMode) {
+      setCurrentCountry(data.country);
+      // Wait a bit for the map to update, then select the specific region
+      setTimeout(() => {
+        setSelectedRegion(data);
+        setSelectedH3Index(data.region_code);
+        addRecentRegion(data.region_code, data.region_name, data.country);
+      }, 700);
+      
+      toast({
+        title: 'Zooming to Region',
+        description: `Navigating to ${data.region_name}, ${data.country}`,
+      });
+      return;
+    }
+
     // If in compare mode, toggle region in comparison
     if (compareMode) {
       const regionId = data.id;
