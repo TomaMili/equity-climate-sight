@@ -140,11 +140,18 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
       setIsLoaded(true);
       setMapError(null); // Clear any previous errors
       
-        // Add source for all data
+        // Add sources
         if (map.current && regionsData) {
+          // All features (countries + regions)
           map.current.addSource('regions', {
             type: 'geojson',
             data: regionsData
+          });
+
+          // Dynamic source that will contain ONLY regions for the selected country
+          map.current.addSource('country-regions', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
           });
 
           // Countries fill - always visible
@@ -184,12 +191,11 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             }
           });
 
-          // Regions fill - only visible when drilling into a country
+          // Regions fill - sourced from the dynamic 'country-regions'
           map.current.addLayer({
             id: 'region-fill',
             type: 'fill',
-            source: 'regions',
-            filter: ['!=', ['get', 'region_type'], 'country'],
+            source: 'country-regions',
             paint: {
               'fill-color': [
                 'interpolate',
@@ -216,8 +222,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
           map.current.addLayer({
             id: 'region-outline',
             type: 'line',
-            source: 'regions',
-            filter: ['!=', ['get', 'region_type'], 'country'],
+            source: 'country-regions',
             paint: {
               'line-color': [
                 'case',
@@ -338,119 +343,86 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     };
   }, [mapboxToken, onRegionClick, isDataLoaded]); // Removed regionsData and selectedRegion from dependencies
 
-  // Apply filters and update layer filters (not data source)
+  // Build and update the dynamic 'country-regions' source when drilling down
   useEffect(() => {
-    if (map.current && isLoaded && regionsData && map.current.getSource('regions')) {
-      if (!filters) return;
-      
-      // Build filter expressions for search, CII, population, and data quality
-      const buildLayerFilter = (isRegionLayer: boolean) => {
-        const conditions: any[] = [];
-        
-        // Base type filter
-        if (isRegionLayer) {
-          conditions.push(['!=', ['get', 'region_type'], 'country']);
-          // When drilling into a country, filter regions by country (case-insensitive)
-          if (currentCountry) {
-            const cc = currentCountry.toLowerCase();
-            conditions.push([
-              'any',
-              ['==', ['downcase', ['get', 'country']], cc],
-              ['>=', ['index-of', cc, ['downcase', ['get', 'country']]], 0]
-            ]);
-          }
-        } else {
-          conditions.push(['==', ['get', 'region_type'], 'country']);
-        }
-        
-        // Search query filter
+    if (!map.current || !isLoaded || !regionsData) return;
+
+    const source = map.current.getSource('country-regions') as mapboxgl.GeoJSONSource | undefined;
+    if (!source) return;
+
+    // If a country is selected, filter its regions and apply sidebar filters
+    if (currentCountry) {
+      const cc = currentCountry.toLowerCase();
+
+      let subset = regionsData.features.filter((feature: any) => {
+        const p = feature.properties;
+        return p.region_type !== 'country' && typeof p.country === 'string' && p.country.toLowerCase() === cc;
+      });
+
+      if (filters) {
+        // Search
         if (filters.searchQuery) {
-          const query = filters.searchQuery.toLowerCase();
-          conditions.push([
-            'any',
-            ['>=', ['index-of', query, ['downcase', ['get', 'region_name']]], 0],
-            ['>=', ['index-of', query, ['downcase', ['get', 'country']]], 0]
-          ]);
+          const q = filters.searchQuery.toLowerCase();
+          subset = subset.filter((f: any) =>
+            (f.properties.region_name || '').toLowerCase().includes(q) ||
+            (f.properties.country || '').toLowerCase().includes(q)
+          );
         }
-        
-        // CII score filter
-        const ciiMin = filters.ciiRange[0] / 100;
-        const ciiMax = filters.ciiRange[1] / 100;
-        if (ciiMin > 0 || ciiMax < 1) {
-          conditions.push(['>=', ['get', 'cii_score'], ciiMin]);
-          conditions.push(['<=', ['get', 'cii_score'], ciiMax]);
+        // CII
+        subset = subset.filter((f: any) => {
+          const cii = (f.properties.cii_score || 0) * 100;
+          return cii >= filters.ciiRange[0] && cii <= filters.ciiRange[1];
+        });
+        // Population
+        subset = subset.filter((f: any) => {
+          const pop = f.properties.population;
+          if (pop === null || pop === undefined) return true;
+          return pop >= filters.populationRange[0] && pop <= filters.populationRange[1];
+        });
+      }
+
+      const fc: any = { type: 'FeatureCollection', features: subset };
+      source.setData(fc);
+
+      // Make sure region layers are visible
+      if (map.current.getLayer('region-fill')) map.current.setLayoutProperty('region-fill', 'visibility', subset.length ? 'visible' : 'none');
+      if (map.current.getLayer('region-outline')) map.current.setLayoutProperty('region-outline', 'visibility', subset.length ? 'visible' : 'none');
+
+      // Update count
+      onFilteredCountChange?.(subset.length);
+
+      // Fit bounds to the selected country's regions for visibility
+      if (subset.length > 0) {
+        try {
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          subset.forEach((f: any) => {
+            const g = f.geometry;
+            const iter = g.type === 'Polygon' ? g.coordinates.flat(1)
+                      : g.type === 'MultiPolygon' ? g.coordinates.flat(2)
+                      : [];
+            iter.forEach((coord: any) => {
+              const [x, y] = coord;
+              if (typeof x === 'number' && typeof y === 'number') {
+                if (x < minX) minX = x; if (y < minY) minY = y;
+                if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+              }
+            });
+          });
+          if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+            map.current.fitBounds([[minX, minY], [maxX, maxY]], { padding: 40, duration: 600 });
+          }
+        } catch (e) {
+          console.warn('fitBounds failed:', e);
         }
-        
-        // Population filter
-        if (filters.populationRange[0] > 0 || filters.populationRange[1] < 500000000) {
-          conditions.push([
-            'all',
-            ['has', 'population'],
-            ['>=', ['get', 'population'], filters.populationRange[0]],
-            ['<=', ['get', 'population'], filters.populationRange[1]]
-          ]);
-        }
-        
-        return ['all', ...conditions];
-      };
-      
-      // Apply filters to layers
-      if (map.current.getLayer('country-fill')) {
-        map.current.setFilter('country-fill', buildLayerFilter(false));
       }
-      if (map.current.getLayer('country-outline')) {
-        map.current.setFilter('country-outline', buildLayerFilter(false));
-      }
-      if (map.current.getLayer('region-fill')) {
-        map.current.setFilter('region-fill', buildLayerFilter(true));
-      }
-      if (map.current.getLayer('region-outline')) {
-        map.current.setFilter('region-outline', buildLayerFilter(true));
-      }
-      
-      // Count filtered features for display
-      const countFiltered = () => {
-        if (!regionsData) return 0;
-        return regionsData.features.filter((feature: any) => {
-          const props = feature.properties;
-          
-          // Type filter based on drill-down
-          if (currentCountry) {
-            if (props.region_type === 'country') return false;
-            if (props.country !== currentCountry) return false;
-          }
-          
-          // Search query
-          if (filters.searchQuery) {
-            const query = filters.searchQuery.toLowerCase();
-            if (!props.region_name.toLowerCase().includes(query) && 
-                !props.country.toLowerCase().includes(query)) {
-              return false;
-            }
-          }
-          
-          // CII score
-          const ciiPercent = (props.cii_score || 0) * 100;
-          if (ciiPercent < filters.ciiRange[0] || ciiPercent > filters.ciiRange[1]) {
-            return false;
-          }
-          
-          // Population
-          if (props.population !== null && props.population !== undefined) {
-            if (props.population < filters.populationRange[0] || 
-                props.population > filters.populationRange[1]) {
-              return false;
-            }
-          }
-          
-          return true;
-        }).length;
-      };
-      
-      onFilteredCountChange?.(countFiltered());
-      console.log('Applied layer filters, showing:', countFiltered(), 'features');
+    } else {
+      // No country selected, clear regions and hide layers
+      source.setData({ type: 'FeatureCollection', features: [] } as any);
+      if (map.current.getLayer('region-fill')) map.current.setLayoutProperty('region-fill', 'visibility', 'none');
+      if (map.current.getLayer('region-outline')) map.current.setLayoutProperty('region-outline', 'visibility', 'none');
+      onFilteredCountChange?.(0);
     }
-  }, [regionsData, isLoaded, filters, currentCountry]);
+  }, [regionsData, isLoaded, currentCountry, filters]);
 
   // Update region layer visibility when drilling into a country
   useEffect(() => {
