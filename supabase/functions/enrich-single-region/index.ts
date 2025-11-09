@@ -73,6 +73,19 @@ serve(async (req) => {
       console.warn(`World Bank fetch failed for ${iso2}:`, error);
     }
 
+    // Fetch GeoNames population for regions only
+    if (region.region_type !== 'country') {
+      try {
+        const geoNamesData = await fetchGeoNamesPopulation(region_code, iso2);
+        if (geoNamesData.population) {
+          realData.population = geoNamesData.population;
+          sources.push('GeoNames');
+        }
+      } catch (error) {
+        console.warn(`GeoNames fetch failed for ${region_code}:`, error);
+      }
+    }
+
     // Fetch OpenAQ air quality data
     try {
       const airQuality = await fetchOpenAQData(iso2);
@@ -309,6 +322,57 @@ async function fetchNASAClimateData(iso2: string, year: number) {
     }
   } catch (error) {
     console.warn(`NASA climate fetch failed for ${iso2}`);
+  }
+
+  return result;
+}
+
+async function fetchGeoNamesPopulation(regionCode: string, iso2: string) {
+  const result: { population?: number } = {};
+  const username = Deno.env.get('GEONAMES_USERNAME');
+  
+  if (!username) {
+    console.warn('GEONAMES_USERNAME not configured, skipping regional population fetch');
+    return result;
+  }
+
+  // Extract the admin code from region_code (e.g., "HR-ZG" -> "ZG", "HR-SM" -> "SM")
+  const adminCode = regionCode.split('-').slice(1).join('-');
+  
+  try {
+    // Search for administrative divisions using the admin code
+    const url = new URL('http://api.geonames.org/searchJSON');
+    url.searchParams.set('country', iso2);
+    url.searchParams.set('featureClass', 'A'); // Administrative divisions
+    url.searchParams.set('adminCode1', adminCode); // Search by admin code
+    url.searchParams.set('maxRows', '5');
+    url.searchParams.set('style', 'full'); // Get full details including population
+    url.searchParams.set('username', username);
+    
+    console.log(`Searching GeoNames for admin code: ${adminCode} in ${iso2}`);
+    
+    const resp = await fetch(url.toString());
+    if (!resp.ok) return result;
+    
+    const data = await resp.json();
+    
+    // GeoNames returns geonames array with results
+    if (data.geonames && Array.isArray(data.geonames) && data.geonames.length > 0) {
+      // Find the best match - prefer ADM1 (first-level division) with population
+      const adm1 = data.geonames.find((g: any) => g.fcode === 'ADM1' && g.population);
+      const match = adm1 || data.geonames.find((g: any) => g.population);
+      
+      if (match && match.population) {
+        result.population = parseInt(match.population);
+        console.log(`✓ Found population for ${adminCode}: ${result.population} (${match.name}, ${match.fcode})`);
+      } else {
+        console.log(`⚠ No population data in GeoNames for ${adminCode}`);
+      }
+    } else {
+      console.log(`⚠ No GeoNames results for admin code ${adminCode} in ${iso2}`);
+    }
+  } catch (e) {
+    console.error(`Failed to fetch GeoNames data for ${regionCode}:`, e);
   }
 
   return result;
