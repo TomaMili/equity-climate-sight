@@ -15,11 +15,11 @@ export default function Home() {
             isRotate={false}
             mouseInteraction={true}
             pixelFilter={700}
-            color1="#4A9EFF"
-color2="#de2d26"
-color3="#0f1419"
-            contrast={3.8}
-            lighting={0.5}
+            color1="#DE443B"
+            color2="#006BB4"
+            color3="#162325"
+            contrast={3.5}
+            lighting={0.4}
           />
         </div>
         
