@@ -102,14 +102,16 @@ serve(async (req) => {
       }
     }
 
-    // Check if more regions need enrichment AFTER processing current batch
-    const { count } = await supabase
+    // Count total regions of this type for the year to track progress
+    const { count: totalCount } = await supabase
       .from('climate_inequality_regions')
       .select('region_code', { count: 'exact', head: true })
       .eq('region_type', region_type)
       .eq('data_year', year);
 
-    const remaining = (count || 0);
+    const total = totalCount || 0;
+    const currentOffset = offset + BATCH_SIZE;
+    const remaining = Math.max(0, total - currentOffset);
     const isComplete = remaining === 0;
 
     console.log(`[Worker ${worker_id}] ✅ Enriched ${enrichedCount} regions, ${failedCount} failed. ${remaining} remaining.`);
