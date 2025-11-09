@@ -8,6 +8,7 @@ import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { ScheduledJobs } from '@/components/Admin/ScheduledJobs';
 import { DataEnrichment } from '@/components/Admin/DataEnrichment';
 import { ComputeCII } from '@/components/Admin/ComputeCII';
+import { SearchFilters, FilterState } from '@/components/Search/SearchFilters';
 
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, Settings } from 'lucide-react';
+import { useBookmarks } from '@/hooks/useBookmarks';
+import { useRecentRegions } from '@/hooks/useRecentRegions';
 
 // LocalStorage key for Mapbox token
 const MAPBOX_TOKEN_KEY = 'ai-equity-mapper-mapbox-token';
@@ -33,7 +36,17 @@ const Index = () => {
   const [year, setYear] = useState<number>(2024);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showAdmin, setShowAdmin] = useState(true);
+  const [filters, setFilters] = useState<FilterState>({
+    searchQuery: '',
+    ciiRange: [0, 100],
+    populationRange: [0, 500000000],
+    dataQuality: 'all'
+  });
+  const [filteredCount, setFilteredCount] = useState(0);
+  
   const { toast } = useToast();
+  const { bookmarks, toggleBookmark, isBookmarked } = useBookmarks();
+  const { recentRegions, addRecentRegion } = useRecentRegions();
 
 // Load token from localStorage on mount
 useEffect(() => {
@@ -135,6 +148,9 @@ useEffect(() => {
     setAiInsight(null);
     setIsLoadingInsight(true);
 
+    // Add to recent regions
+    addRecentRegion(data.region_code, data.region_name, data.country);
+
     try {
       const { data: insightData, error } = await supabase.functions.invoke('generate-insights', {
         body: { regionData: data }
@@ -152,6 +168,38 @@ useEffect(() => {
       });
     } finally {
       setIsLoadingInsight(false);
+    }
+  };
+
+  const handleBookmarkClick = async (regionCode: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('climate_inequality_regions')
+        .select('*')
+        .eq('region_code', regionCode)
+        .eq('data_year', year)
+        .single();
+
+      if (error) throw error;
+      if (data) handleRegionClick(data);
+    } catch (error) {
+      console.error('Error loading bookmarked region:', error);
+    }
+  };
+
+  const handleRecentClick = async (regionCode: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('climate_inequality_regions')
+        .select('*')
+        .eq('region_code', regionCode)
+        .eq('data_year', year)
+        .single();
+
+      if (error) throw error;
+      if (data) handleRegionClick(data);
+    } catch (error) {
+      console.error('Error loading recent region:', error);
     }
   };
 
@@ -254,6 +302,18 @@ useEffect(() => {
                   </div>
                 </div>
 
+                {/* Search and Filters */}
+                <ErrorBoundary title="Search Error">
+                  <SearchFilters
+                    onFilterChange={setFilters}
+                    onBookmarkClick={handleBookmarkClick}
+                    onRecentClick={handleRecentClick}
+                    bookmarks={bookmarks}
+                    recentRegions={recentRegions}
+                    totalResults={filteredCount}
+                  />
+                </ErrorBoundary>
+
                 <ErrorBoundary title="Statistics Loading Error">
                   <StatisticsPanel viewMode={viewMode} year={year} />
                 </ErrorBoundary>
@@ -263,6 +323,8 @@ useEffect(() => {
                     data={selectedRegion} 
                     aiInsight={aiInsight}
                     isLoadingInsight={isLoadingInsight}
+                    isBookmarked={selectedRegion ? isBookmarked(selectedRegion.region_code) : false}
+                    onToggleBookmark={() => selectedRegion && toggleBookmark(selectedRegion.region_code)}
                   />
                 </ErrorBoundary>
               </>
@@ -311,6 +373,8 @@ useEffect(() => {
               onDataLoaded={handleMapDataLoaded}
               viewMode={viewMode}
               year={year}
+              filters={filters}
+              onFilteredCountChange={setFilteredCount}
             />
             <MapLegend />
           </ErrorBoundary>

@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapErrorFallback } from './MapErrorFallback';
 import { MapLoadingSkeleton } from './MapLoadingSkeleton';
+import { FilterState } from '@/components/Search/SearchFilters';
 
 interface MapContainerProps {
   onRegionClick: (data: any) => void;
@@ -12,9 +13,11 @@ interface MapContainerProps {
   onDataLoaded?: () => void;
   viewMode?: 'countries' | 'regions';
   year?: number;
+  filters?: FilterState;
+  onFilteredCountChange?: (count: number) => void;
 }
 
-export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded, viewMode = 'regions', year = 2024 }: MapContainerProps) => {
+export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTokenError, onDataLoaded, viewMode = 'regions', year = 2024, filters, onFilteredCountChange }: MapContainerProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -73,6 +76,7 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
             flood_risk_score: item.flood_risk_score,
             gdp_per_capita: item.gdp_per_capita,
             urban_population_percent: item.urban_population_percent,
+            data_sources: item.data_sources,
           },
           geometry: item.geometry
         }));
@@ -284,16 +288,66 @@ export const MapContainer = ({ onRegionClick, selectedRegion, mapboxToken, onTok
     };
   }, [mapboxToken, onRegionClick, isDataLoaded]); // Removed regionsData and selectedRegion from dependencies
 
-  // Update data source when regionsData changes (without reinitializing map)
+  // Apply filters and update data source
   useEffect(() => {
     if (map.current && isLoaded && regionsData && map.current.getSource('regions')) {
       const source = map.current.getSource('regions') as mapboxgl.GeoJSONSource;
-      if (source) {
+      if (source && filters) {
+        // Apply filters
+        const filteredFeatures = regionsData.features.filter((feature: any) => {
+          const props = feature.properties;
+          
+          // Search query
+          if (filters.searchQuery) {
+            const query = filters.searchQuery.toLowerCase();
+            if (!props.region_name.toLowerCase().includes(query) && 
+                !props.country.toLowerCase().includes(query)) {
+              return false;
+            }
+          }
+          
+          // CII score range
+          const ciiPercent = (props.cii_score || 0) * 100;
+          if (ciiPercent < filters.ciiRange[0] || ciiPercent > filters.ciiRange[1]) {
+            return false;
+          }
+          
+          // Population range
+          if (props.population !== null && props.population !== undefined) {
+            if (props.population < filters.populationRange[0] || 
+                props.population > filters.populationRange[1]) {
+              return false;
+            }
+          }
+          
+          // Data quality
+          if (filters.dataQuality !== 'all') {
+            const hasRealData = props.data_sources && 
+                               Array.isArray(props.data_sources) && 
+                               props.data_sources.some((s: string) => s !== 'Synthetic');
+            const isSynthetic = !hasRealData;
+            
+            if (filters.dataQuality === 'real' && isSynthetic) return false;
+            if (filters.dataQuality === 'synthetic' && !isSynthetic) return false;
+          }
+          
+          return true;
+        });
+
+        const filteredGeoJSON: any = {
+          type: 'FeatureCollection',
+          features: filteredFeatures
+        };
+
+        source.setData(filteredGeoJSON);
+        onFilteredCountChange?.(filteredFeatures.length);
+        console.log('Applied filters:', filteredFeatures.length, 'features');
+      } else if (source) {
         source.setData(regionsData);
-        console.log('Updated region data on map');
+        onFilteredCountChange?.(regionsData.features.length);
       }
     }
-  }, [regionsData, isLoaded]);
+  }, [regionsData, isLoaded, filters]);
 
   // Update layer visibility when viewMode changes
   useEffect(() => {

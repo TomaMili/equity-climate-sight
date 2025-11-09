@@ -1,16 +1,19 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bookmark } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import CIIBreakdown from './CIIBreakdown';
 
 interface RegionDetailsProps {
   data: any | null;
   aiInsight: string | null;
   isLoadingInsight: boolean;
+  isBookmarked?: boolean;
+  onToggleBookmark?: () => void;
 }
 
-export const RegionDetails = ({ data, aiInsight, isLoadingInsight }: RegionDetailsProps) => {
+export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked = false, onToggleBookmark }: RegionDetailsProps) => {
   if (!data) {
     return (
       <Card className="p-6">
@@ -34,10 +37,26 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight }: RegionDetai
   return (
     <div className="space-y-4">
       <Card className="p-6">
-        <h2 className="text-2xl font-bold text-foreground mb-1">
-          {data.region_name || 'Unknown Region'}
-        </h2>
-        <p className="text-muted-foreground mb-4">{data.country || 'Unknown Country'}</p>
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-foreground mb-1">
+              {data.region_name || 'Unknown Region'}
+            </h2>
+            <p className="text-muted-foreground">{data.country || 'Unknown Country'}</p>
+          </div>
+          {onToggleBookmark && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleBookmark}
+              className="shrink-0"
+            >
+              <Bookmark
+                className={`w-4 h-4 ${isBookmarked ? 'fill-current text-primary' : ''}`}
+              />
+            </Button>
+          )}
+        </div>
         
         <div className="flex items-center gap-2 mb-4">
           <span className="text-sm text-muted-foreground">CII Score:</span>

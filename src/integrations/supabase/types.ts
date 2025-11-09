@@ -149,6 +149,27 @@ export type Database = {
         }
         Relationships: []
       }
+      region_bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          region_code: string
+          user_session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          region_code: string
+          user_session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          region_code?: string
+          user_session_id?: string
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
