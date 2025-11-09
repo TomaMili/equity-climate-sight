@@ -47,9 +47,14 @@ serve(async (req) => {
       last_updated: new Date().toISOString()
     };
 
+    // CRITICAL: Explicitly null out population for regions to clean up bad data
+    if (region.region_type !== 'country') {
+      realData.population = null;
+    }
+
     const sources: string[] = [];
 
-    // Fetch World Bank data
+    // Fetch World Bank data - only store population for countries
     try {
       const worldBank = await fetchWorldBankData(iso2, year);
       if (worldBank.population && region.region_type === 'country') {

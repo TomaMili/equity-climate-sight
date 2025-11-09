@@ -176,7 +176,12 @@ async function processRegion(
 
   const isCountry = region.region_type === 'country';
 
-  // Fetch World Bank data for both countries and regions (propagate to regions)
+  // CRITICAL: Explicitly null out population for regions to clean up bad data
+  if (!isCountry) {
+    realData.population = null;
+  }
+
+  // Fetch World Bank data - only store population for countries
   const worldBank = await fetchWorldBankData(iso2, year);
   if (isCountry && worldBank.population) realData.population = worldBank.population;
   if (worldBank.gdp_per_capita) {
@@ -248,6 +253,10 @@ async function processRegion(
   } else {
     // No real data found: ensure we don't keep any synthetic values
     realData.data_sources = ['Natural Earth', 'Attempted'];
+    // Null out population for regions even if no real data found
+    if (!isCountry) {
+      realData.population = null;
+    }
     for (const key of metricFields) {
       realData[key] = null;
     }
