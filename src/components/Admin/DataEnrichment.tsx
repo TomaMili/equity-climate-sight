@@ -12,11 +12,13 @@ export function DataEnrichment() {
   const [autoResume, setAutoResume] = useState(true);
   const [pauseInterval, setPauseInterval] = useState(2);
   const [shouldStop, setShouldStop] = useState(false);
+  const [timeEstimate, setTimeEstimate] = useState<{ startTime: number; itemsProcessed: number } | null>(null);
 
   const handleEnrichCountries = async (year: number) => {
     try {
       setIsEnriching(true);
       setShouldStop(false);
+      setTimeEstimate({ startTime: Date.now(), itemsProcessed: 0 });
       toast.info(`Starting data enrichment for countries (${year})...`);
       
       let totalEnriched = 0;
@@ -52,6 +54,8 @@ export function DataEnrichment() {
           failed: totalFailed
         });
 
+        setTimeEstimate(prev => prev ? { ...prev, itemsProcessed: totalEnriched } : null);
+
         shouldContinue = data?.shouldContinue === true;
 
         if (shouldContinue) {
@@ -79,6 +83,7 @@ export function DataEnrichment() {
       toast.error('Failed to enrich data. Please try again.');
     } finally {
       setIsEnriching(false);
+      setTimeEstimate(null);
     }
   };
 
@@ -86,6 +91,7 @@ export function DataEnrichment() {
     try {
       setIsEnriching(true);
       setShouldStop(false);
+      setTimeEstimate({ startTime: Date.now(), itemsProcessed: 0 });
       toast.info(`Starting data enrichment for regions (${year})...`);
       
       let totalEnriched = 0;
@@ -121,6 +127,8 @@ export function DataEnrichment() {
           failed: totalFailed
         });
 
+        setTimeEstimate(prev => prev ? { ...prev, itemsProcessed: totalEnriched } : null);
+
         shouldContinue = data?.shouldContinue === true;
 
         if (shouldContinue) {
@@ -148,6 +156,28 @@ export function DataEnrichment() {
       toast.error('Failed to enrich data. Please try again.');
     } finally {
       setIsEnriching(false);
+      setTimeEstimate(null);
+    }
+  };
+
+  const calculateTimeRemaining = () => {
+    if (!timeEstimate || !progress.total || progress.enriched === 0) return null;
+    
+    const elapsedMs = Date.now() - timeEstimate.startTime;
+    const itemsRemaining = progress.total - progress.enriched;
+    const avgTimePerItem = elapsedMs / progress.enriched;
+    const estimatedRemainingMs = avgTimePerItem * itemsRemaining;
+    
+    const hours = Math.floor(estimatedRemainingMs / (1000 * 60 * 60));
+    const minutes = Math.floor((estimatedRemainingMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((estimatedRemainingMs % (1000 * 60)) / 1000);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m remaining`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s remaining`;
+    } else {
+      return `${seconds}s remaining`;
     }
   };
 
@@ -275,7 +305,12 @@ export function DataEnrichment() {
           <div className="space-y-2 pt-2 border-t">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Progress</span>
-              <span className="text-foreground font-medium">{percentage}%</span>
+              <div className="flex items-center gap-2">
+                {calculateTimeRemaining() && (
+                  <span className="text-muted-foreground">{calculateTimeRemaining()}</span>
+                )}
+                <span className="text-foreground font-medium">{percentage}%</span>
+              </div>
             </div>
             <Progress value={percentage} className="h-2" />
             
