@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Aurora from "@/components/Background/Aurora";
-import logo from "@/assets/ai-equity-mapper-logo.png";
+import logo from "@/assets/ai-equity-mapper-logo2.png";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
@@ -30,19 +30,16 @@ const fadeIn = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted relative">
-      {/* ===== Hero ===== */}
       <section className="relative overflow-hidden h-screen w-full">
-        {/* Aurora */}
         <div className="absolute inset-0 pointer-events-none opacity-60">
           <Aurora
-            colorStops={["#1a704b", "#4A9EFF", "#de2d26"]}
-            blend={0.6}
+            colorStops={["#047857", "#022c22", "#047857"]}
+            blend={0.4}
             amplitude={1.2}
             speed={0.4}
           />
         </div>
 
-        {/* Hero Content */}
         <div className="relative z-10 w-full h-full flex items-center justify-center px-4">
           <div className="text-center space-y-8 max-w-5xl">
             <motion.div
@@ -63,7 +60,7 @@ export default function Home() {
               animate="show"
               variants={fadeIn}
               custom={1}
-              className="text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow-md"
+              className="text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow-md font-normal"
             >
               Visualizing the intersection of climate risk, infrastructure access, and socioeconomic factors
               across regions worldwide.
@@ -78,8 +75,8 @@ export default function Home() {
               className="flex flex-wrap items-center justify-center gap-3"
             >
               {[
-                { icon: Globe, label: "20 Countries" },
-                { icon: Layers, label: "43 Regions" },
+                { icon: Globe, label: "200+ Countries" },
+                { icon: Layers, label: "4000+ Regions" },
                 { icon: Clock, label: "2020–2025 Coverage" },
                 { icon: Shield, label: "OpenAQ Weekly Updates" },
               ].map(({ icon: Icon, label }, i) => (
@@ -88,7 +85,7 @@ export default function Home() {
                   className="inline-flex items-center gap-2 rounded-full border bg-background/70 backdrop-blur px-3 py-1.5 text-sm shadow-sm hover:shadow transition-all"
                 >
                   <Icon className="w-4 h-4 text-primary" />
-                  <span className="font-medium">{label}</span>
+                  <span className="font-semibold">{label}</span>
                 </div>
               ))}
             </motion.div>
@@ -104,14 +101,14 @@ export default function Home() {
               <Button
                 asChild
                 size="lg"
-                className="group relative text-lg px-10 h-16 overflow-hidden bg-gradient-to-r from-primary to-accent border-0 shadow-[0_0_30px_rgba(74,158,255,0.3)] hover:shadow-[0_0_50px_rgba(74,158,255,0.5)] transition-all duration-500"
+                className="group relative text-lg px-10 h-16 overflow-hidden bg-gradient-to-r from-primary to-accent border-0 transition-all duration-500"
               >
                 <Link to="/dashboard">
                   <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/20 to-primary/0 animate-[shimmer_2s_infinite]" />
                   </div>
-                  <span className="relative z-10 flex items-center font-bold tracking-wide">
+                  <span className="relative z-10 flex items-center font-semibold tracking-wide">
                     Explore Interactive Map
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-all duration-300" />
                   </span>
@@ -121,7 +118,7 @@ export default function Home() {
                 asChild
                 variant="outline"
                 size="lg"
-                className="group relative text-lg px-10 h-16 bg-background/60 backdrop-blur-md border-2 border-primary/30 overflow-hidden hover:border-primary hover:bg-primary/5 transition-all duration-300 shadow-[0_0_20px_rgba(74,158,255,0.1)] hover:shadow-[0_0_40px_rgba(74,158,255,0.3)]"
+                className="group relative text-lg px-10 h-16 bg-background/60 backdrop-blur-md border-2 border-primary/30 overflow-hidden hover:border-primary hover:bg-primary/5 transition-all duration-300 "
               >
                 <Link to="/methodology">
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -137,11 +134,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== Features ===== */}
       <section className="py-20 bg-card">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">What We Measure</h2>
+            <h2 className="text-4xl font-semibold mb-4">What We Measure</h2>
             <p className="text-xl text-muted-foreground">
               A comprehensive view of climate inequality through multiple dimensions
             </p>
@@ -174,14 +170,14 @@ export default function Home() {
                 title: "Socioeconomic",
                 desc: "GDP per capita, population density, and economic indicators",
                 icon: Globe,
-                bg: "from-success to-primary",
-                badgeBg: "bg-success",
+                bg: "from-sidebar-primary to-sidebar-ring",
+                badgeBg: "bg-sidebar-ring",
               },
             ].map(({ title, desc, icon: Icon, bg, badgeBg }, i) => (
               <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn} custom={i}>
-                <div className="group relative">
+                <div className="group relative h-full cursor-default">
                   <div className={`absolute -inset-0.5 bg-gradient-to-r ${bg} rounded-xl opacity-0 group-hover:opacity-100 blur transition duration-500`} />
-                  <Card className="relative border-2 hover:border-primary transition-all duration-300 bg-card">
+                  <Card className="relative border-2 hover:border-primary transition-all duration-300 bg-card h-full">
                     <CardContent className="p-6 space-y-4">
                       <div className={`w-12 h-12 rounded-lg ${badgeBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
                         <Icon className="w-6 h-6 text-white" />
@@ -197,11 +193,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== How It Works ===== */}
       <section className="py-20 bg-gradient-to-b from-background to-muted/40">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-14">
-            <h2 className="text-4xl font-bold mb-4">How It Works</h2>
+            <h2 className="text-4xl font-semibold mb-4">How It Works</h2>
             <p className="text-lg text-muted-foreground">
               From raw data streams to an equity-focused composite index
             </p>
@@ -226,7 +221,7 @@ export default function Home() {
               },
             ].map(({ title, desc, icon: Icon }, i) => (
               <motion.div key={title} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={fadeIn} custom={i}>
-                <Card className="h-full border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
+                <Card className="h-full pb-4 border-border/70 hover:border-primary/40 hover:shadow-lg transition-all duration-300">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center">
