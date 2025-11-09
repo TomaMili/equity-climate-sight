@@ -176,13 +176,10 @@ async function processRegion(
 
   const isCountry = region.region_type === 'country';
 
-  // CRITICAL: For countries, preserve existing population. For regions, start with null and fetch from GeoNames.
-  if (!isCountry) {
-    realData.population = null;
-  }
-  // Note: For countries, we deliberately don't touch population field to preserve existing data
-
-  // Fetch World Bank data - GDP and urban % only (population is preserved for countries)
+  // CRITICAL: Preserve existing population for both countries and regions
+  // Only update if we successfully fetch real data
+  
+  // Fetch World Bank data - GDP and urban % only (population is preserved)
   const worldBank = await fetchWorldBankData(iso2, year);
   if (worldBank.gdp_per_capita) {
     realData.gdp_per_capita = worldBank.gdp_per_capita;
@@ -193,7 +190,7 @@ async function processRegion(
     if (!realData.data_sources.includes('World Bank')) realData.data_sources.push('World Bank');
   }
 
-  // Fetch GeoNames population for regions only
+  // Fetch GeoNames population for regions only - only update if we get valid data
   if (!isCountry) {
     const geoNamesData = await fetchGeoNamesPopulation(region.region_code, iso2);
     if (geoNamesData.population) {
@@ -206,6 +203,7 @@ async function processRegion(
         console.warn(`Invalid population value for ${region.region_code}: ${pop} (outside valid range)`);
       }
     }
+    // If GeoNames fails, keep existing population value (don't null it out)
   }
 
   // Fetch OpenAQ air quality
@@ -260,18 +258,9 @@ async function processRegion(
     realData.next_retry_at = null;
     realData.enrichment_error = null;
   } else {
-    // No real data found: ensure we don't keep any synthetic values
+    // No real data found: preserve existing values, just mark as attempted
     realData.data_sources = ['Natural Earth', 'Attempted'];
-    // Null out population for regions even if no real data found
-    if (!isCountry) {
-      realData.population = null;
-    }
-    // Null out all metric fields except population for countries
-    for (const key of metricFields) {
-      // Skip population field for countries to preserve existing data
-      if (key === 'population' && isCountry) continue;
-      realData[key] = null;
-    }
+    // Don't null out any fields - preserve existing synthetic/real data
   }
 
   const { error: updateError } = await supabase
