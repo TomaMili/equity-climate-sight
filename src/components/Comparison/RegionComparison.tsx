@@ -2,9 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { X, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ShareButton } from "@/components/Share/ShareButton";
+import { generateComparisonShareUrl, generateComparisonMetaTags } from "@/lib/shareUtils";
+import { useShareMetaTags } from "@/hooks/useShareMetaTags";
 
 interface Region {
   id: string;
@@ -184,14 +187,44 @@ const RegionComparison = ({ regionIds, onRemoveRegion, onClose }: RegionComparis
 
   const colors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
+  // Generate share metadata
+  const shareMetaTags = useMemo(() => {
+    if (regions.length < 2) return null;
+    return generateComparisonMetaTags(regions.map(r => ({
+      id: r.id,
+      region_name: r.region_name,
+      country: r.country,
+      cii_score: r.cii_score,
+    })));
+  }, [regions]);
+
+  // Update meta tags for social sharing
+  useShareMetaTags(shareMetaTags);
+
   return (
     <div className="space-y-4">
       <Card className="border-border/40 bg-card/50 backdrop-blur">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Region Comparison</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            {regions.length >= 2 && shareMetaTags && (
+              <ShareButton
+                url={generateComparisonShareUrl(regions.map(r => ({
+                  id: r.id,
+                  region_name: r.region_name,
+                  country: r.country,
+                  cii_score: r.cii_score,
+                })))}
+                title={shareMetaTags.title}
+                description={shareMetaTags.description}
+                variant="ghost"
+                size="sm"
+              />
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Region Cards */}

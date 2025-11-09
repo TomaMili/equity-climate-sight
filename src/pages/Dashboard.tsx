@@ -11,6 +11,7 @@ import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
 import { SearchFilters, FilterState } from '@/components/Search/SearchFilters';
 import { LocationSearch } from '@/components/Search/LocationSearch';
+import { parseSharedUrlParams } from '@/lib/shareUtils';
 
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -71,6 +72,53 @@ useEffect(() => {
     console.log('Loaded Mapbox token from localStorage');
   }
 }, []);
+
+// Handle shared links from URL parameters
+useEffect(() => {
+  if (!isTokenSet || !isMapLoaded) return;
+
+  const loadSharedContent = async () => {
+    const sharedParams = parseSharedUrlParams();
+    
+    if (sharedParams.type === 'region' && sharedParams.regionId) {
+      // Load single region from shared link
+      try {
+        const { data, error } = await supabase
+          .from('climate_inequality_regions')
+          .select('*')
+          .eq('id', sharedParams.regionId)
+          .eq('data_year', year)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          handleRegionClick(data);
+          toast({
+            title: 'Shared Region Loaded',
+            description: `Viewing ${data.region_name}`,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading shared region:', error);
+        toast({
+          title: 'Could not load shared region',
+          description: 'The shared link may be invalid or expired',
+          variant: 'destructive',
+        });
+      }
+    } else if (sharedParams.type === 'comparison' && sharedParams.regionIds && sharedParams.regionIds.length > 0) {
+      // Load comparison from shared link
+      setCompareMode(true);
+      setCompareRegions(sharedParams.regionIds);
+      toast({
+        title: 'Shared Comparison Loaded',
+        description: `Comparing ${sharedParams.regionIds.length} regions`,
+      });
+    }
+  };
+
+  loadSharedContent();
+}, [isTokenSet, isMapLoaded, year]);
 
 // Auto-initialize data if the table is empty
 useEffect(() => {

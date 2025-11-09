@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -8,6 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import CIIBreakdown from './CIIBreakdown';
 import { ExpandedAnalysis } from '@/components/Analysis/ExpandedAnalysis';
+import { ShareButton } from '@/components/Share/ShareButton';
+import { generateRegionShareUrl, generateRegionMetaTags } from '@/lib/shareUtils';
+import { useShareMetaTags } from '@/hooks/useShareMetaTags';
 
 interface RegionDetailsProps {
   data: any | null;
@@ -37,6 +40,20 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
     () => (aiInsight ? truncateAtWord(aiInsight, MAX_AI_CHARS) : ""),
     [aiInsight]
   );
+
+  // Generate share metadata
+  const shareMetaTags = useMemo(() => {
+    if (!data) return null;
+    return generateRegionMetaTags({
+      id: data.id,
+      region_name: data.region_name,
+      country: data.country,
+      cii_score: data.cii_score,
+    });
+  }, [data]);
+
+  // Update meta tags for social sharing
+  useShareMetaTags(shareMetaTags);
 
   if (!data) {
     return (
@@ -69,18 +86,28 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
             </h2>
             <p className="text-muted-foreground">{data.country || 'Unknown Country'}</p>
           </div>
-          {onToggleBookmark && (
-            <Button
+          <div className="flex gap-2 shrink-0">
+            <ShareButton
+              url={generateRegionShareUrl(data)}
+              title={shareMetaTags?.title || ''}
+              description={shareMetaTags?.description || ''}
               variant="ghost"
               size="icon"
-              onClick={onToggleBookmark}
-              className="shrink-0"
-            >
-              <Bookmark
-                className={`w-4 h-4 ${isBookmarked ? 'fill-current text-primary' : ''}`}
-              />
-            </Button>
-          )}
+              showLabel={false}
+            />
+            {onToggleBookmark && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleBookmark}
+                className="shrink-0"
+              >
+                <Bookmark
+                  className={`w-4 h-4 ${isBookmarked ? 'fill-current text-primary' : ''}`}
+                />
+              </Button>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
