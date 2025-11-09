@@ -672,6 +672,7 @@ export function DataEnrichment() {
         <EnrichmentValidation
           enrichmentType={validationType}
           parallelWorkers={parallelWorkers}
+          year={selectedYear}
           onProceed={() => {
             if (validationType === 'all') handleEnrichAll();
             else if (validationType === 'countries') handleEnrichCountries(selectedYear);

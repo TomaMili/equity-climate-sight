@@ -20,20 +20,22 @@ interface EnrichmentValidationProps {
   onCancel: () => void;
   enrichmentType: 'all' | 'countries' | 'regions';
   parallelWorkers: number;
+  year: number;
 }
 
 export function EnrichmentValidation({ 
   onProceed, 
   onCancel, 
   enrichmentType,
-  parallelWorkers 
+  parallelWorkers,
+  year 
 }: EnrichmentValidationProps) {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     validateEnrichment();
-  }, [enrichmentType, parallelWorkers]);
+  }, [enrichmentType, parallelWorkers, year]);
 
   const validateEnrichment = async () => {
     setLoading(true);
@@ -74,7 +76,7 @@ export function EnrichmentValidation({
         .from('climate_inequality_regions')
         .select('*', { count: 'exact', head: true })
         .eq('region_type', 'country')
-        .eq('data_year', 2024)
+        .eq('data_year', year)
         .contains('data_sources', ['Synthetic']);
 
       result.countriesNeedingEnrichment = countriesCount || 0;
@@ -84,7 +86,7 @@ export function EnrichmentValidation({
         .from('climate_inequality_regions')
         .select('*', { count: 'exact', head: true })
         .eq('region_type', 'region')
-        .eq('data_year', 2024)
+        .eq('data_year', year)
         .contains('data_sources', ['Synthetic']);
 
       result.regionsNeedingEnrichment = regionsCount || 0;
@@ -126,7 +128,7 @@ export function EnrichmentValidation({
       }
 
       if (result.countriesNeedingEnrichment === 0 && result.regionsNeedingEnrichment === 0) {
-        result.warnings.push('All data is already enriched for 2024');
+        result.warnings.push(`All data is already enriched for ${year}`);
       }
 
       setValidation(result);
@@ -185,7 +187,7 @@ export function EnrichmentValidation({
 
       {/* Data Volume */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-foreground">Data to Enrich (2024)</h4>
+        <h4 className="text-sm font-medium text-foreground">Data to Enrich ({year})</h4>
         <div className="grid grid-cols-2 gap-2">
           {(enrichmentType === 'all' || enrichmentType === 'countries') && (
             <div className="p-3 rounded-lg border border-border/40">
