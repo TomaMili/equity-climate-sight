@@ -172,22 +172,24 @@ async function processRegion(
   if (internet.download) realData.internet_speed_download = internet.download;
   if (internet.upload) realData.internet_speed_upload = internet.upload;
 
-  // Update the region with real data
-  if (Object.keys(realData).length > 2) { // More than just sources and timestamp
-    const { error: updateError } = await supabase
-      .from('climate_inequality_regions')
-      .update(realData)
-      .eq('region_code', region.region_code)
-      .eq('data_year', year);
+  // ALWAYS update to remove from synthetic queue, even if minimal data
+  // This prevents regions from getting stuck in the enrichment loop
+  const { error: updateError } = await supabase
+    .from('climate_inequality_regions')
+    .update(realData)
+    .eq('region_code', region.region_code)
+    .eq('data_year', year);
 
-    if (updateError) {
-      console.error(`[Worker ${worker_id}] Update failed for ${region.region_code}:`, updateError);
-      throw updateError;
-    } else {
-      console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code}`);
-    }
+  if (updateError) {
+    console.error(`[Worker ${worker_id}] Update failed for ${region.region_code}:`, updateError);
+    throw updateError;
+  }
+  
+  const dataCount = Object.keys(realData).length - 2; // Exclude sources and timestamp
+  if (dataCount > 0) {
+    console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code} with ${dataCount} fields`);
   } else {
-    console.log(`[Worker ${worker_id}] ⚠ No real data available for ${region.region_code}`);
+    console.log(`[Worker ${worker_id}] ⚠ No external data found for ${region.region_code}, marked as attempted`);
   }
 }
 
