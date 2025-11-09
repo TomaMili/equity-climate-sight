@@ -4,6 +4,7 @@ import { MapLegend } from '@/components/Map/MapLegend';
 import { RegionDetails } from '@/components/Sidebar/RegionDetails';
 import { RegionsList } from '@/components/Sidebar/RegionsList';
 import { StatisticsPanel } from '@/components/Sidebar/StatisticsPanel';
+import { CriticalRegions } from '@/components/Sidebar/CriticalRegions';
 import { AnalyticsDashboard } from '@/components/Analytics/AnalyticsDashboard';
 import { SidebarSkeleton } from '@/components/Sidebar/SidebarSkeleton';
 import { CompactInitProgress } from '@/components/Admin/CompactInitProgress';
@@ -514,6 +515,16 @@ useEffect(() => {
                       regionIds={compareRegions}
                       onRemoveRegion={handleRemoveCompareRegion}
                       onClose={handleCloseComparison}
+                    />
+                  </ErrorBoundary>
+                )}
+
+                {/* Critical Regions Section - Show in default view */}
+                {!compareMode && !selectedRegion && !currentCountry && (
+                  <ErrorBoundary title="Critical Regions Error">
+                    <CriticalRegions 
+                      year={year}
+                      onRegionClick={handleRegionClick}
                     />
                   </ErrorBoundary>
                 )}
