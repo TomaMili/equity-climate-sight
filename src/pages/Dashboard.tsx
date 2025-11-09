@@ -359,22 +359,18 @@ useEffect(() => {
 
   return (
     <ErrorBoundary title="Application Error">
-      <div className="flex h-full w-full bg-background">
+      <div className="flex h-screen w-full bg-background">
         {/* Sidebar */}
-        <div className="w-96 bg-card border-r border-border overflow-y-auto">
+        <div className="w-96 bg-card border-r border-border overflow-y-scroll">
           <div className="p-4 space-y-4">
-            {/* Header */}
-            <div className="pb-2 border-b border-border">
-              <h1 className="text-xl font-bold text-foreground">AI Equity Mapper</h1>
-              <p className="text-xs text-muted-foreground">Team NOPE - hAIckathon 2025</p>
-            </div>
+            
 
             {!isMapLoaded || isInitializing ? (
               <SidebarSkeleton />
             ) : (
               <>
                 {/* Compact Navigation Bar */}
-                <Collapsible defaultOpen={!selectedRegion}>
+                <Collapsible defaultOpen={selectedRegion}>
                   <Card className="p-3">
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent mb-2">

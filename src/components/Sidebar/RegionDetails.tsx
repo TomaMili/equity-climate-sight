@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -17,9 +17,26 @@ interface RegionDetailsProps {
   onToggleBookmark?: () => void;
 }
 
+const MAX_AI_CHARS = 280; // <- set your desired preview length
+
+function truncateAtWord(text: string, max: number) {
+  if (!text) return "";
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const lastSpace = slice.lastIndexOf(" ");
+  const end = lastSpace > max * 0.6 ? lastSpace : max; // avoid cutting too early
+  return slice.slice(0, end) + "…";
+}
+
 export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked = false, onToggleBookmark }: RegionDetailsProps) => {
   const [showExpandedAnalysis, setShowExpandedAnalysis] = useState(false);
   const [showAllStats, setShowAllStats] = useState(true); // Start open by default
+
+  const isTruncated = !!aiInsight && aiInsight.length > MAX_AI_CHARS;
+  const insightPreview = useMemo(
+    () => (aiInsight ? truncateAtWord(aiInsight, MAX_AI_CHARS) : ""),
+    [aiInsight]
+  );
 
   if (!data) {
     return (
@@ -88,33 +105,41 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoadingInsight ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                <span>Analyzing climate data...</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                  <span>Analyzing climate data...</span>
+                </div>
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/5" />
               </div>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-4/5" />
-            </div>
-          ) : aiInsight ? (
-            <div className="space-y-3">
-              <p className="text-sm text-foreground leading-relaxed">
-                {aiInsight}
+            ) : aiInsight ? (
+              <div className="space-y-3">
+                {/* Styled preview text */}
+                <div className="rounded-md border border-border/60 bg-muted/40 p-3">
+                  <p className="text-sm leading-6 text-foreground/90 whitespace-pre-line selection:bg-primary/20 selection:text-primary-foreground">
+                    {isTruncated ? insightPreview : aiInsight}
+                  </p>
+                </div>
+
+                {/* Keep your existing button; show it always, or only when truncated */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => setShowExpandedAnalysis(true)}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                  {isTruncated ? "View Detailed Analysis & Export" : "Open & Export"}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                No AI analysis available
               </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full gap-2"
-                onClick={() => setShowExpandedAnalysis(true)}
-              >
-                <Maximize2 className="h-4 w-4" />
-                View Detailed Analysis & Export
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-2">No AI analysis available</p>
-          )}
+            )}
+
         </CardContent>
       </Card>
 

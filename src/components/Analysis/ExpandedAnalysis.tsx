@@ -199,6 +199,7 @@ export const ExpandedAnalysis = ({ open, onOpenChange, regionData, basicInsight 
     onOpenChange(newOpen);
   };
 
+  console.log(regionData)
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0">

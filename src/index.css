@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,6 +7,9 @@
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
+@theme {
+  --font-spartan: "League Spartan", ui-sans-serif, system-ui, sans-serif;
+}
 
 /* Custom styles for map tooltips */
 .map-tooltip .mapboxgl-popup-content {
@@ -21,98 +26,112 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Base UI Colors */
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* ===== Green / Teal UI – Light Mode ===== */
+    --background: 160 20% 96%; /* soft mint paper */
+    --foreground: 160 22% 12%; /* deep evergreen text */
+
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 160 22% 12%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 217 91% 60%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --popover-foreground: 160 22% 12%;
+
+    --primary: 152 61% 40%; /* emerald 600 */
+    --primary-foreground: 160 20% 98%; /* near-white on primary */
+
+    --secondary: 150 35% 88%; /* pale green */
+    --secondary-foreground: 160 25% 15%; /* dark text on secondary */
+
+    --muted: 150 20% 92%; /* subtle green tint */
+    --muted-foreground: 150 10% 40%;
+
+    --accent: 166 54% 40%; /* teal 600 */
+    --accent-foreground: 160 20% 98%;
+
+    --destructive: 2 75% 50%; /* restrained red */
+    --destructive-foreground: 160 20% 98%;
+
+    --border: 150 18% 82%; /* greenish border */
+    --input: 150 18% 82%;
+    --ring: 152 61% 40%;
     --radius: 0.75rem;
 
     /* Climate Inequality Index Scale (Blue → White → Red) */
-    --cii-1: 211 100% 31%;  /* #08519c - Very Low Risk */
-    --cii-2: 207 60% 47%;   /* #3182bd - Low Risk */
-    --cii-3: 207 64% 63%;   /* #6baed6 - Low-Medium */
-    --cii-4: 207 67% 81%;   /* #bdd7e7 - Medium */
-    --cii-5: 240 100% 99%;  /* #eff3ff - Neutral */
-    --cii-6: 25 100% 92%;   /* #fee5d9 - Medium-High */
-    --cii-7: 18 97% 78%;    /* #fcae91 - High */
-    --cii-8: 11 96% 64%;    /* #fb6a4a - Very High */
-    --cii-9: 5 73% 51%;     /* #de2d26 - Severe */
-    --cii-10: 355 83% 35%;  /* #a50f15 - Critical */
+    --cii-1: 211 100% 31%; /* #08519c - Very Low Risk */
+    --cii-2: 207 60% 47%; /* #3182bd - Low Risk */
+    --cii-3: 207 64% 63%; /* #6baed6 - Low-Medium */
+    --cii-4: 207 67% 81%; /* #bdd7e7 - Medium */
+    --cii-5: 240 100% 99%; /* #eff3ff - Neutral */
+    --cii-6: 25 100% 92%; /* #fee5d9 - Medium-High */
+    --cii-7: 18 97% 78%; /* #fcae91 - High */
+    --cii-8: 11 96% 64%; /* #fb6a4a - Very High */
+    --cii-9: 5 73% 51%; /* #de2d26 - Severe */
+    --cii-10: 355 83% 35%; /* #a50f15 - Critical */
 
-    /* Thematic Risk Colors */
+    /* Thematic Risk Colors (kept semantic) */
     --heat-low: 60 100% 94%;
     --heat-high: 11 96% 64%;
     --heat-critical: 355 83% 35%;
-    
+
     --flood-low: 211 67% 93%;
     --flood-high: 207 60% 47%;
     --flood-critical: 211 100% 31%;
-    
+
     --air-good: 123 100% 45%;
     --air-moderate: 60 100% 50%;
     --air-unhealthy: 25 100% 50%;
     --air-hazardous: 291 42% 41%;
 
-    /* Accent Colors */
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --info: 188 94% 43%;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    /* Sidebar (green tinted) */
+    --sidebar-background: 160 18% 97%;
+    --sidebar-foreground: 160 22% 12%;
+    --sidebar-primary: 152 61% 40%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 150 20% 92%;
+    --sidebar-accent-foreground: 160 22% 12%;
+    --sidebar-border: 150 18% 82%;
+    --sidebar-ring: 152 61% 40%;
   }
-  
-  .dark {
-    --background: 222 47% 9%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 18%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 91% 60%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 217 91% 60%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+  .dark {
+    /* ===== Green / Teal UI – Dark Mode ===== */
+    --background: 160 25% 7%; /* deep forest */
+    --foreground: 160 20% 96%; /* soft mint text */
+
+    --card: 160 22% 10%;
+    --card-foreground: 160 20% 96%;
+
+    --popover: 160 22% 10%;
+    --popover-foreground: 160 20% 96%;
+
+    --primary: 152 61% 40%; /* emerald 600 (kept for brand consistency) */
+    --primary-foreground: 160 20% 98%;
+
+    --secondary: 160 15% 18%; /* desaturated evergreen */
+    --secondary-foreground: 160 20% 96%;
+
+    --muted: 160 12% 14%;
+    --muted-foreground: 150 10% 65%;
+
+    --accent: 166 54% 40%; /* teal 600 */
+    --accent-foreground: 160 20% 98%;
+
+    --destructive: 0 63% 41%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 12% 20%;
+    --input: 160 12% 20%;
+    --ring: 152 61% 40%;
+
+    /* Sidebar (dark) */
+    --sidebar-background: 160 20% 9%;
+    --sidebar-foreground: 160 20% 96%;
+    --sidebar-primary: 152 61% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 160 12% 14%;
+    --sidebar-accent-foreground: 160 20% 96%;
+    --sidebar-border: 160 12% 16%;
+    --sidebar-ring: 152 61% 40%;
   }
 }
 
@@ -123,5 +142,6 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-spartan);
   }
 }
