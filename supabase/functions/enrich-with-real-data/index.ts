@@ -170,7 +170,7 @@ async function processRegion(
   const iso2 = region.region_code.split('-')[0];
   
   const realData: any = {
-    data_sources: ['Natural Earth', 'Real Data'],
+    data_sources: ['Natural Earth'],
     last_updated: new Date().toISOString()
   };
 
@@ -225,21 +225,33 @@ async function processRegion(
   if (internet.upload) realData.internet_speed_upload = internet.upload;
 
   // CRITICAL: Always update to remove from synthetic queue, even if minimal data
-  // Filter out "Synthetic" from data_sources to mark as attempted
+  // Determine if any real metrics were found
+  const metricFields = [
+    'population','gdp_per_capita','urban_population_percent',
+    'air_quality_pm25','air_quality_no2',
+    'temperature_avg','precipitation_avg',
+    'internet_speed_download','internet_speed_upload'
+  ];
+  const hasReal = metricFields.some((k) => realData[k] !== undefined && realData[k] !== null);
+
+  // Filter out "Synthetic" from data_sources
   const currentSources = Array.isArray(realData.data_sources) ? realData.data_sources : [];
   realData.data_sources = currentSources.filter((s: string) => s !== 'Synthetic');
-  
-  // If no real sources were added, at least mark it as attempted
-  if (realData.data_sources.length === 0 || 
-      (realData.data_sources.length === 1 && realData.data_sources[0] === 'Natural Earth')) {
-    realData.data_sources = ['Natural Earth', 'Attempted'];
-  }
 
-  // Reset retry tracking on successful enrichment
-  realData.enrichment_attempts = 0;
-  realData.last_enrichment_attempt = new Date().toISOString();
-  realData.next_retry_at = null;
-  realData.enrichment_error = null;
+  if (hasReal) {
+    if (!realData.data_sources.includes('Real Data')) realData.data_sources.push('Real Data');
+    // Reset retry tracking on successful enrichment
+    realData.enrichment_attempts = 0;
+    realData.last_enrichment_attempt = new Date().toISOString();
+    realData.next_retry_at = null;
+    realData.enrichment_error = null;
+  } else {
+    // No real data found: ensure we don't keep any synthetic values
+    realData.data_sources = ['Natural Earth', 'Attempted'];
+    for (const key of metricFields) {
+      realData[key] = null;
+    }
+  }
 
   const { error: updateError } = await supabase
     .from('climate_inequality_regions')
@@ -252,12 +264,12 @@ async function processRegion(
     throw updateError;
   }
   
-  const dataCount = Object.keys(realData).length - 6; // Exclude sources, timestamp, and retry fields
+  const dataCount = metricFields.filter((k) => realData[k] !== undefined && realData[k] !== null).length;
   if (dataCount > 0) {
     console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code} with ${dataCount} fields from ${realData.data_sources.join(', ')}`);
     return true;
   } else {
-    console.log(`[Worker ${worker_id}] ⚠ No external data found for ${region.region_code}, marked as attempted`);
+    console.log(`[Worker ${worker_id}] ⚠ No external data found for ${region.region_code}, synthetic values cleared`);
     return false;
   }
 }
@@ -274,43 +286,47 @@ async function fetchWorldBankData(iso2: string, year: number) {
     return { ...cached };
   }
 
-  console.log(`Fetching World Bank data for ${iso2}-${year}...`);
+  console.log(`Fetching World Bank data (latest available <= ${year}) for ${iso2}...`);
+
+  const getLatest = async (indicator: string) => {
+    const resp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/${indicator}?format=json&date=1960:${year}`);
+    if (!resp) return null;
+    const data = await resp.json();
+    const series = Array.isArray(data?.[1]) ? data[1] : [];
+    for (let i = series.length - 1; i >= 0; i--) {
+      const row = series[i];
+      if (row && row.value !== null && row.value !== undefined) {
+        return { value: Number(row.value), date: row.date };
+      }
+    }
+    return null;
+  };
 
   try {
-    const popResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`);
-    if (popResp) {
-      const popData = await popResp.json();
-      if (popData[1]?.[0]?.value) {
-        result.population = Math.round(popData[1][0].value);
-        console.log(`✓ Population for ${iso2}: ${result.population}`);
-      }
+    const pop = await getLatest('SP.POP.TOTL');
+    if (pop?.value) {
+      result.population = Math.round(pop.value);
+      console.log(`✓ Population for ${iso2}: ${result.population} (year ${pop.date})`);
     }
   } catch (e) {
     console.error(`Failed to fetch population for ${iso2}:`, e);
   }
 
   try {
-    const gdpResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`);
-    if (gdpResp) {
-      const gdpData = await gdpResp.json();
-      const val = gdpData[1]?.[0]?.value;
-      if (val !== null && val !== undefined) {
-        result.gdp_per_capita = Math.round(Number(val) * 100) / 100;
-        console.log(`✓ GDP per capita for ${iso2}: $${result.gdp_per_capita}`);
-      }
+    const gdp = await getLatest('NY.GDP.PCAP.CD');
+    if (gdp?.value !== null && gdp?.value !== undefined) {
+      result.gdp_per_capita = Math.round(Number(gdp.value) * 100) / 100;
+      console.log(`✓ GDP per capita for ${iso2}: $${result.gdp_per_capita} (year ${gdp.date})`);
     }
   } catch (e) {
     console.error(`Failed to fetch GDP for ${iso2}:`, e);
   }
 
   try {
-    const urbanResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`);
-    if (urbanResp) {
-      const urbanData = await urbanResp.json();
-      if (urbanData[1]?.[0]?.value !== null && urbanData[1]?.[0]?.value !== undefined) {
-        result.urban_percent = Math.round(Number(urbanData[1][0].value) * 100) / 100;
-        console.log(`✓ Urban population for ${iso2}: ${result.urban_percent}%`);
-      }
+    const urb = await getLatest('SP.URB.TOTL.IN.ZS');
+    if (urb?.value !== null && urb?.value !== undefined) {
+      result.urban_percent = Math.round(Number(urb.value) * 100) / 100;
+      console.log(`✓ Urban population for ${iso2}: ${result.urban_percent}% (year ${urb.date})`);
     }
   } catch (e) {
     console.error(`Failed to fetch urban % for ${iso2}:`, e);
@@ -379,14 +395,19 @@ async function fetchWorldBankClimate(iso2: string, year: number) {
   const result: { precipitation?: number } = {};
 
   try {
-    // Annual precipitation
-    const precipUrl = `https://api.worldbank.org/v2/country/${iso2}/indicator/AG.LND.PRCP.MM?format=json&date=${year}`;
+    // Annual precipitation - use latest available
+    const precipUrl = `https://api.worldbank.org/v2/country/${iso2}/indicator/AG.LND.PRCP.MM?format=json&date=1960:${year}`;
     const precipResp = await fetch(precipUrl);
     
     if (precipResp.ok) {
       const precipData = await precipResp.json();
-      if (precipData[1]?.[0]?.value) {
-        result.precipitation = Math.round(precipData[1][0].value * 100) / 100;
+      const series = Array.isArray(precipData?.[1]) ? precipData[1] : [];
+      for (let i = series.length - 1; i >= 0; i--) {
+        const row = series[i];
+        if (row && row.value !== null && row.value !== undefined) {
+          result.precipitation = Math.round(Number(row.value) * 100) / 100;
+          break;
+        }
       }
     }
   } catch (e) { /* ignore */ }
@@ -422,22 +443,25 @@ async function fetchNASAClimateData(iso2: string, year: number) {
     const coords = getCountryCoordinates(iso2);
     if (!coords) return result;
 
-    const nasaUrl = `https://power.larc.nasa.gov/api/temporal/annual/point?parameters=T2M,PRECTOTCORR&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${year}&end=${year}&format=JSON`;
-    
-    const nasaResp = await fetchWithRetry(nasaUrl);
-    
-    if (nasaResp) {
-      const nasaData = await nasaResp.json();
-      if (nasaData.properties && nasaData.properties.parameter) {
-        if (nasaData.properties.parameter.T2M && nasaData.properties.parameter.T2M[year]) {
-          result.temperature = Math.round(nasaData.properties.parameter.T2M[year] * 100) / 100;
-          console.log(`✓ NASA temp for ${iso2}: ${result.temperature}°C`);
+    // Try up to 5 years back to handle data availability
+    for (let y = year; y >= year - 5; y--) {
+      const nasaUrl = `https://power.larc.nasa.gov/api/temporal/annual/point?parameters=T2M,PRECTOTCORR&community=RE&longitude=${coords.lon}&latitude=${coords.lat}&start=${y}&end=${y}&format=JSON`;
+      const nasaResp = await fetchWithRetry(nasaUrl);
+      
+      if (nasaResp) {
+        const nasaData = await nasaResp.json();
+        if (nasaData.properties && nasaData.properties.parameter) {
+          if (nasaData.properties.parameter.T2M && nasaData.properties.parameter.T2M[y]) {
+            result.temperature = Math.round(nasaData.properties.parameter.T2M[y] * 100) / 100;
+            console.log(`✓ NASA temp for ${iso2}: ${result.temperature}°C (year ${y})`);
+          }
+          
+          if (nasaData.properties.parameter.PRECTOTCORR && nasaData.properties.parameter.PRECTOTCORR[y]) {
+            result.precipitation = Math.round(nasaData.properties.parameter.PRECTOTCORR[y] * 365 * 100) / 100;
+            console.log(`✓ NASA precip for ${iso2}: ${result.precipitation}mm (year ${y})`);
+          }
         }
-        
-        if (nasaData.properties.parameter.PRECTOTCORR && nasaData.properties.parameter.PRECTOTCORR[year]) {
-          result.precipitation = Math.round(nasaData.properties.parameter.PRECTOTCORR[year] * 365 * 100) / 100;
-          console.log(`✓ NASA precip for ${iso2}: ${result.precipitation}mm`);
-        }
+        if (result.temperature || result.precipitation) break; // Stop if we got any data
       }
     }
   } catch (e) {
