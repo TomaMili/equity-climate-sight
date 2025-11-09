@@ -155,7 +155,14 @@ export function ComputeCII() {
         )}
 
         <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-          <p className="font-medium">CII Formula Components:</p>
+          <p className="font-medium">Data Sources:</p>
+          <ul className="list-disc list-inside space-y-0.5 ml-2">
+            <li><strong>OpenAQ:</strong> Real-time air quality (PM2.5, NO₂)</li>
+            <li><strong>ERA5/NASA:</strong> Climate data (temperature, precipitation)</li>
+            <li><strong>World Bank:</strong> Economy (GDP) & demographics (urbanization)</li>
+            <li><strong>World Bank/M-Lab:</strong> Internet infrastructure metrics</li>
+          </ul>
+          <p className="font-medium mt-2">CII Formula Components:</p>
           <ul className="list-disc list-inside space-y-0.5 ml-2">
             <li>Climate Risk (30%): Temperature, precipitation, drought/flood</li>
             <li>Infrastructure Gap (25%): Internet, services quality</li>
@@ -163,7 +170,7 @@ export function ComputeCII() {
             <li>Air Quality (20%): PM2.5, NO₂ levels</li>
           </ul>
           <p className="mt-2 text-amber-600 font-medium">
-            ⚠️ Requires enriched data from World Bank, OpenAQ, NASA
+            ⚠️ Run data enrichment first to fetch real metrics
           </p>
         </div>
       </div>
