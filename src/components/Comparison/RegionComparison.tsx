@@ -50,7 +50,14 @@ const RegionComparison = ({ regionIds, onRemoveRegion, onClose }: RegionComparis
           variant: "destructive"
         });
       } else if (data) {
-        setRegions(data);
+        // Transform data_sources from string to array if needed
+        const transformedData = data.map(region => ({
+          ...region,
+          data_sources: typeof region.data_sources === 'string' 
+            ? JSON.parse(region.data_sources)
+            : region.data_sources
+        }));
+        setRegions(transformedData);
       }
       setLoading(false);
     };

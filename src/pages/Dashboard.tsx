@@ -183,8 +183,16 @@ useEffect(() => {
     addRecentRegion(data.region_code, data.region_name, data.country);
 
     try {
+      // Transform data_sources from string to array if needed
+      const regionDataForInsight = {
+        ...data,
+        data_sources: typeof data.data_sources === 'string' 
+          ? JSON.parse(data.data_sources)
+          : data.data_sources
+      };
+
       const { data: insightData, error } = await supabase.functions.invoke('generate-insights', {
-        body: { regionData: data }
+        body: { regionData: regionDataForInsight }
       });
 
       if (error) throw error;
