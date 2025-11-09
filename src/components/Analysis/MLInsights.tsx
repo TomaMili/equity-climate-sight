@@ -37,7 +37,28 @@ export function MLInsights({ regionData, year }: MLInsightsProps) {
 
       const { data, error } = await supabase.functions.invoke(functionName, { body });
 
-      if (error) throw error;
+      if (error) {
+        // Check for specific error types
+        if (error.message?.includes('credits exhausted') || error.message?.includes('402')) {
+          toast({
+            title: '💳 AI Credits Exhausted',
+            description: 'Please add credits to your Lovable workspace: Settings → Workspace → Usage',
+            variant: 'destructive',
+            duration: 8000,
+          });
+          return;
+        }
+        if (error.message?.includes('rate limit') || error.message?.includes('429')) {
+          toast({
+            title: '⏱️ Rate Limit Reached',
+            description: 'Too many requests. Please wait a moment and try again.',
+            variant: 'destructive',
+            duration: 5000,
+          });
+          return;
+        }
+        throw error;
+      }
 
       const resultKey = type === 'trends' ? 'prediction' : 
                        type === 'anomalies' ? 'anomalies' :
