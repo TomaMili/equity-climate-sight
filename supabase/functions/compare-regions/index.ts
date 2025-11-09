@@ -39,25 +39,45 @@ serve(async (req) => {
       gdp_per_capita: r.gdp_per_capita,
     }));
 
-    const systemPrompt = `You are an expert climate inequality analyst. Compare the provided regions and provide insights on their relative strengths, weaknesses, and disparities. Focus on actionable differences and patterns.`;
+    const systemPrompt = `You are a senior comparative climate analyst specializing in regional climate inequality assessments across multiple geographies. Your expertise includes identifying patterns, disparities, and actionable insights from multi-region climate data.
 
-    const userPrompt = `Compare these ${regions.length} regions and provide a concise analysis (150-200 words):
+Provide comparative analysis that:
+1. **Identifies Key Disparities**: Highlight the most significant differences in climate vulnerability between regions
+2. **Root Cause Analysis**: Explain underlying drivers of inequality differences (economic, geographic, infrastructural)
+3. **Vulnerable Population Impacts**: Compare which communities face greatest relative risks in each region
+4. **Regional Context**: Reference each region's unique characteristics, economic conditions, or recent climate events
+5. **Actionable Recommendations**: Provide region-specific priorities while noting opportunities for shared learning
+
+Write in a professional yet accessible tone. Be specific, data-driven, and solution-oriented. Aim for 250-300 words with clear paragraph breaks.`;
+
+    const userPrompt = `Conduct a comprehensive comparative analysis of these ${regions.length} regions:
 
 ${comparisonData.map((r: any, i: number) => `
-Region ${i + 1}: ${r.name}, ${r.country}
-- CII Score: ${(r.cii * 100).toFixed(1)}%
-- Climate Risk: ${(r.climate_risk * 100).toFixed(1)}%
-- Infrastructure Gap: ${(r.infrastructure * 100).toFixed(1)}%
-- Socioeconomic Vulnerability: ${(r.socioeconomic * 100).toFixed(1)}%
-- Air Quality: ${(r.air_quality * 100).toFixed(1)}%
-- Population: ${r.population?.toLocaleString() || 'N/A'}
-- GDP per Capita: $${r.gdp_per_capita?.toFixed(0) || 'N/A'}
+**REGION ${i + 1}: ${r.name}, ${r.country}**
+• Climate Inequality Index: ${(r.cii * 100).toFixed(1)}%
+• Climate Risk Component: ${(r.climate_risk * 100).toFixed(1)}%
+• Infrastructure Gap: ${(r.infrastructure * 100).toFixed(1)}%
+• Socioeconomic Vulnerability: ${(r.socioeconomic * 100).toFixed(1)}%
+• Air Quality Component: ${(r.air_quality * 100).toFixed(1)}%
+• Population: ${r.population?.toLocaleString() || 'N/A'}
+• GDP per Capita: $${r.gdp_per_capita?.toFixed(0) || 'N/A'}
 `).join('\n')}
 
-Highlight:
-1. Which region faces the greatest challenges and why
-2. Key differences in vulnerability patterns
-3. Comparative strengths each region possesses`;
+Provide a detailed comparative analysis that:
+
+1. **Ranks Vulnerability**: Which region faces the greatest climate inequality challenges and why? What specific combination of factors creates this vulnerability?
+
+2. **Identifies Disparities**: What are the 2-3 most significant differences between these regions? Compare specific metrics (e.g., infrastructure gaps, air quality, economic capacity).
+
+3. **Analyzes Patterns**: Are there common themes or divergent trajectories? Do wealthier regions face different types of climate challenges than poorer ones?
+
+4. **Highlights Strengths**: What does each region do relatively well? Where could regions learn from each other's approaches?
+
+5. **Prioritizes Actions**: What are the top 2-3 priorities for each region based on their unique vulnerability profile?
+
+6. **Provides Context**: Reference each region's economic development level, geographic characteristics, or known climate events to ground the analysis.
+
+Use clear paragraph breaks. Be specific with data comparisons and actionable in recommendations.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

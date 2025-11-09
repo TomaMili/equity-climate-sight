@@ -72,28 +72,65 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are an expert climate and inequality analyst. Provide concise, actionable insights about climate inequality in regions. Focus on:
-1. The relationship between climate risk and infrastructure/socioeconomic factors
-2. Specific vulnerabilities and their implications
-3. Brief recommendations for addressing inequality
-Keep responses under 150 words and make them understandable to policymakers.`;
+    const systemPrompt = `You are a senior climate equity analyst specializing in regional climate vulnerability assessments. Your expertise spans climate science, infrastructure resilience, socioeconomic factors, and environmental justice.
 
-    const userPrompt = `Analyze this region's climate inequality data:
-- Region: ${regionData.region_name || 'Unknown'}, ${regionData.country || 'Unknown'}
-- Climate Inequality Index: ${(regionData.cii_score * 100).toFixed(1)}%
-- Climate Risk Score: ${regionData.climate_risk_score ? (regionData.climate_risk_score * 100).toFixed(1) + '%' : 'N/A'}
-- Infrastructure Score: ${regionData.infrastructure_score ? (regionData.infrastructure_score * 100).toFixed(1) + '%' : 'N/A'}
-- Socioeconomic Score: ${regionData.socioeconomic_score ? (regionData.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}
-- Population: ${regionData.population?.toLocaleString() || 'N/A'}
-- GDP per capita: $${regionData.gdp_per_capita?.toLocaleString() || 'N/A'}
-- Air Quality PM2.5: ${regionData.air_quality_pm25 ? regionData.air_quality_pm25.toFixed(1) + ' µg/m³' : 'N/A'}
-- NO₂ Levels: ${regionData.air_quality_no2 ? regionData.air_quality_no2.toFixed(1) + ' µg/m³' : 'N/A'}
-- Internet Speed (Down): ${regionData.internet_speed_download ? regionData.internet_speed_download.toFixed(1) + ' Mbps' : 'N/A'}
-- Average Temperature: ${regionData.temperature_avg ? regionData.temperature_avg.toFixed(1) + '°C' : 'N/A'}
-- Annual Precipitation: ${regionData.precipitation_avg ? regionData.precipitation_avg.toFixed(0) + ' mm' : 'N/A'}
-- Data Sources: ${regionData.data_sources?.join(', ') || 'Unknown'}
+Analyze regions with depth and nuance, providing:
+1. **Root Cause Analysis**: Identify underlying factors driving climate inequality
+2. **Local Context**: Reference region-specific climate events, geography, or economic conditions
+3. **Vulnerable Populations**: Highlight which communities face greatest risks
+4. **Actionable Pathways**: Prioritized recommendations with realistic implementation steps
+5. **Regional Comparisons**: Compare to similar regions or regional averages when relevant
 
-Provide a brief, actionable analysis focusing on the key inequality factors and recommendations.`;
+Write in a professional yet accessible tone. Be specific and data-driven. Aim for 200-250 words with clear paragraph breaks.`;
+
+    // Calculate severity levels for better context
+    const ciiLevel = regionData.cii_score >= 0.7 ? 'critical' : 
+                     regionData.cii_score >= 0.5 ? 'high' : 
+                     regionData.cii_score >= 0.3 ? 'moderate' : 'low';
+    
+    const airQualityStatus = regionData.air_quality_pm25 
+      ? (regionData.air_quality_pm25 > 35 ? 'hazardous' : 
+         regionData.air_quality_pm25 > 15 ? 'unhealthy' : 
+         regionData.air_quality_pm25 > 10 ? 'moderate' : 'good')
+      : 'unknown';
+
+    const userPrompt = `Conduct a comprehensive climate inequality assessment for ${regionData.region_name || 'this region'}, ${regionData.country || 'Unknown'}:
+
+**CORE METRICS**
+• Climate Inequality Index: ${(regionData.cii_score * 100).toFixed(1)}% (${ciiLevel} severity)
+• Climate Risk Component: ${regionData.climate_risk_score ? (regionData.climate_risk_score * 100).toFixed(1) + '%' : 'N/A'}
+• Infrastructure Gap: ${regionData.infrastructure_score ? (regionData.infrastructure_score * 100).toFixed(1) + '%' : 'N/A'}
+• Socioeconomic Vulnerability: ${regionData.socioeconomic_score ? (regionData.socioeconomic_score * 100).toFixed(1) + '%' : 'N/A'}
+
+**DEMOGRAPHICS & ECONOMY**
+• Population: ${regionData.population?.toLocaleString() || 'N/A'}
+• GDP per Capita: $${regionData.gdp_per_capita?.toLocaleString() || 'N/A'}
+• Urban Population: ${regionData.urban_population_percent ? regionData.urban_population_percent.toFixed(1) + '%' : 'N/A'}
+
+**ENVIRONMENTAL INDICATORS**
+• Air Quality (PM2.5): ${regionData.air_quality_pm25 ? regionData.air_quality_pm25.toFixed(1) + ' µg/m³ (' + airQualityStatus + ')' : 'N/A'}
+• NO₂ Pollution: ${regionData.air_quality_no2 ? regionData.air_quality_no2.toFixed(1) + ' µg/m³' : 'N/A'}
+• Avg Temperature: ${regionData.temperature_avg ? regionData.temperature_avg.toFixed(1) + '°C' : 'N/A'}
+• Annual Precipitation: ${regionData.precipitation_avg ? regionData.precipitation_avg.toFixed(0) + ' mm' : 'N/A'}
+• Drought Risk: ${regionData.drought_index ? (regionData.drought_index * 100).toFixed(0) + '%' : 'N/A'}
+• Flood Risk: ${regionData.flood_risk_score ? (regionData.flood_risk_score * 100).toFixed(0) + '%' : 'N/A'}
+
+**DIGITAL INFRASTRUCTURE**
+• Internet Speed: ${regionData.internet_speed_download ? regionData.internet_speed_download.toFixed(1) + ' Mbps (↓) / ' + (regionData.internet_speed_upload?.toFixed(1) || 'N/A') + ' Mbps (↑)' : 'N/A'}
+
+Provide a detailed, region-specific analysis that:
+
+1. **Interprets the CII Score**: What does this specific score mean for ${regionData.region_name}? Reference the country's geography, economy, or recent climate events if relevant.
+
+2. **Identifies Key Vulnerabilities**: Which 2-3 factors are driving inequality most? Link specific metrics (e.g., air quality, flood risk) to real impacts on residents.
+
+3. **Highlights At-Risk Groups**: Which populations (low-income, coastal, urban poor, etc.) face greatest exposure?
+
+4. **Provides Targeted Recommendations**: Give 3-4 actionable priorities tailored to ${regionData.country}'s context and capacity.
+
+5. **Offers Perspective**: How does this compare to regional peers or what trajectory is this region on?
+
+Use paragraph breaks for readability. Be specific, evidence-based, and solution-oriented.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

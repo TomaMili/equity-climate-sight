@@ -1,8 +1,9 @@
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Bookmark } from 'lucide-react';
+import { Loader2, Bookmark, Sparkles, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import CIIBreakdown from './CIIBreakdown';
 
 interface RegionDetailsProps {
@@ -36,6 +37,92 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
 
   return (
     <div className="space-y-4">
+      {/* AI Analysis - Featured First for Prominence */}
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-background shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  AI Climate Equity Analysis
+                  {!isLoadingInsight && aiInsight && (
+                    <Badge variant="secondary" className="text-xs">
+                      Powered by Gemini 2.5
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  Expert assessment of climate vulnerability
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoadingInsight ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                <span>Analyzing regional climate inequality factors...</span>
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : aiInsight ? (
+            <div className="space-y-4">
+              <div className="prose prose-sm max-w-none">
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                  {aiInsight}
+                </p>
+              </div>
+              
+              {/* Key Indicators */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                {data.cii_score >= 0.7 && (
+                  <Badge variant="destructive" className="gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Critical Risk
+                  </Badge>
+                )}
+                {data.air_quality_pm25 && data.air_quality_pm25 > 35 && (
+                  <Badge variant="destructive" className="gap-1">
+                    Hazardous Air Quality
+                  </Badge>
+                )}
+                {data.flood_risk_score && data.flood_risk_score > 0.7 && (
+                  <Badge variant="destructive" className="gap-1">
+                    High Flood Risk
+                  </Badge>
+                )}
+                {data.gdp_per_capita && data.gdp_per_capita < 5000 && (
+                  <Badge variant="outline" className="gap-1">
+                    Low-Income Region
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2">
+                <TrendingUp className="h-3 w-3" />
+                <span>Analysis based on {data.data_year || 2024} data from multiple sources</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-sm text-muted-foreground">No AI analysis available</p>
+              <p className="text-xs text-muted-foreground mt-1">Select a region to generate insights</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Region Overview */}
       <Card className="p-6">
         <div className="flex items-start justify-between gap-2 mb-4">
           <div className="flex-1">
@@ -138,25 +225,6 @@ export const RegionDetails = ({ data, aiInsight, isLoadingInsight, isBookmarked 
         socioeconomicVuln={data.cii_socioeconomic_vuln_component}
         airQuality={data.cii_air_quality_component}
       />
-
-      <Card className="p-6 bg-accent/50">
-        <div className="flex items-start gap-2 mb-3">
-          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="text-xs font-bold text-primary">AI</span>
-          </div>
-          <h3 className="text-sm font-semibold text-foreground">AI Analysis</h3>
-        </div>
-        {isLoadingInsight ? (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Generating insights...</span>
-          </div>
-        ) : aiInsight ? (
-          <p className="text-sm text-foreground leading-relaxed">{aiInsight}</p>
-        ) : (
-          <p className="text-sm text-muted-foreground italic">No AI insight available</p>
-        )}
-      </Card>
     </div>
   );
 };
