@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Database, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -44,7 +46,7 @@ export function DataEnrichment() {
   const [timeEstimate, setTimeEstimate] = useState<{ startTime: number; itemsProcessed: number; lastCheckTime: number; lastCheckItems: number } | null>(null);
   const [speedData, setSpeedData] = useState<SpeedDataPoint[]>([]);
   const [workers, setWorkers] = useState<WorkerState[]>([]);
-  const [parallelWorkers, setParallelWorkers] = useState(5); // Number of parallel workers
+  const [parallelWorkers, setParallelWorkers] = useState(5);
   const [scalingState, setScalingState] = useState<ScalingState>({
     currentWorkers: 5,
     successRate: 100,
@@ -56,6 +58,20 @@ export function DataEnrichment() {
   const [currentPhase, setCurrentPhase] = useState<'countries' | 'regions' | null>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [validationType, setValidationType] = useState<'all' | 'countries' | 'regions'>('all');
+  const [logs, setLogs] = useState<Array<{ time: string; message: string; type: 'info' | 'success' | 'error' | 'warning' }>>([]);
+  const [workerErrors, setWorkerErrors] = useState<Record<number, string[]>>({});
+
+  const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+    const time = new Date().toLocaleTimeString();
+    setLogs(prev => [...prev.slice(-49), { time, message, type }]);
+  };
+
+  const addWorkerError = (workerId: number, error: string) => {
+    setWorkerErrors(prev => ({
+      ...prev,
+      [workerId]: [...(prev[workerId] || []).slice(-4), error]
+    }));
+  };
 
   const handleEnrichCountries = async (year: number) => {
     setShowValidation(false);
@@ -65,6 +81,9 @@ export function DataEnrichment() {
       const now = Date.now();
       setTimeEstimate({ startTime: now, itemsProcessed: 0, lastCheckTime: now, lastCheckItems: 0 });
       setSpeedData([]);
+      setLogs([]);
+      setWorkerErrors({});
+      addLog(`Starting enrichment for countries (${year})...`, 'info');
       toast.info(`Starting data enrichment for countries (${year})...`);
       
       let totalEnriched = 0;
@@ -94,6 +113,7 @@ export function DataEnrichment() {
 
         if (error) {
           console.error(`Enrichment call failed (iteration ${iteration}):`, error);
+          addLog(`Batch ${iteration} failed: ${error.message || 'Unknown error'}`, 'error');
           toast.error(`Enrichment error at batch ${iteration}. Stopping.`);
           break;
         }
@@ -147,6 +167,7 @@ export function DataEnrichment() {
 
         if (shouldContinue) {
           console.log(`Batch ${iteration}: ${data?.enriched} enriched, ${data?.remaining} remaining...`);
+          addLog(`Batch ${iteration}: +${data?.enriched} enriched, ${data?.remaining} remaining`, 'success');
           
           if (!autoResume && data?.remaining > 0) {
             toast.info(`Batch complete. ${data.remaining} regions remaining. Click again to continue.`);
@@ -156,6 +177,7 @@ export function DataEnrichment() {
           // Configurable delay between batches
           await new Promise(resolve => setTimeout(resolve, pauseInterval * 1000));
         } else {
+          addLog(`✓ Enrichment complete! ${totalEnriched} countries updated`, 'success');
           toast.success(`Enrichment complete! ${totalEnriched} regions updated with real data.`);
         }
       }
@@ -182,6 +204,8 @@ export function DataEnrichment() {
       const now = Date.now();
       setTimeEstimate({ startTime: now, itemsProcessed: 0, lastCheckTime: now, lastCheckItems: 0 });
       setSpeedData([]);
+      setLogs([]);
+      setWorkerErrors({});
       
       // Initialize workers with dynamic scaling
       let currentWorkerCount = parallelWorkers;
@@ -195,6 +219,7 @@ export function DataEnrichment() {
       }));
       setWorkers(initialWorkers);
       
+      addLog(`Starting parallel enrichment with ${currentWorkerCount} workers (auto-scaling enabled)...`, 'info');
       toast.info(`Starting parallel enrichment with ${currentWorkerCount} workers (auto-scaling enabled)...`);
       
       let totalEnriched = 0;
@@ -223,6 +248,9 @@ export function DataEnrichment() {
 
               if (error) {
                 console.error(`Worker ${worker.id} error:`, error);
+                const errorMsg = error.message || 'Unknown error';
+                addLog(`Worker ${worker.id} failed: ${errorMsg}`, 'error');
+                addWorkerError(worker.id, errorMsg);
                 
                 // Check for rate limiting
                 const isRateLimit = error.message?.includes('429') || 
@@ -250,6 +278,9 @@ export function DataEnrichment() {
               };
             } catch (err: any) {
               console.error(`Worker ${worker.id} exception:`, err);
+              const errorMsg = err.message || 'Unknown exception';
+              addLog(`Worker ${worker.id} exception: ${errorMsg}`, 'error');
+              addWorkerError(worker.id, errorMsg);
               
               // Check for timeout or rate limit
               const isRateLimit = err.message?.includes('429') || 
@@ -287,6 +318,7 @@ export function DataEnrichment() {
           
           if (!result.error && result.enriched > 0) {
             successfulWorkers++;
+            addLog(`Worker ${result.worker_id}: +${result.enriched} enriched`, 'success');
           }
           
           if (result.error) {
@@ -456,6 +488,7 @@ export function DataEnrichment() {
         });
 
         if (allComplete || remaining === 0) {
+          addLog(`✓ Enrichment complete! ${totalEnriched} regions updated`, 'success');
           toast.success(`Parallel enrichment complete! ${totalEnriched} regions updated with real data.`);
           break;
         }
@@ -835,6 +868,65 @@ export function DataEnrichment() {
           </ul>
         </div>
       </div>
+
+      {/* Live Logs Panel */}
+      {isEnriching && logs.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Live Logs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-64 w-full rounded-md border border-border/50 bg-muted/20 p-4">
+              <div className="space-y-1 font-mono text-xs">
+                {logs.map((log, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`flex gap-3 ${
+                      log.type === 'error' ? 'text-destructive' :
+                      log.type === 'success' ? 'text-success' :
+                      log.type === 'warning' ? 'text-warning' :
+                      'text-muted-foreground'
+                    }`}
+                  >
+                    <span className="text-muted-foreground/60">{log.time}</span>
+                    <span>{log.message}</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Worker Errors Panel */}
+      {Object.keys(workerErrors).length > 0 && (
+        <Card className="mt-6 border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-lg text-destructive">Recent Worker Errors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Object.entries(workerErrors).map(([workerId, errors]) => (
+                <div key={workerId} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive">Worker {workerId}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {errors.length} error{errors.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="space-y-1 pl-4">
+                    {errors.map((error, idx) => (
+                      <div key={idx} className="text-xs text-destructive/80 font-mono">
+                        • {error}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
         </>
       )}
     </Card>
