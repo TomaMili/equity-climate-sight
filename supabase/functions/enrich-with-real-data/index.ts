@@ -9,6 +9,9 @@ const corsHeaders = {
 
 const BATCH_SIZE = 6; // Schedule small batches to keep responses fast
 
+// Simple in-memory cache per cold start
+const WB_CACHE = new Map<string, { population?: number; gdp_per_capita?: number; urban_percent?: number }>();
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -119,22 +122,24 @@ async function processRegion(
     last_updated: new Date().toISOString()
   };
 
-  // Only fetch population data for countries, not regions
-  // Regions don't have population data at the regional level from World Bank/UN APIs
   const isCountry = region.region_type === 'country';
 
-  // Fetch World Bank data (only population for countries)
-  if (isCountry) {
-    const worldBank = await fetchWorldBankData(iso2, year);
-    if (worldBank.population) realData.population = worldBank.population;
-    if (worldBank.gdp_per_capita) realData.gdp_per_capita = worldBank.gdp_per_capita;
-    if (worldBank.urban_percent) realData.urban_population_percent = worldBank.urban_percent;
+  // Fetch World Bank data for both countries and regions (propagate to regions)
+  const worldBank = await fetchWorldBankData(iso2, year);
+  if (isCountry && worldBank.population) realData.population = worldBank.population;
+  if (worldBank.gdp_per_capita) {
+    realData.gdp_per_capita = worldBank.gdp_per_capita;
+    realData.data_sources.push('World Bank');
+  }
+  if (worldBank.urban_percent) {
+    realData.urban_population_percent = worldBank.urban_percent;
+    if (!realData.data_sources.includes('World Bank')) realData.data_sources.push('World Bank');
+  }
 
-    // Fetch UN data as backup
-    if (!realData.population) {
-      const unData = await fetchUNPopulationData(iso2, year);
-      if (unData.population) realData.population = unData.population;
-    }
+  // Fetch UN population as backup for countries only
+  if (isCountry && !realData.population) {
+    const unData = await fetchUNPopulationData(iso2, year);
+    if (unData.population) realData.population = unData.population;
   }
 
   // Fetch OpenAQ air quality
@@ -210,6 +215,11 @@ async function fetchWorldBankData(iso2: string, year: number) {
   };
 
   try {
+    // Cache key per country-year
+    const cacheKey = `${iso2}-${year}`;
+    const cached = WB_CACHE.get(cacheKey);
+    if (cached) return { ...cached };
+
     const popResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.POP.TOTL?format=json&date=${year}`);
     if (popResp) {
       const popData = await popResp.json();
@@ -223,8 +233,10 @@ async function fetchWorldBankData(iso2: string, year: number) {
     const gdpResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/NY.GDP.PCAP.CD?format=json&date=${year}`);
     if (gdpResp) {
       const gdpData = await gdpResp.json();
-      if (gdpData[1]?.[0]?.value) {
-        result.gdp_per_capita = Math.round(gdpData[1][0].value * 100) / 100;
+      const val = gdpData[1]?.[0]?.value;
+      if (val !== null && val !== undefined) {
+        // World Bank returns USD; keep as-is (e.g., US ~ 70,000)
+        result.gdp_per_capita = Math.round(Number(val) * 100) / 100;
       }
     }
   } catch (e) { /* ignore */ }
@@ -233,11 +245,14 @@ async function fetchWorldBankData(iso2: string, year: number) {
     const urbanResp = await fetchWithRetry(`${baseUrl}/${iso2}/indicator/SP.URB.TOTL.IN.ZS?format=json&date=${year}`);
     if (urbanResp) {
       const urbanData = await urbanResp.json();
-      if (urbanData[1]?.[0]?.value) {
-        result.urban_percent = Math.round(urbanData[1][0].value * 100) / 100;
+      if (urbanData[1]?.[0]?.value !== null && urbanData[1]?.[0]?.value !== undefined) {
+        result.urban_percent = Math.round(Number(urbanData[1][0].value) * 100) / 100;
       }
     }
   } catch (e) { /* ignore */ }
+
+  // Save to cache
+  WB_CACHE.set(`${iso2}-${year}`, { ...result });
 
   return result;
 }
