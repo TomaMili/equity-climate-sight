@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowLeft, Target, Users, Database, ShieldCheck, Globe2, HelpCircle, Github, Linkedin, Mail } from 'lucide-react';
+import { StatCard } from '@/components/StatCard';
+import { usePlatformStats } from '@/hooks/usePlatformStats';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 8 },
@@ -15,6 +17,8 @@ const fadeIn = {
 };
 
 export default function About() {
+  const stats = usePlatformStats();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/80 to-primary/5">
       {/* Top bar */}
@@ -237,49 +241,38 @@ export default function About() {
             </div>
             <CardContent className="px-6 pb-8">
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="group rounded-2xl border bg-card/80 backdrop-blur-sm p-6 hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover-scale text-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <Globe2 className="w-7 h-7 text-primary" />
-                  </div>
-                  <div className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-1">
-                    195+
-                  </div>
-                  <div className="text-sm font-medium text-foreground mb-1">Regions Analyzed</div>
-                  <div className="text-xs text-muted-foreground">Countries & territories worldwide</div>
-                </div>
-
-                <div className="group rounded-2xl border bg-card/80 backdrop-blur-sm p-6 hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover-scale text-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <Database className="w-7 h-7 text-primary" />
-                  </div>
-                  <div className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-1">
-                    2.5M+
-                  </div>
-                  <div className="text-sm font-medium text-foreground mb-1">Data Points Processed</div>
-                  <div className="text-xs text-muted-foreground">From air quality to climate metrics</div>
-                </div>
-
-                <div className="group rounded-2xl border bg-card/80 backdrop-blur-sm p-6 hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover-scale text-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <Target className="w-7 h-7 text-primary" />
-                  </div>
-                  <div className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-1">
-                    45K+
-                  </div>
-                  <div className="text-sm font-medium text-foreground mb-1">AI Insights Generated</div>
-                  <div className="text-xs text-muted-foreground">ML-powered analysis & predictions</div>
-                </div>
-
-                <div className="group rounded-2xl border bg-card/80 backdrop-blur-sm p-6 hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover-scale text-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <Users className="w-7 h-7 text-primary" />
-                  </div>
-                  <div className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-1">
-                    8.2K+
-                  </div>
-                  <div className="text-sm font-medium text-foreground mb-1">Active Users</div>
-                  <div className="text-xs text-muted-foreground">Researchers, policymakers & advocates</div>
-                </div>
+                <StatCard
+                  icon={Globe2}
+                  value={stats.totalRegions}
+                  label="Regions Analyzed"
+                  subtitle="Countries & territories worldwide"
+                  suffix="+"
+                  isLoading={stats.isLoading}
+                />
+                <StatCard
+                  icon={Database}
+                  value={stats.totalDataPoints}
+                  label="Data Points Processed"
+                  subtitle="From air quality to climate metrics"
+                  suffix="+"
+                  isLoading={stats.isLoading}
+                />
+                <StatCard
+                  icon={Target}
+                  value={stats.aiInsightsGenerated}
+                  label="AI Insights Generated"
+                  subtitle="ML-powered analysis & predictions"
+                  suffix="+"
+                  isLoading={stats.isLoading}
+                />
+                <StatCard
+                  icon={Users}
+                  value={stats.activeUsers}
+                  label="Active Users"
+                  subtitle="Researchers, policymakers & advocates"
+                  suffix="+"
+                  isLoading={stats.isLoading}
+                />
               </div>
 
               {/* Additional impact metrics */}
