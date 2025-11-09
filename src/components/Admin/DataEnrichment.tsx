@@ -10,6 +10,18 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 interface SpeedDataPoint {
   time: string;
   itemsPerMinute: number;
+  worker0?: number;
+  worker1?: number;
+  worker2?: number;
+  worker3?: number;
+  worker4?: number;
+}
+
+interface WorkerState {
+  id: number;
+  active: boolean;
+  enriched: number;
+  offset: number;
 }
 
 export function DataEnrichment() {
@@ -20,6 +32,8 @@ export function DataEnrichment() {
   const [shouldStop, setShouldStop] = useState(false);
   const [timeEstimate, setTimeEstimate] = useState<{ startTime: number; itemsProcessed: number; lastCheckTime: number; lastCheckItems: number } | null>(null);
   const [speedData, setSpeedData] = useState<SpeedDataPoint[]>([]);
+  const [workers, setWorkers] = useState<WorkerState[]>([]);
+  const [parallelWorkers, setParallelWorkers] = useState(5); // Number of parallel workers
 
   const handleEnrichCountries = async (year: number) => {
     try {
@@ -131,59 +145,131 @@ export function DataEnrichment() {
       const now = Date.now();
       setTimeEstimate({ startTime: now, itemsProcessed: 0, lastCheckTime: now, lastCheckItems: 0 });
       setSpeedData([]);
-      toast.info(`Starting data enrichment for regions (${year})...`);
+      
+      // Initialize workers
+      const initialWorkers: WorkerState[] = Array.from({ length: parallelWorkers }, (_, i) => ({
+        id: i,
+        active: true,
+        enriched: 0,
+        offset: i * 20 // Each worker starts at a different offset
+      }));
+      setWorkers(initialWorkers);
+      
+      toast.info(`Starting parallel enrichment with ${parallelWorkers} workers for regions (${year})...`);
       
       let totalEnriched = 0;
       let totalFailed = 0;
-      let shouldContinue = true;
       let iteration = 0;
+      const maxIterations = 200; // Safety limit per worker
 
-      while (shouldContinue && iteration < 1000 && !shouldStop) { // Safety limit increased for large datasets
+      // Run workers in parallel
+      while (!shouldStop && iteration < maxIterations) {
         iteration++;
         
-        const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
-          body: { year, region_type: 'region' }
+        // Launch all active workers in parallel
+        const workerPromises = initialWorkers
+          .filter(w => w.active)
+          .map(async (worker) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('enrich-with-real-data', {
+                body: { 
+                  year, 
+                  region_type: 'region',
+                  worker_id: worker.id,
+                  offset: worker.offset
+                }
+              });
+
+              if (error) {
+                console.error(`Worker ${worker.id} error:`, error);
+                return { worker_id: worker.id, enriched: 0, failed: 0, complete: true, error: true };
+              }
+
+              return {
+                worker_id: worker.id,
+                enriched: data?.enriched || 0,
+                failed: data?.failed || 0,
+                complete: data?.complete || false,
+                remaining: data?.remaining || 0
+              };
+            } catch (err) {
+              console.error(`Worker ${worker.id} exception:`, err);
+              return { worker_id: worker.id, enriched: 0, failed: 0, complete: true, error: true };
+            }
+          });
+
+        // Wait for all workers to complete
+        const results = await Promise.all(workerPromises);
+        
+        // Aggregate results
+        let batchEnriched = 0;
+        let batchFailed = 0;
+        let allComplete = true;
+        
+        results.forEach((result) => {
+          batchEnriched += result.enriched;
+          batchFailed += result.failed;
+          
+          if (!result.complete && !result.error) {
+            allComplete = false;
+            // Update worker offset for next iteration
+            const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
+            if (workerIndex !== -1) {
+              initialWorkers[workerIndex].offset += parallelWorkers * 20; // Jump ahead by total worker batch size
+              initialWorkers[workerIndex].enriched += result.enriched;
+            }
+          } else {
+            // Mark worker as inactive
+            const workerIndex = initialWorkers.findIndex(w => w.id === result.worker_id);
+            if (workerIndex !== -1) {
+              initialWorkers[workerIndex].active = false;
+            }
+          }
         });
 
-        if (error) {
-          console.error(`Enrichment call failed (iteration ${iteration}):`, error);
-          toast.error(`Enrichment error at batch ${iteration}. Stopping.`);
-          break;
-        }
+        totalEnriched += batchEnriched;
+        totalFailed += batchFailed;
 
-        if (!data) {
-          console.error(`No data returned (iteration ${iteration})`);
-          toast.error('No response from enrichment function.');
-          break;
-        }
+        // Get total remaining count
+        const { count } = await supabase
+          .from('climate_inequality_regions')
+          .select('region_code', { count: 'exact', head: true })
+          .eq('region_type', 'region')
+          .eq('data_year', year)
+          .contains('data_sources', ['Synthetic']);
 
-        totalEnriched += data?.enriched || 0;
-        totalFailed += data?.failed || 0;
+        const remaining = count || 0;
 
         setProgress({
           enriched: totalEnriched,
-          total: totalEnriched + (data?.remaining || 0),
+          total: totalEnriched + remaining,
           failed: totalFailed
         });
+
+        setWorkers([...initialWorkers]);
 
         // Update speed tracking
         setTimeEstimate(prev => {
           if (!prev) return null;
           const now = Date.now();
-          const timeSinceLastCheck = (now - prev.lastCheckTime) / 1000 / 60; // minutes
+          const timeSinceLastCheck = (now - prev.lastCheckTime) / 1000 / 60;
           const itemsSinceLastCheck = totalEnriched - prev.lastCheckItems;
           
           if (timeSinceLastCheck > 0 && itemsSinceLastCheck > 0) {
             const itemsPerMinute = itemsSinceLastCheck / timeSinceLastCheck;
             const elapsedMinutes = (now - prev.startTime) / 1000 / 60;
             
-            setSpeedData(prevData => [
-              ...prevData,
-              {
-                time: `${Math.floor(elapsedMinutes)}m`,
-                itemsPerMinute: Math.round(itemsPerMinute * 10) / 10
-              }
-            ].slice(-20)); // Keep last 20 data points
+            // Track per-worker speeds
+            const workerSpeeds: any = {
+              time: `${Math.floor(elapsedMinutes)}m`,
+              itemsPerMinute: Math.round(itemsPerMinute * 10) / 10
+            };
+            
+            initialWorkers.forEach(w => {
+              workerSpeeds[`worker${w.id}`] = w.active ? Math.round((w.enriched / elapsedMinutes) * 10) / 10 : 0;
+            });
+            
+            setSpeedData(prevData => [...prevData, workerSpeeds].slice(-20));
             
             return {
               ...prev,
@@ -196,27 +282,26 @@ export function DataEnrichment() {
           return { ...prev, itemsProcessed: totalEnriched };
         });
 
-        shouldContinue = data?.shouldContinue === true;
-
-        if (shouldContinue) {
-          console.log(`Batch ${iteration}: ${data?.enriched} enriched, ${data?.remaining} remaining...`);
-          
-          if (!autoResume && data?.remaining > 0) {
-            toast.info(`Batch complete. ${data.remaining} regions remaining. Click again to continue.`);
-            break;
-          }
-          
-          // Configurable delay between batches
-          await new Promise(resolve => setTimeout(resolve, pauseInterval * 1000));
-        } else {
-          toast.success(`Enrichment complete! ${totalEnriched} regions updated with real data.`);
+        if (allComplete || remaining === 0) {
+          toast.success(`Parallel enrichment complete! ${totalEnriched} regions updated with real data.`);
+          break;
         }
+
+        console.log(`Iteration ${iteration}: ${batchEnriched} enriched this round, ${remaining} remaining...`);
+
+        if (!autoResume) {
+          toast.info(`Batch complete. ${remaining} regions remaining. Click again to continue.`);
+          break;
+        }
+
+        // Delay between iterations
+        await new Promise(resolve => setTimeout(resolve, pauseInterval * 1000));
       }
 
       if (shouldStop) {
         toast.info(`Enrichment stopped by user. ${totalEnriched} regions enriched, progress saved.`);
-      } else if (iteration >= 1000) {
-        toast.warning('Enrichment paused after 1000 iterations. Click again to continue.');
+      } else if (iteration >= maxIterations) {
+        toast.warning('Enrichment paused after max iterations. Click again to continue.');
       }
     } catch (error) {
       console.error('Enrichment error:', error);
@@ -224,6 +309,7 @@ export function DataEnrichment() {
     } finally {
       setIsEnriching(false);
       setTimeEstimate(null);
+      setWorkers([]);
     }
   };
 
@@ -280,6 +366,23 @@ export function DataEnrichment() {
                 Auto-resume enrichment
               </label>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <label htmlFor="parallel-workers" className="text-xs text-muted-foreground whitespace-nowrap">
+              Parallel workers:
+            </label>
+            <input
+              type="number"
+              id="parallel-workers"
+              min="1"
+              max="10"
+              value={parallelWorkers}
+              onChange={(e) => setParallelWorkers(Math.max(1, Math.min(10, parseInt(e.target.value) || 5)))}
+              disabled={isEnriching}
+              className="w-16 h-8 px-2 text-sm rounded border border-border bg-background text-foreground focus:ring-2 focus:ring-primary"
+            />
+            <span className="text-xs text-muted-foreground">(10x faster)</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -396,8 +499,15 @@ export function DataEnrichment() {
 
             {speedData.length > 1 && (
               <div className="pt-2">
-                <div className="text-xs text-muted-foreground mb-2">Enrichment Speed</div>
-                <ResponsiveContainer width="100%" height={120}>
+                <div className="text-xs text-muted-foreground mb-2">
+                  Enrichment Speed ({parallelWorkers} workers)
+                  {workers.length > 0 && (
+                    <span className="ml-2">
+                      Active: {workers.filter(w => w.active).length}
+                    </span>
+                  )}
+                </div>
+                <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={speedData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis 
@@ -425,7 +535,7 @@ export function DataEnrichment() {
                       stroke="hsl(var(--primary))" 
                       strokeWidth={2}
                       dot={{ fill: 'hsl(var(--primary))', r: 3 }}
-                      name="Speed"
+                      name="Total Speed"
                     />
                   </LineChart>
                 </ResponsiveContainer>

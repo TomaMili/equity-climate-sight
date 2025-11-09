@@ -14,13 +14,13 @@ serve(async (req) => {
   }
 
   try {
-    const { year = 2024, region_type = 'country' } = await req.json().catch(() => ({}));
+    const { year = 2024, region_type = 'country', worker_id = 0, offset = 0 } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`Enriching ${region_type}s for year ${year} with real data...`);
+    console.log(`[Worker ${worker_id}] Enriching ${region_type}s for year ${year} with offset ${offset}...`);
 
     // Get regions that need enrichment (those with synthetic data)
     const { data: regions, error: fetchError } = await supabase
@@ -29,23 +29,24 @@ serve(async (req) => {
       .eq('region_type', region_type)
       .eq('data_year', year)
       .contains('data_sources', ['Synthetic'])
-      .limit(BATCH_SIZE);
+      .range(offset, offset + BATCH_SIZE - 1); // Use offset for parallel workers
 
     if (fetchError) throw fetchError;
 
     if (!regions || regions.length === 0) {
-      console.log('No regions need enrichment');
+      console.log(`[Worker ${worker_id}] No regions need enrichment at offset ${offset}`);
       return new Response(
         JSON.stringify({ 
           success: true, 
           complete: true,
-          message: 'All regions already enriched' 
+          message: 'All regions already enriched',
+          worker_id
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Processing ${regions.length} regions...`);
+    console.log(`[Worker ${worker_id}] Processing ${regions.length} regions...`);
     let enrichedCount = 0;
     let failedCount = 0;
 
@@ -98,14 +99,14 @@ serve(async (req) => {
             .eq('data_year', year);
 
           if (updateError) {
-            console.error(`Update failed for ${region.region_code}:`, updateError);
+            console.error(`[Worker ${worker_id}] Update failed for ${region.region_code}:`, updateError);
             failedCount++;
           } else {
             enrichedCount++;
-            console.log(`✓ Enriched ${region.region_code}`);
+            console.log(`[Worker ${worker_id}] ✓ Enriched ${region.region_code}`);
           }
         } else {
-          console.log(`⚠ No real data available for ${region.region_code}`);
+          console.log(`[Worker ${worker_id}] ⚠ No real data available for ${region.region_code}`);
         }
 
         // Small delay to respect API rate limits
@@ -127,7 +128,7 @@ serve(async (req) => {
     const remaining = (count || 0);
     const isComplete = remaining === 0;
 
-    console.log(`✅ Enriched ${enrichedCount} regions, ${failedCount} failed. ${remaining} remaining.`);
+    console.log(`[Worker ${worker_id}] ✅ Enriched ${enrichedCount} regions, ${failedCount} failed. ${remaining} remaining.`);
 
     return new Response(
       JSON.stringify({
@@ -136,7 +137,8 @@ serve(async (req) => {
         enriched: enrichedCount,
         failed: failedCount,
         remaining,
-        shouldContinue: !isComplete
+        shouldContinue: !isComplete,
+        worker_id
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
